@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { MentionInput } from '@/components/MentionInput'
 import { MessageBubble } from '@/components/MessageBubble'
 import { ArtifactPanel } from '@/components/ArtifactPanel'
@@ -35,11 +35,13 @@ type WorkspaceResponse = {
 
 export default function WorkspacePage() {
   const params = useParams<{ id: string }>()
+  const router = useRouter()
   const workspaceId = params.id
   const [messages, setMessages] = useState<WorkspaceMessage[]>([])
   const [artifacts, setArtifacts] = useState<WorkspaceArtifact[]>([])
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
+  const [workspaceTitle, setWorkspaceTitle] = useState('')
   const bottomRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -60,6 +62,7 @@ export default function WorkspacePage() {
         if (active) {
           setMessages(data.workspace.messages)
           setArtifacts(data.workspace.artifacts ?? [])
+          setWorkspaceTitle(data.workspace.title)
         }
       } catch (error) {
         alert(error instanceof Error ? error.message : '加载工作台失败')
@@ -91,6 +94,32 @@ export default function WorkspacePage() {
   const activeModels = useMemo(() => {
     return Array.from(new Set(messages.map((message) => message.modelId).filter(Boolean))) as string[]
   }, [messages])
+
+  const rounds = useMemo(() => {
+    const result: { userMsg: WorkspaceMessage; aiMsgs: WorkspaceMessage[] }[] = []
+    for (let i = 0; i < messages.length; i++) {
+      if (messages[i].role === 'user') {
+        const aiMsgs: WorkspaceMessage[] = []
+        let j = i + 1
+        while (j < messages.length && messages[j].role === 'ai') {
+          aiMsgs.push(messages[j])
+          j++
+        }
+        result.push({ userMsg: messages[i], aiMsgs })
+      }
+    }
+    return result
+  }, [messages])
+
+  async function handleNewWorkspace() {
+    const res = await fetch('/api/workspace/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: '新工作台' }),
+    })
+    const data = await res.json()
+    router.push('/workspace/' + data.workspace.id)
+  }
 
   async function handleRetry(messageId: string) {
     await fetch(`/api/message/${messageId}/retry`, { method: 'POST' })
@@ -273,9 +302,46 @@ export default function WorkspacePage() {
 
   return (
     <main className="flex h-screen bg-slate-50 text-slate-900">
-      <aside className="w-48 border-r border-slate-200 bg-white p-6">
-        <div className="text-sm font-semibold text-slate-900">数据源</div>
-        <div className="mt-4 text-sm text-slate-500">暂无内容</div>
+      <aside className="w-52 border-r border-slate-200 bg-white flex flex-col overflow-hidden">
+        <div className="p-4 border-b border-slate-100">
+          <button
+            onClick={() => router.push('/workspaces')}
+            className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1 mb-2"
+          >
+            ← 历史工作台
+          </button>
+          <div className="text-sm font-semibold text-slate-800 truncate">
+            {workspaceTitle || 'Gambit 工作台'}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-1">
+          {rounds.map((round, idx) => (
+            <button
+              key={round.userMsg.id}
+              onClick={() => {
+                document.getElementById('msg-' + round.userMsg.id)?.scrollIntoView({ behavior: 'smooth' })
+              }}
+              className="text-left px-3 py-2 rounded-lg text-xs text-slate-600 hover:bg-slate-100 truncate"
+            >
+              <span className="text-slate-400 mr-1">#{idx + 1}</span>
+              {round.userMsg.content.slice(0, 28)}
+              {round.userMsg.content.length > 28 ? '…' : ''}
+            </button>
+          ))}
+          {rounds.length === 0 && !loading && (
+            <div className="text-xs text-slate-400 px-3 py-2">对话后这里会出现导航</div>
+          )}
+        </div>
+
+        <div className="p-3 border-t border-slate-100">
+          <button
+            onClick={handleNewWorkspace}
+            className="w-full text-xs bg-indigo-500 text-white rounded-lg py-2 hover:bg-indigo-400"
+          >
+            + 新建工作台
+          </button>
+        </div>
       </aside>
 
       <section className="flex min-w-0 flex-1 flex-col">
@@ -325,7 +391,7 @@ export default function WorkspacePage() {
             ) : messages.length === 0 ? (
               <div className="flex flex-1 items-center justify-center">
                 <div className="text-center max-w-md">
-                  <img src="/mascot.png" className="w-24 mx-auto opacity-80" />
+                  <img src="/mascot.png" className="w-24 mx-auto opacity-80" alt="mascot" />
                   <h2 className="text-xl font-semibold text-slate-700 mt-4">开始一次多 AI 协作</h2>
                   <p className="text-sm text-slate-500 mt-2">
                     在下方输入问题，@ 选择两个以上模型或一位专家角色开始。
@@ -335,25 +401,26 @@ export default function WorkspacePage() {
             ) : (
               <div className="flex flex-col gap-4">
                 {messages.map((message) => (
-                  <MessageBubble
-                    key={message.id}
-                    id={message.id}
-                    role={message.role}
-                    modelId={message.modelId}
-                    initialContent={message.content}
-                    status={message.status}
-                    onRetry={handleRetry}
-                    onStreamDone={() => {
-                      if (
-                        message.role === 'ai' &&
-                        (message.modelId === '合成官' ||
-                          (message.modelId?.startsWith('审稿官-') ?? false) ||
-                          message.modelId === '比稿官')
-                      ) {
-                        void refreshArtifacts()
-                      }
-                    }}
-                  />
+                  <div key={message.id} id={"msg-" + message.id}>
+                    <MessageBubble
+                      id={message.id}
+                      role={message.role}
+                      modelId={message.modelId}
+                      initialContent={message.content}
+                      status={message.status}
+                      onRetry={handleRetry}
+                      onStreamDone={() => {
+                        if (
+                          message.role === 'ai' &&
+                          (message.modelId === '合成官' ||
+                            (message.modelId?.startsWith('审稿官-') ?? false) ||
+                            message.modelId === '比稿官')
+                        ) {
+                          void refreshArtifacts()
+                        }
+                      }}
+                    />
+                  </div>
                 ))}
                 <div ref={bottomRef} />
               </div>
