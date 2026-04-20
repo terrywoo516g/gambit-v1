@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 
 interface MentionInputProps {
@@ -10,6 +10,7 @@ interface MentionInputProps {
   }) => void | Promise<void>
   disabled?: boolean
   initialModels?: string[]
+  prefillText?: string
 }
 
 type Token = {
@@ -24,6 +25,7 @@ export function MentionInput({
   onSubmit,
   disabled = false,
   initialModels = ['豆包', 'DeepSeek'],
+  prefillText,
 }: MentionInputProps) {
   const [text, setText] = useState('')
   const [tab, setTab] = useState<'models' | 'roles'>('models')
@@ -32,6 +34,14 @@ export function MentionInput({
   const [tokens, setTokens] = useState<Token[]>(() =>
     initialModels.map((model) => ({ type: 'model', value: model }))
   )
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    if (prefillText) {
+      setText(prefillText)
+      textareaRef.current?.focus()
+    }
+  }, [prefillText])
 
   const models = useMemo(
     () => tokens.filter((token) => token.type === 'model').map((token) => token.value),
@@ -115,6 +125,7 @@ export function MentionInput({
       </div>
 
       <textarea
+        ref={textareaRef}
         value={text}
         onChange={(event) => {
           setText(event.target.value)

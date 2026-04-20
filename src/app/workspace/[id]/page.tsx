@@ -42,6 +42,7 @@ export default function WorkspacePage() {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [workspaceTitle, setWorkspaceTitle] = useState('')
+  const [followUpText, setFollowUpText] = useState('')
   const bottomRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -251,6 +252,7 @@ export default function WorkspacePage() {
         return
       } finally {
         setSending(false)
+        setFollowUpText('')
       }
     }
 
@@ -297,6 +299,7 @@ export default function WorkspacePage() {
       alert(error instanceof Error ? error.message : '发送失败')
     } finally {
       setSending(false)
+      setFollowUpText('')
     }
   }
 
@@ -409,6 +412,9 @@ export default function WorkspacePage() {
                       initialContent={message.content}
                       status={message.status}
                       onRetry={handleRetry}
+                      onFollowUp={(modelId, quote) => {
+                        setFollowUpText(`@${modelId}\n> ${quote}\n\n`)
+                      }}
                       onStreamDone={() => {
                         if (
                           message.role === 'ai' &&
@@ -428,7 +434,7 @@ export default function WorkspacePage() {
           </div>
 
           <div className="border-t border-slate-200 bg-white px-6 py-4">
-            <MentionInput onSubmit={handleSubmit} disabled={sending} />
+            <MentionInput onSubmit={handleSubmit} disabled={sending} prefillText={followUpText} />
           </div>
         </div>
       </section>

@@ -14,6 +14,7 @@ interface MessageBubbleProps {
   status: 'pending' | 'streaming' | 'done' | 'failed'
   onRetry?: (id: string) => void
   onStreamDone?: (id: string) => void
+  onFollowUp?: (modelId: string, quote: string) => void
 }
 
 export function MessageBubble({
@@ -24,6 +25,7 @@ export function MessageBubble({
   status,
   onRetry,
   onStreamDone,
+  onFollowUp,
 }: MessageBubbleProps) {
   const shouldStream = role === 'ai' && (status === 'pending' || status === 'streaming')
   const { content: streamedContent, status: streamStatus } = useMessageStream(
@@ -124,6 +126,20 @@ export function MessageBubble({
         {!isUser && shouldStream && streamStatus === 'streaming' && !hasStreamedContent ? (
           <div className="mt-2 text-xs text-slate-400">正在思考...</div>
         ) : null}
+
+        {!isUser && status === 'done' && onFollowUp && modelId && (
+          <div className="mt-3 pt-2 border-t border-slate-100">
+            <button
+              onClick={() => {
+                const quote = displayContent.slice(0, 100) + (displayContent.length > 100 ? '…' : '')
+                onFollowUp(modelId, quote)
+              }}
+              className="text-xs text-slate-400 hover:text-indigo-500 transition"
+            >
+              追问
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
