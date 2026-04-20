@@ -8,6 +8,9 @@ import {
   DIVERGE_PRAGMATIC_SYSTEM,
 } from '@/prompts/diverge'
 import { SYNTHESIZE_SYSTEM } from '@/prompts/synthesize'
+import { REVIEW_LOGIC_SYSTEM, REVIEW_WRITING_SYSTEM } from '@/prompts/review'
+import { COMPARE_SYSTEM } from '@/prompts/compare'
+import { v4 as uuidv4 } from 'uuid'
 
 type RoleConfig = { modelId: string; provider: 'qiniu'; systemPrompt: string }
 
@@ -31,6 +34,21 @@ const ROLE_CONFIG: Record<string, RoleConfig> = {
     modelId: 'deepseek-r1',
     provider: 'qiniu',
     systemPrompt: SYNTHESIZE_SYSTEM,
+  },
+  '审稿官-逻辑': {
+    modelId: 'deepseek-v3',
+    provider: 'qiniu',
+    systemPrompt: REVIEW_LOGIC_SYSTEM,
+  },
+  '审稿官-文字': {
+    modelId: 'moonshotai/kimi-k2.5',
+    provider: 'qiniu',
+    systemPrompt: REVIEW_WRITING_SYSTEM,
+  },
+  比稿官: {
+    modelId: 'z-ai/glm-4.7',
+    provider: 'qiniu',
+    systemPrompt: COMPARE_SYSTEM,
   },
 }
 
@@ -125,6 +143,26 @@ export async function GET(
                 cost: chunk.data.cost,
               },
             })
+            if (
+              message.modelId === '合成官' ||
+              (message.modelId && message.modelId.startsWith('审稿官-')) ||
+              message.modelId === '比稿官'
+            ) {
+              await prisma.artifact.create({
+                data: {
+                  id: uuidv4(),
+                  workspaceId: message.workspaceId,
+                  type:
+                    message.modelId === '合成官'
+                      ? 'synthesis'
+                      : message.modelId === '比稿官'
+                        ? 'compare_table'
+                        : 'review_report',
+                  content: fullContent,
+                  version: 1,
+                },
+              })
+            }
             controller.close()
             return
           }

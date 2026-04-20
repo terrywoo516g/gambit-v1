@@ -122,6 +122,11 @@ export function MentionInput({
             setWarning('')
           }
         }}
+        onInput={(event) => {
+          const target = event.target as HTMLTextAreaElement
+          target.style.height = 'auto'
+          target.style.height = Math.min(target.scrollHeight, 240) + 'px'
+        }}
         onKeyDown={(event) => {
           if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault()
@@ -130,7 +135,7 @@ export function MentionInput({
         }}
         disabled={disabled}
         placeholder="输入你的问题，至少选择 2 个 AI 协作"
-        className="min-h-[120px] w-full resize-none rounded-t-none rounded-b-3xl border-0 px-4 py-4 text-sm outline-none placeholder:text-slate-400"
+        className="min-h-[80px] max-h-[240px] w-full resize-none overflow-y-auto rounded-t-none rounded-b-3xl border-0 px-4 py-4 text-sm outline-none placeholder:text-slate-400"
       />
 
       <div className="flex items-center justify-between px-4 pb-4">

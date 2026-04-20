@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { v4 as uuidv4 } from 'uuid'
 
-type ToolName = 'diverge' | 'synthesize'
+type ToolName = 'diverge' | 'synthesize' | 'review' | 'compare'
 
 export async function POST(req: NextRequest) {
   try {
@@ -118,6 +118,81 @@ export async function POST(req: NextRequest) {
         userMessageId,
         messageIds: [synthesizeMessageId],
         mode: 'synthesize',
+      })
+    }
+
+    if (tool === 'review') {
+      const userMessageId = uuidv4()
+      const logicId = uuidv4()
+      const writingId = uuidv4()
+
+      await prisma.message.create({
+        data: {
+          id: userMessageId,
+          workspaceId,
+          role: 'user',
+          content: question,
+          status: 'done',
+        },
+      })
+
+      await prisma.message.createMany({
+        data: [
+          {
+            id: logicId,
+            workspaceId,
+            role: 'ai',
+            modelId: '审稿官-逻辑',
+            content: '',
+            status: 'pending',
+          },
+          {
+            id: writingId,
+            workspaceId,
+            role: 'ai',
+            modelId: '审稿官-文字',
+            content: '',
+            status: 'pending',
+          },
+        ],
+      })
+
+      return NextResponse.json({
+        userMessageId,
+        messageIds: [logicId, writingId],
+        mode: 'review',
+      })
+    }
+
+    if (tool === 'compare') {
+      const userMessageId = uuidv4()
+      const compareId = uuidv4()
+
+      await prisma.message.create({
+        data: {
+          id: userMessageId,
+          workspaceId,
+          role: 'user',
+          content: question,
+          status: 'done',
+        },
+      })
+
+      await prisma.message.create({
+        data: {
+          id: compareId,
+          workspaceId,
+          role: 'ai',
+          modelId: '比稿官',
+          content: '',
+          status: 'pending',
+        },
+      })
+
+      return NextResponse.json({
+        userMessageId,
+        messageIds: [compareId],
+        mode: 'compare',
       })
     }
 

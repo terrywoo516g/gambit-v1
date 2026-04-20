@@ -1,8 +1,10 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useMessageStream } from '@/hooks/useMessageStream'
 import { cn } from '@/lib/utils'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 interface MessageBubbleProps {
   id: string
@@ -11,6 +13,7 @@ interface MessageBubbleProps {
   initialContent: string
   status: 'pending' | 'streaming' | 'done' | 'failed'
   onRetry?: (id: string) => void
+  onStreamDone?: (id: string) => void
 }
 
 export function MessageBubble({
@@ -20,11 +23,24 @@ export function MessageBubble({
   initialContent,
   status,
   onRetry,
+  onStreamDone,
 }: MessageBubbleProps) {
   const shouldStream = role === 'ai' && (status === 'pending' || status === 'streaming')
   const { content: streamedContent, status: streamStatus } = useMessageStream(
     shouldStream ? id : null
   )
+  const notifiedRef = useRef(false)
+
+  useEffect(() => {
+    if (!shouldStream) return
+    if (!onStreamDone) return
+    if (notifiedRef.current) return
+
+    if (streamStatus === 'done') {
+      notifiedRef.current = true
+      onStreamDone(id)
+    }
+  }, [id, onStreamDone, shouldStream, streamStatus])
 
   const isUser = role === 'user'
   const hasStreamedContent = streamedContent.trim().length > 0
@@ -68,8 +84,10 @@ export function MessageBubble({
     <div className={cn('flex w-full', isUser ? 'justify-end' : 'justify-start')}>
       <div
         className={cn(
-          'max-w-3xl rounded-2xl px-4 py-3 shadow-sm',
-          isUser ? 'bg-slate-900 text-white' : 'border border-slate-200 bg-white text-slate-900'
+          'rounded-2xl px-4 py-3 shadow-sm',
+          isUser 
+            ? 'max-w-lg bg-slate-900 text-white' 
+            : 'max-w-2xl border border-slate-200 bg-white text-slate-900'
         )}
       >
         <div className={cn('mb-2 text-xs font-medium', modelLabelClass)}>
@@ -82,8 +100,26 @@ export function MessageBubble({
             <div className="h-3 w-44 animate-pulse rounded bg-slate-200" />
             <div className="h-3 w-52 animate-pulse rounded bg-slate-200" />
           </div>
-        ) : (
+        ) : isUser ? (
           <div className="whitespace-pre-wrap text-sm leading-6">{displayContent}</div>
+        ) : (
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              h1: ({children}) => <h1 className="text-xl font-bold my-2">{children}</h1>,
+              h2: ({children}) => <h2 className="text-lg font-bold my-2">{children}</h2>,
+              h3: ({children}) => <h3 className="text-base font-semibold my-1">{children}</h3>,
+              p: ({children}) => <p className="my-1 leading-relaxed">{children}</p>,
+              ul: ({children}) => <ul className="list-disc pl-4 my-1 space-y-0.5">{children}</ul>,
+              ol: ({children}) => <ol className="list-decimal pl-4 my-1 space-y-0.5">{children}</ol>,
+              li: ({children}) => <li className="leading-relaxed">{children}</li>,
+              strong: ({children}) => <strong className="font-semibold">{children}</strong>,
+              code: ({children}) => <code className="bg-gray-100 px-1 rounded text-sm font-mono">{children}</code>,
+              pre: ({children}) => <pre className="bg-gray-100 p-2 rounded text-sm overflow-x-auto my-2">{children}</pre>,
+            }}
+          >
+            {displayContent}
+          </ReactMarkdown>
         )}
 
         {!isUser && shouldStream && streamStatus === 'streaming' && !hasStreamedContent ? (
