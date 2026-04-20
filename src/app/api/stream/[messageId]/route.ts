@@ -76,7 +76,7 @@ export async function GET(
     take: 20,
   })
 
-  const contextMessages = history.map((m) => ({
+  const contextMessages = history.map((m: { role: string; content: string }) => ({
     role: (m.role === 'ai' ? 'assistant' : 'user') as 'user' | 'assistant',
     content: m.content,
   }))
