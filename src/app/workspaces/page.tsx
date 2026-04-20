@@ -166,10 +166,31 @@ export default function WorkspacesPage() {
                 <div
                   key={w.id}
                   onClick={() => router.push('/workspace/' + w.id)}
-                  className="cursor-pointer rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:bg-white/10"
+                  className="group cursor-pointer rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:bg-white/10"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="font-medium text-white">{w.title}</div>
+                    <div className="flex items-center gap-2">
+                      <div className="font-medium text-white">{w.title}</div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (confirm('确定删除？')) {
+                            fetch('/api/workspace/' + w.id, { method: 'DELETE' })
+                              .then((res) => {
+                                if (res.ok) {
+                                  setWorkspaces((prev) => prev.filter((item) => item.id !== w.id))
+                                }
+                              })
+                              .catch(console.error)
+                          }
+                        }}
+                        className="ml-auto hidden rounded p-1 text-slate-400 transition hover:bg-white/10 hover:text-red-400 group-hover:block"
+                        aria-label="删除工作台"
+                      >
+                        🗑
+                      </button>
+                    </div>
                     <div className="text-sm text-slate-500">{formatTime(w.updatedAt)}</div>
                   </div>
 

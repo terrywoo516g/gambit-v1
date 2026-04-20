@@ -51,9 +51,10 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
 export async function DELETE(req: NextRequest, { params }: RouteParams) {
   try {
-    await prisma.workspace.delete({
-      where: { id: params.id },
-    });
+    await prisma.message.deleteMany({ where: { workspaceId: params.id } });
+    await prisma.artifact.deleteMany({ where: { workspaceId: params.id } });
+    await prisma.source.deleteMany({ where: { workspaceId: params.id } });
+    await prisma.workspace.delete({ where: { id: params.id } });
 
     return NextResponse.json({ ok: true });
   } catch (err) {
