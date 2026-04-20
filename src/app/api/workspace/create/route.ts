@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
       data: {
         id: uuidv4(),
         deviceId,
-        title: title || 'New Workspace',
+        title: title || '新工作台',
         mode: mode || 'chat',
         toolsUsed: '[]',
         currentState: '{}',
