@@ -63,18 +63,17 @@ export function MessageBubble({
   if (hasFailed) {
     return (
       <div className="flex w-full justify-start">
-        <div className="max-w-3xl rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="max-w-2xl rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           <div className="mb-2 text-xs font-medium text-red-500">{modelId ?? 'AI'}</div>
-          <div>回复失败</div>
-          {onRetry ? (
+          <div className="text-xs text-red-500 mt-2">
+            生成失败
             <button
-              type="button"
-              className="mt-3 rounded-md border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-100"
-              onClick={() => onRetry(id)}
+              onClick={() => onRetry?.(id)}
+              className="ml-2 underline hover:text-red-600"
             >
-              重试
+              点击重试
             </button>
-          ) : null}
+          </div>
         </div>
       </div>
     )

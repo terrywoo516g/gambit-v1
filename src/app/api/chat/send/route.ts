@@ -56,6 +56,15 @@ export async function POST(req: NextRequest) {
       },
     })
 
+    // 自动更新标题：如果 workspace.title === '新工作台'，用 text 前 30 字更新标题
+    const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId } })
+    if (workspace?.title === '新工作台' && text) {
+      await prisma.workspace.update({
+        where: { id: workspaceId },
+        data: { title: text.slice(0, 30) },
+      })
+    }
+
     // 为每个 model 创建一条 pending AI message
     const messageIds: string[] = []
     for (const modelName of mentions.models) {

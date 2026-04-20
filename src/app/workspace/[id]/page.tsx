@@ -92,6 +92,15 @@ export default function WorkspacePage() {
     return Array.from(new Set(messages.map((message) => message.modelId).filter(Boolean))) as string[]
   }, [messages])
 
+  async function handleRetry(messageId: string) {
+    await fetch(`/api/message/${messageId}/retry`, { method: 'POST' })
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === messageId ? { ...m, status: 'pending' as const, content: '' } : m
+      )
+    )
+  }
+
   async function handleSubmit(payload: {
     text: string
     mentions: { models: string[]; tool: string | null }
@@ -313,6 +322,16 @@ export default function WorkspacePage() {
                   </div>
                 </div>
               </div>
+            ) : messages.length === 0 ? (
+              <div className="flex flex-1 items-center justify-center">
+                <div className="text-center max-w-md">
+                  <img src="/mascot.png" className="w-24 mx-auto opacity-80" />
+                  <h2 className="text-xl font-semibold text-slate-700 mt-4">开始一次多 AI 协作</h2>
+                  <p className="text-sm text-slate-500 mt-2">
+                    在下方输入问题，@ 选择两个以上模型或一位专家角色开始。
+                  </p>
+                </div>
+              </div>
             ) : (
               <div className="flex flex-col gap-4">
                 {messages.map((message) => (
@@ -323,6 +342,7 @@ export default function WorkspacePage() {
                     modelId={message.modelId}
                     initialContent={message.content}
                     status={message.status}
+                    onRetry={handleRetry}
                     onStreamDone={() => {
                       if (
                         message.role === 'ai' &&

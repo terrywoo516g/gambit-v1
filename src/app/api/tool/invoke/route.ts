@@ -39,6 +39,15 @@ export async function POST(req: NextRequest) {
         },
       })
 
+      // 自动更新标题
+      const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId } })
+      if (workspace?.title === '新工作台' && question) {
+        await prisma.workspace.update({
+          where: { id: workspaceId },
+          data: { title: question.slice(0, 30) },
+        })
+      }
+
       await prisma.message.createMany({
         data: [
           {
@@ -103,6 +112,15 @@ export async function POST(req: NextRequest) {
         },
       })
 
+      // 自动更新标题
+      const wsForSynth = await prisma.workspace.findUnique({ where: { id: workspaceId } })
+      if (wsForSynth?.title === '新工作台' && question) {
+        await prisma.workspace.update({
+          where: { id: workspaceId },
+          data: { title: question.slice(0, 30) },
+        })
+      }
+
       await prisma.message.create({
         data: {
           id: synthesizeMessageId,
@@ -135,6 +153,15 @@ export async function POST(req: NextRequest) {
           status: 'done',
         },
       })
+
+      // 自动更新标题
+      const wsForReview = await prisma.workspace.findUnique({ where: { id: workspaceId } })
+      if (wsForReview?.title === '新工作台' && question) {
+        await prisma.workspace.update({
+          where: { id: workspaceId },
+          data: { title: question.slice(0, 30) },
+        })
+      }
 
       await prisma.message.createMany({
         data: [
@@ -177,6 +204,15 @@ export async function POST(req: NextRequest) {
           status: 'done',
         },
       })
+
+      // 自动更新标题
+      const wsForCompare = await prisma.workspace.findUnique({ where: { id: workspaceId } })
+      if (wsForCompare?.title === '新工作台' && question) {
+        await prisma.workspace.update({
+          where: { id: workspaceId },
+          data: { title: question.slice(0, 30) },
+        })
+      }
 
       await prisma.message.create({
         data: {
