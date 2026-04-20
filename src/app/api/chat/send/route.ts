@@ -27,10 +27,10 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // 至少 2 个 AI —— DNA 级硬约束
-    if (mentions.models.length < 2) {
+    // 至少 1 个 AI —— 追问时只有1个模型
+    if (mentions.models.length < 1) {
       return NextResponse.json(
-        { error: 'At least 2 AI models required (Gambit DNA constraint)' },
+        { error: 'At least 1 AI model required (Gambit DNA constraint)' },
         { status: 400 }
       )
     }

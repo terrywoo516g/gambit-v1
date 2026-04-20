@@ -11,6 +11,8 @@ interface MentionInputProps {
   disabled?: boolean
   initialModels?: string[]
   prefillText?: string
+  prefillTokens?: Token[]
+  prefillKey?: number
 }
 
 type Token = {
@@ -26,6 +28,8 @@ export function MentionInput({
   disabled = false,
   initialModels = ['豆包', 'DeepSeek'],
   prefillText,
+  prefillTokens,
+  prefillKey,
 }: MentionInputProps) {
   const [text, setText] = useState('')
   const [tab, setTab] = useState<'models' | 'roles'>('models')
@@ -37,11 +41,17 @@ export function MentionInput({
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
-    if (prefillText) {
+    if (prefillText && prefillKey) {
       setText(prefillText)
       textareaRef.current?.focus()
     }
-  }, [prefillText])
+  }, [prefillKey])
+
+  useEffect(() => {
+    if (prefillTokens && prefillKey) {
+      setTokens(prefillTokens)
+    }
+  }, [prefillKey])
 
   const models = useMemo(
     () => tokens.filter((token) => token.type === 'model').map((token) => token.value),

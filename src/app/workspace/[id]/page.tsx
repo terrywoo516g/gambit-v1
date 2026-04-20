@@ -43,6 +43,8 @@ export default function WorkspacePage() {
   const [sending, setSending] = useState(false)
   const [workspaceTitle, setWorkspaceTitle] = useState('')
   const [followUpText, setFollowUpText] = useState('')
+  const [prefillKey, setPrefillKey] = useState(0)
+  const [prefillTokens, setPrefillTokens] = useState<{ type: 'model' | 'tool'; value: string }[] | undefined>()
   const bottomRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -413,7 +415,9 @@ export default function WorkspacePage() {
                       status={message.status}
                       onRetry={handleRetry}
                       onFollowUp={(modelId, quote) => {
-                        setFollowUpText(`@${modelId}\n> ${quote}\n\n`)
+                        setFollowUpText(`> ${quote}\n\n`)
+                        setPrefillTokens([{ type: 'model', value: modelId }])
+                        setPrefillKey(prev => prev + 1)
                       }}
                       onStreamDone={() => {
                         if (
@@ -434,7 +438,7 @@ export default function WorkspacePage() {
           </div>
 
           <div className="border-t border-slate-200 bg-white px-6 py-4">
-            <MentionInput onSubmit={handleSubmit} disabled={sending} prefillText={followUpText} />
+            <MentionInput onSubmit={handleSubmit} disabled={sending} prefillText={followUpText} prefillTokens={prefillTokens} prefillKey={prefillKey} />
           </div>
         </div>
       </section>
