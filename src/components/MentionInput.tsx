@@ -87,10 +87,10 @@ export function MentionInput({
     const trimmed = text.trim()
     if (!trimmed || disabled) return
 
-    if (models.length < 2 && tool === null) {
-      setWarning('协作工作台至少需要 2 个 AI')
+    if (models.length < 1 && tool === null) {
+      setWarning('请选择至少 1 个 AI')
       setTimeout(() => {
-        alert('协作工作台至少需要 2 个 AI')
+        alert('请选择至少 1 个 AI')
       }, 300)
       return
     }
