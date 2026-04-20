@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Workspace {
+  id           String   @id
+  userId       String?
+  deviceId     String?
+  title        String
+  mode         String
+  toolsUsed    Json
+  currentState Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  messages     Message[]
+  artifacts    Artifact[]
+  sources      Source[]
+}
+
+model Message {
+  id              String    @id
+  workspaceId     String
+  role            String
+  modelId         String?
+  content         String
+  status          String
+  tokens          Int?
+  cost            Float?
+  parentMessageId String?
+  attachments     Json?
+  createdAt       DateTime  @default(now())
+  workspace       Workspace @relation(fields: [workspaceId], references: [id])
+}
+
+model Artifact {
+  id          String   @id
+  workspaceId String
+  type        String
+  content     String
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+}
+
+model Source {
+  id          String   @id
+  workspaceId String
+  type        String
+  content     String?
+  fileUrl     String?
+  meta        Json?
+  createdAt   DateTime @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+}
+
+model LlmCall {
+  id        String   @id
+  messageId String?
+  provider  String
+  model     String
+  tokensIn  Int
+  tokensOut Int
+  latency   Int
+  cost      Float
+  status    String
+  createdAt DateTime @default(now())
+}
