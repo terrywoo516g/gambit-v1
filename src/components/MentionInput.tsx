@@ -170,7 +170,7 @@ export function MentionInput({
           </button>
 
           {open ? (
-            <div className="absolute bottom-12 left-0 z-20 w-72 rounded-2xl border border-slate-200 bg-white p-3 shadow-lg">
+            <div className="absolute bottom-12 left-0 z-20 w-full md:w-72 rounded-2xl border border-slate-200 bg-white p-3 shadow-lg">
               <div className="mb-3 flex gap-2">
                 <button
                   type="button"

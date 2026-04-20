@@ -58,26 +58,28 @@ export default function HomePage() {
 
       {/* Hero Section */}
       <section className="min-h-screen flex items-center pt-14 px-8 bg-gradient-to-br from-[#0f1117] to-[#1a1f2e]">
-        <div className="max-w-7xl mx-auto w-full flex flex-col md:flex-row items-center gap-12">
-          <div className="flex-1">
-            <h1 className="text-5xl font-bold text-white leading-tight">
-              重要决定<br />
-              不该只听一个 AI 的
-            </h1>
-            <p className="text-slate-400 text-lg mt-4 max-w-md">
-              Gambit 让多个顶级 AI 同时分析你的问题，给出不同角度的回答，再由专业 AI 综合出最优解。
-            </p>
-            <button
-              onClick={handleNewWorkspace}
-              disabled={loading}
-              className="mt-8 bg-indigo-500 hover:bg-indigo-400 text-white px-6 py-3 rounded-xl text-base font-medium transition"
-            >
-              {loading ? '创建中...' : '开始第一次对话 →'}
-            </button>
-          </div>
-          <div className="flex-shrink-0">
-            <div className="drop-shadow-[0_0_40px_rgba(99,102,241,0.3)]">
-              <Image src="/mascot.png" width={280} height={280} alt="Gambit" />
+        <div className="max-w-7xl mx-auto w-full flex flex-col items-center gap-12">
+          <div className="flex-1 w-full text-center md:text-left md:w-auto md:items-start md:flex md:flex-row md:justify-between">
+            <div className="flex-1">
+              <h1 className="text-4xl md:text-5xl font-bold text-white leading-tight">
+                重要决定<br />
+                不该只听一个 AI 的
+              </h1>
+              <p className="text-slate-400 text-lg mt-4 max-w-md mx-auto md:mx-0">
+                Gambit 让多个顶级 AI 同时分析你的问题，给出不同角度的回答，再由专业 AI 综合出最优解。
+              </p>
+              <button
+                onClick={handleNewWorkspace}
+                disabled={loading}
+                className="mt-8 bg-indigo-500 hover:bg-indigo-400 text-white px-6 py-3 rounded-xl text-base font-medium transition mx-auto md:mx-0 md:inline-block"
+              >
+                {loading ? '创建中...' : '开始第一次对话 →'}
+              </button>
+            </div>
+            <div className="flex-shrink-0">
+              <div className="drop-shadow-[0_0_40px_rgba(99,102,241,0.3)]">
+                <Image src="/mascot.png" width={180} height={180} alt="Gambit" className="md:w-72 md:h-72" />
+              </div>
             </div>
           </div>
         </div>

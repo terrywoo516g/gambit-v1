@@ -88,7 +88,7 @@ export function MessageBubble({
           'rounded-2xl px-4 py-3 shadow-sm',
           isUser 
             ? 'max-w-lg bg-slate-900 text-white' 
-            : 'max-w-2xl border border-slate-200 bg-white text-slate-900'
+            : 'max-w-[90%] md:max-w-2xl border border-slate-200 bg-white text-slate-900'
         )}
       >
         <div className={cn('mb-2 text-xs font-medium', modelLabelClass)}>

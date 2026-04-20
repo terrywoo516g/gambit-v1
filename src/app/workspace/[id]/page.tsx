@@ -307,7 +307,7 @@ export default function WorkspacePage() {
 
   return (
     <main className="flex h-screen bg-slate-50 text-slate-900">
-      <aside className="w-52 border-r border-slate-200 bg-white flex flex-col overflow-hidden">
+      <aside className="hidden md:flex w-52 border-r border-slate-200 bg-white flex-col overflow-hidden">
         <div className="p-4 border-b border-slate-100">
           <button
             onClick={() => router.push('/workspaces')}
@@ -443,7 +443,7 @@ export default function WorkspacePage() {
         </div>
       </section>
 
-      <aside className="w-56 border-l border-slate-200 bg-white p-6">
+      <aside className="hidden md:flex w-56 border-l border-slate-200 bg-white p-6">
         <ArtifactPanel
           key={`${workspaceId}:${artifacts.length}:${artifacts[artifacts.length - 1]?.id ?? ''}`}
           workspaceId={workspaceId}
