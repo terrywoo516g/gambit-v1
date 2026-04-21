@@ -1,311 +1,232 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { MentionInput } from '@/components/MentionInput'
-import { MessageBubble } from '@/components/MessageBubble'
+import { useMultiStream } from '@/hooks/useMultiStream'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
-type MessageStatus = 'pending' | 'streaming' | 'done' | 'failed'
-type WsMessage = { id: string; role: 'user' | 'ai'; modelId?: string | null; content: string; status: MessageStatus }
-type WsArtifact = { id: string; type: string; content: string; version: number; createdAt?: string }
-type Round = { userMsg: WsMessage; aiMsgs: WsMessage[] }
+type WorkspaceData = {
+  id: string
+  title: string
+  prompt: string
+  status: string
+  selectedModels: string[]
+  modelRuns: { id: string; model: string; status: string; content: string }[]
+}
+
+const SCENE_BUTTONS = [
+  { key: 'compare', label: '帮我整理成对比表格', icon: '📊' },
+  { key: 'brainstorm', label: '帮我分析共识和分歧', icon: '⚖️' },
+  { key: 'compose', label: '帮我整合成一篇稿子', icon: '📝' },
+  { key: 'review', label: '帮我汇总审阅意见', icon: '✅' },
+]
 
 export default function WorkspacePage() {
   const params = useParams<{ id: string }>()
   const router = useRouter()
-  const workspaceId = params.id
-  const [messages, setMessages] = useState<WsMessage[]>([])
-  const [artifacts, setArtifacts] = useState<WsArtifact[]>([])
+  const wsId = params.id
+  const [workspace, setWorkspace] = useState<WorkspaceData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [sending, setSending] = useState(false)
-  const [workspaceTitle, setWorkspaceTitle] = useState('')
-  const [prefillKey, setPrefillKey] = useState(0)
-  const [prefillText, setPrefillText] = useState('')
-  const [prefillTokens, setPrefillTokens] = useState<
-    { type: 'model' | 'tool'; value: string }[] | undefined
-  >()
-  const [activeAiId, setActiveAiId] = useState<string | null>(null)
-  const bottomRef = useRef<HTMLDivElement | null>(null)
+  const [recommendation, setRecommendation] = useState<{ scene: string; reason: string } | null>(null)
 
+  // 加载 workspace
   useEffect(() => {
-    if (!workspaceId) return
-    let active = true
+    if (!wsId) return
     async function load() {
       try {
-        setLoading(true)
-        const res = await fetch(`/api/workspace/${workspaceId}`)
+        const res = await fetch('/api/workspaces/' + wsId)
         const data = await res.json()
-        if (!res.ok) throw new Error(data.error ?? '加载失败')
-        if (active) {
-          setMessages(data.workspace.messages)
-          setArtifacts(data.workspace.artifacts ?? [])
-          setWorkspaceTitle(data.workspace.title)
-        }
-      } catch (err) {
-        alert(err instanceof Error ? err.message : '加载失败')
+        if (!res.ok) throw new Error(data.error)
+        setWorkspace(data.workspace)
+      } catch (e) {
+        alert(e instanceof Error ? e.message : '加载失败')
       } finally {
-        if (active) setLoading(false)
+        setLoading(false)
       }
     }
     void load()
-    return () => { active = false }
-  }, [workspaceId])
+  }, [wsId])
 
+  // 需要流式输出的 runs
+  const runsToStream = workspace?.modelRuns
+    ?.filter(r => r.status === 'queued' || r.status === 'running')
+    ?.map(r => ({ id: r.id, model: r.model })) ?? []
+
+  const { streams, allDone, completedCount, total } = useMultiStream(
+    runsToStream.length > 0 ? wsId : null,
+    runsToStream
+  )
+
+  // 合并已完成的内容和流式内容
+  function getContent(run: { id: string; model: string; status: string; content: string }): string {
+    if (streams[run.id]?.content) return streams[run.id].content
+    return run.content
+  }
+
+  function getStatus(run: { id: string; status: string }): string {
+    if (streams[run.id]) return streams[run.id].status
+    return run.status
+  }
+
+  // 获取场景推荐
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
-
-  const refreshArtifacts = useCallback(async () => {
-    if (!workspaceId) return
-    const res = await fetch(`/api/workspace/${workspaceId}`)
-    const data = await res.json()
-    setArtifacts(data.workspace.artifacts ?? [])
-  }, [workspaceId])
-
-  const rounds = useMemo<Round[]>(() => {
-    const result: Round[] = []
-    for (let i = 0; i < messages.length; i++) {
-      if (messages[i].role === 'user') {
-        const aiMsgs: WsMessage[] = []
-        let j = i + 1
-        while (j < messages.length && messages[j].role === 'ai') {
-          aiMsgs.push(messages[j]); j++
-        }
-        result.push({ userMsg: messages[i], aiMsgs })
-      }
+    if (!allDone || !wsId || completedCount < 2) return
+    async function recommend() {
+      try {
+        const res = await fetch('/api/workspaces/' + wsId + '/recommend-scene', { method: 'POST' })
+        const data = await res.json()
+        setRecommendation({ scene: data.scene, reason: data.reason })
+      } catch {}
     }
-    return result
-  }, [messages])
+    void recommend()
+  }, [allDone, wsId, completedCount])
 
-  const latestArtifact = useMemo(() => {
-    if (!artifacts.length) return null
-    return [...artifacts].sort((a, b) => {
-      if (a.createdAt && b.createdAt)
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      return b.version - a.version
-    })[0]
-  }, [artifacts])
+  function handleSceneClick(scene: string) {
+    // Phase 1-4 会实现具体场景页面，目前显示占位
+    alert('「' + SCENE_BUTTONS.find(s => s.key === scene)?.label + '」即将上线，敬请期待！')
+  }
 
-  const artifactTitle = useMemo(() => {
-    if (!latestArtifact) return '最终稿'
-    if (latestArtifact.type === 'synthesis') return '综合建议'
-    if (latestArtifact.type === 'review_report') return '审稿报告'
-    if (latestArtifact.type === 'compare_table') return '对比分析'
-    return '最终稿'
-  }, [latestArtifact])
-
-  async function handleRetry(messageId: string) {
-    await fetch(`/api/message/${messageId}/retry`, { method: 'POST' })
-    setMessages(prev =>
-      prev.map(m =>
-        m.id === messageId ? { ...m, status: 'pending' as const, content: '' } : m
-      )
+  if (loading) {
+    return (
+      <div className="min-h-screen blueprint-grid flex items-center justify-center">
+        <div className="text-inkLight">加载中...</div>
+      </div>
     )
   }
 
-  function scrollToMessage(msgId: string) {
-    setActiveAiId(msgId)
-    document.getElementById(`msg-${msgId}`)?.scrollIntoView({
-      behavior: 'smooth', block: 'center',
-    })
+  if (!workspace) {
+    return (
+      <div className="min-h-screen blueprint-grid flex items-center justify-center">
+        <div className="text-inkLight">工作台不存在</div>
+      </div>
+    )
   }
 
-  async function handleSubmit(payload: {
-    text: string
-    mentions: { models: string[]; tool: string | null }
-  }) {
-    if (payload.mentions.tool) {
-      const normalizedToolName = payload.mentions.tool.replace('@', '')
-      const toolMap: Record<string, 'diverge' | 'synthesize' | 'review' | 'compare'> = {
-        分歧官: 'diverge', 合成官: 'synthesize', 审稿官: 'review', 比稿官: 'compare',
-      }
-      const tool = toolMap[normalizedToolName]
-      if (!tool) { alert('该功能即将上线：' + payload.mentions.tool); return }
-      try {
-        setSending(true)
-        const res = await fetch('/api/tool/invoke', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ workspaceId, tool, question: payload.text }),
-        })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error ?? '工具调用失败')
-        const modelIds: Record<string, string[]> = {
-          diverge: ['分歧官-激进', '分歧官-稳健', '分歧官-务实'],
-          synthesize: ['合成官'],
-          review: ['审稿官-逻辑', '审稿官-文字'],
-          compare: ['比稿官'],
-        }
-        const newMsgs: WsMessage[] = [
-          { id: data.userMessageId, role: 'user', content: payload.text, status: 'done' },
-        ]
-        data.messageIds.forEach((mid: string, idx: number) => {
-          newMsgs.push({
-            id: mid, role: 'ai', modelId: modelIds[tool][idx],
-            content: '', status: 'pending',
-          })
-        })
-        setMessages(prev => [...prev, ...newMsgs])
-      } catch (err) {
-        alert(err instanceof Error ? err.message : '工具调用失败')
-      } finally { setSending(false) }
-      return
-    }
-
-    try {
-      setSending(true)
-      const res = await fetch('/api/chat/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          workspaceId, text: payload.text, mentions: payload.mentions,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? '发送失败')
-      setMessages(prev => [
-        ...prev,
-        { id: data.userMessageId, role: 'user', content: payload.text, status: 'done' },
-        ...data.messageIds.map((mid: string, idx: number) => ({
-          id: mid, role: 'ai' as const,
-          modelId: payload.mentions.models[idx],
-          content: '', status: 'pending' as const,
-        })),
-      ])
-    } catch (err) {
-      alert(err instanceof Error ? err.message : '发送失败')
-    } finally { setSending(false) }
-  }
+  const runs = workspace.modelRuns
 
   return (
-    <main className="flex h-screen bg-paper blueprint-grid text-ink">
-      {/* 左栏：导航 */}
-      <aside className="hidden md:flex w-56 border-r border-black/10 bg-paper/50 backdrop-blur-sm flex-col overflow-hidden">
-        <div className="p-4 border-b border-black/5">
-          <button onClick={() => router.push('/')} className="text-[10px] text-ink-light hover:text-ink flex items-center gap-1 mb-2 font-mono uppercase tracking-wider">← 首页</button>
-          <div className="text-sm font-semibold text-ink truncate">{workspaceTitle || '工作台'}</div>
-          <div className="blueprint-label-horizontal mt-1">Navigation</div>
+    <div className="min-h-screen blueprint-grid flex flex-col">
+      {/* 顶部 */}
+      <header className="h-14 border-b border-black/5 flex items-center justify-between px-6 bg-paper/80 backdrop-blur-sm shrink-0">
+        <div className="flex items-center gap-3">
+          <button onClick={() => router.push('/workspaces')} className="text-inkLight hover:text-accent text-sm">← 返回</button>
+          <span className="font-semibold text-ink text-sm truncate max-w-[300px]">{workspace.title}</span>
         </div>
-        <div className="flex-1 overflow-y-auto p-3 space-y-3">
-          {rounds.map((round, idx) => (
-            <div key={round.userMsg.id}>
-              <button onClick={() => scrollToMessage(round.userMsg.id)} className="w-full text-left px-2 py-1.5 rounded-lg text-xs text-ink-light hover:bg-black/5 truncate transition">
-                <span className="font-mono text-[10px] text-ink-light/50 mr-1">#{idx + 1}</span>
-                {round.userMsg.content.slice(0, 24)}{round.userMsg.content.length > 24 ? '…' : ''}
-              </button>
-              <div className="ml-3 mt-1 space-y-0.5">
-                {round.aiMsgs.map(ai => (
-                  <button key={ai.id} onClick={() => scrollToMessage(ai.id)}
-                    className={`w-full text-left px-2 py-1 rounded-md text-xs flex items-center gap-1.5 transition ${activeAiId === ai.id ? 'bg-accent-light text-accent' : 'text-ink-light hover:bg-black/5'}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${ai.status === 'done' ? 'bg-green-400' : ai.status === 'streaming' || ai.status === 'pending' ? 'bg-amber-400 animate-pulse' : 'bg-red-400'}`} />
-                    <span className="truncate">{ai.modelId ?? 'AI'}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-          {rounds.length === 0 && !loading && <div className="text-[10px] text-ink-light/50 px-2 py-4 font-mono">等待对话开始...</div>}
+        <div className="flex items-center gap-2">
+          {!allDone && (
+            <span className="text-xs text-inkLight bg-yellow-50 px-2 py-1 rounded-full">
+              {completedCount}/{total} 已完成
+            </span>
+          )}
+          {allDone && (
+            <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">
+              全部完成
+            </span>
+          )}
         </div>
-        <div className="p-3 border-t border-black/5">
-          <button onClick={() => router.push('/workspaces')} className="w-full text-[10px] font-mono uppercase tracking-wider text-ink-light hover:text-ink py-2 transition">历史对话</button>
-        </div>
-      </aside>
+      </header>
 
-      {/* 中栏：审阅台 */}
-      <section className="flex min-w-0 flex-1 flex-col">
-        <div className="h-11 shrink-0 border-b border-black/5 bg-paper/80 backdrop-blur-sm px-6 flex items-center">
-          <span className="blueprint-label-horizontal">REVIEW PANEL</span>
-          <span className="mx-3 text-black/10">|</span>
-          <span className="text-xs text-ink-light truncate">{workspaceTitle}</span>
+      {/* 问题展示 */}
+      <div className="px-6 py-4 border-b border-black/5 bg-white/50">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-xs text-inkLight mb-1">你的问题</div>
+          <div className="text-sm text-ink">{workspace.prompt}</div>
         </div>
-        <div className="flex-1 overflow-y-auto px-6 py-6">
-          {loading ? (
-            <div className="flex flex-col gap-4 animate-pulse">
-              {[1, 2].map(i => (<div key={i} className="rounded-xl border border-black/5 bg-white p-4"><div className="h-3 w-20 bg-gray-200 rounded mb-3"/><div className="space-y-2"><div className="h-3 w-full bg-gray-100 rounded"/><div className="h-3 w-3/4 bg-gray-100 rounded"/></div></div>))}
-            </div>
-          ) : messages.length === 0 ? (
-            <div className="flex flex-1 items-center justify-center h-full">
-              <div className="text-center">
-                <img src="/mascot.png" className="w-20 mx-auto opacity-60" alt="mascot"/>
-                <p className="text-sm text-ink-light mt-4">开始一次多 AI 协作</p>
-                <p className="text-xs text-ink-light/50 mt-1">在下方输入问题，选择模型或工具开始</p>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {messages.map(msg => (
-                <div key={msg.id} id={`msg-${msg.id}`}>
-                  <MessageBubble id={msg.id} role={msg.role} modelId={msg.modelId}
-                    initialContent={msg.content} status={msg.status} isActive={activeAiId === msg.id}
-                    onRetry={handleRetry}
-                    onFollowUp={(modelId, quote) => {
-                      setPrefillText(`> ${quote}\n\n`)
-                      setPrefillTokens([{ type: 'model', value: modelId }])
-                      setPrefillKey(prev => prev + 1)
-                    }}
-                    onStreamDone={() => {
-                      setMessages(prev => prev.map(m =>
-                        m.id === msg.id ? { ...m, status: 'done' as const } : m
-                      ))
-                      if (msg.modelId === '合成官' || msg.modelId?.startsWith('审稿官-') || msg.modelId === '比稿官') {
-                        void refreshArtifacts()
-                      }
-                    }}
-                  />
+      </div>
+
+      {/* AI 输出卡片区 */}
+      <div className="flex-1 overflow-y-auto px-6 py-6">
+        <div className="max-w-5xl mx-auto">
+          <div className={`grid gap-4 ${runs.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+            {runs.map(run => {
+              const content = getContent(run)
+              const status = getStatus(run)
+
+              return (
+                <div key={run.id} className="bg-white border border-gray-200 rounded-2xl overflow-hidden flex flex-col">
+                  {/* 卡片头 */}
+                  <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                    <span className="font-medium text-sm text-ink">{run.model}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      status === 'done' || status === 'completed' ? 'bg-green-50 text-green-600' :
+                      status === 'error' || status === 'failed' ? 'bg-red-50 text-red-600' :
+                      status === 'streaming' || status === 'running' ? 'bg-yellow-50 text-yellow-600' :
+                      'bg-gray-50 text-gray-400'
+                    }`}>
+                      {status === 'done' || status === 'completed' ? '已完成' :
+                       status === 'error' || status === 'failed' ? '失败' :
+                       status === 'streaming' || status === 'running' ? '生成中...' :
+                       '等待中'}
+                    </span>
+                  </div>
+
+                  {/* 卡片内容 */}
+                  <div className="px-4 py-3 flex-1 overflow-y-auto max-h-[500px] text-sm">
+                    {!content && (status === 'queued' || status === 'streaming' || status === 'running') && (
+                      <div className="space-y-2">
+                        <div className="h-3 w-48 animate-pulse rounded bg-gray-100" />
+                        <div className="h-3 w-36 animate-pulse rounded bg-gray-100" />
+                        <div className="h-3 w-52 animate-pulse rounded bg-gray-100" />
+                      </div>
+                    )}
+                    {content && (
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
+                        p: ({children}) => <p className="my-1 leading-relaxed">{children}</p>,
+                        h1: ({children}) => <h1 className="text-lg font-bold my-2">{children}</h1>,
+                        h2: ({children}) => <h2 className="text-base font-bold my-2">{children}</h2>,
+                        h3: ({children}) => <h3 className="text-sm font-semibold my-1">{children}</h3>,
+                        ul: ({children}) => <ul className="list-disc pl-4 my-1">{children}</ul>,
+                        ol: ({children}) => <ol className="list-decimal pl-4 my-1">{children}</ol>,
+                        li: ({children}) => <li className="leading-relaxed">{children}</li>,
+                        code: ({children}) => <code className="bg-gray-100 px-1 rounded text-xs font-mono">{children}</code>,
+                      }}>{content}</ReactMarkdown>
+                    )}
+                    {(status === 'error' || status === 'failed') && !content && (
+                      <div className="text-red-500 text-sm">生成失败，请刷新重试</div>
+                    )}
+                  </div>
+
+                  {/* 卡片底部 */}
+                  {(status === 'done' || status === 'completed') && content && (
+                    <div className="px-4 py-2 border-t border-gray-100 flex items-center justify-between">
+                      <span className="text-xs text-inkLight">{content.length} 字</span>
+                      <button onClick={() => navigator.clipboard.writeText(content)}
+                        className="text-xs text-inkLight hover:text-accent transition">复制</button>
+                    </div>
+                  )}
                 </div>
-              ))}
-              <div ref={bottomRef} />
-            </div>
-          )}
-        </div>
-        <div className="border-t border-black/5 bg-paper/80 backdrop-blur-sm px-6 py-3">
-          <MentionInput onSubmit={handleSubmit} disabled={sending} prefillText={prefillText} prefillTokens={prefillTokens} prefillKey={prefillKey} />
-        </div>
-      </section>
-
-      {/* 右栏：最终稿 */}
-      <aside className="hidden lg:flex w-72 border-l border-black/10 bg-paper/50 backdrop-blur-sm flex-col overflow-hidden">
-        <div className="p-4 border-b border-black/5">
-          <div className="blueprint-label-horizontal mb-1">OUTPUT</div>
-          <div className="text-sm font-semibold text-ink">{artifactTitle}</div>
-        </div>
-        <div className="flex-1 overflow-y-auto p-4">
-          {latestArtifact ? (
-            <div className="rounded-xl border border-black/5 bg-white p-4 text-sm leading-relaxed">
-              <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
-                h1: ({children}) => <h1 className="text-lg font-bold my-2">{children}</h1>,
-                h2: ({children}) => <h2 className="text-base font-bold my-2">{children}</h2>,
-                h3: ({children}) => <h3 className="text-sm font-semibold my-1">{children}</h3>,
-                p: ({children}) => <p className="my-1 text-sm leading-relaxed">{children}</p>,
-                ul: ({children}) => <ul className="list-disc pl-4 my-1 text-sm">{children}</ul>,
-                ol: ({children}) => <ol className="list-decimal pl-4 my-1 text-sm">{children}</ol>,
-                li: ({children}) => <li className="leading-relaxed">{children}</li>,
-                strong: ({children}) => <strong className="font-semibold">{children}</strong>,
-                code: ({children}) => <code className="bg-gray-100 px-1 rounded text-xs font-mono">{children}</code>,
-                pre: ({children}) => <pre className="bg-gray-100 p-2 rounded text-xs overflow-x-auto my-2">{children}</pre>,
-              }}>{latestArtifact.content}</ReactMarkdown>
-            </div>
-          ) : (
-            <div className="text-xs text-ink-light/50 font-mono py-8 text-center">
-              使用合成/审稿/比稿工具后<br/>最终稿将在此显示
-            </div>
-          )}
-        </div>
-        {latestArtifact && (
-          <div className="p-4 border-t border-black/5">
-            <button
-              onClick={async () => {
-                try { await navigator.clipboard.writeText(latestArtifact.content) } catch {}
-              }}
-              className="w-full py-2 rounded-lg border border-black/10 text-xs font-medium text-ink-light hover:bg-white transition"
-            >
-              复制全文
-            </button>
+              )
+            })}
           </div>
-        )}
-      </aside>
-    </main>
+        </div>
+      </div>
+
+      {/* 底部操作栏 */}
+      {allDone && completedCount >= 2 && (
+        <div className="border-t border-gray-200 bg-white px-6 py-4 shrink-0">
+          <div className="max-w-5xl mx-auto">
+            {recommendation && (
+              <div className="text-xs text-inkLight mb-3">
+                💡 建议进入【{SCENE_BUTTONS.find(s => s.key === recommendation.scene)?.label}】—— {recommendation.reason}
+              </div>
+            )}
+            <div className="flex items-center justify-center gap-3">
+              {SCENE_BUTTONS.map(btn => (
+                <button key={btn.key} onClick={() => handleSceneClick(btn.key)}
+                  className={`px-4 py-2 rounded-xl text-sm border transition ${
+                    recommendation?.scene === btn.key
+                      ? 'bg-accent text-white border-accent'
+                      : 'bg-white text-ink border-gray-200 hover:border-accent'
+                  }`}>
+                  <span className="mr-1">{btn.icon}</span>
+                  {btn.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

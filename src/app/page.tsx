@@ -1,202 +1,150 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
 
-const MODEL_OPTIONS = ['豆包', 'DeepSeek', 'DeepSeek-R1', 'Kimi', 'GLM']
-const TOOL_OPTIONS = [
-  { key: 'diverge',    label: '分歧',   desc: '让 AI 互相挑刺找漏洞', icon: '⚔️' },
-  { key: 'synthesize', label: '合成',   desc: '综合多方意见出最优解', icon: '🧩' },
-  { key: 'review',     label: '审稿',   desc: '多角度审核内容质量',   icon: '📝' },
-  { key: 'compare',    label: '比稿',   desc: '多个方案对比择优',     icon: '⚖️' },
+const DEFAULT_MODELS = ['DeepSeek V3.2', '豆包 Seed 2.0 Pro', 'Kimi K2.5']
+
+const ALL_MODELS = [
+  { id: 'DeepSeek V3.2', provider: 'DeepSeek' },
+  { id: 'DeepSeek R1', provider: 'DeepSeek' },
+  { id: 'Kimi K2.6', provider: 'Moonshot' },
+  { id: 'Kimi K2.5', provider: 'Moonshot' },
+  { id: 'GLM 5.1', provider: '智谱' },
+  { id: 'GLM 5', provider: '智谱' },
+  { id: '豆包 Seed 2.0 Pro', provider: '字节跳动' },
+  { id: '豆包 Seed 2.0 Mini', provider: '字节跳动' },
+  { id: 'Qwen3 Max', provider: '阿里云' },
+  { id: 'Qwen3.5 Plus', provider: '阿里云' },
+  { id: 'MiniMax M2.7', provider: 'MiniMax' },
+  { id: 'MiniMax M1', provider: 'MiniMax' },
 ]
-const DEFAULT_MODELS = ['豆包', 'DeepSeek']
-const FAVORITE_AGENTS_INIT = ['DeepSeek', 'Kimi', 'GLM']
-const EXAMPLE_QUESTIONS = [
-  { text: '该不该放弃稳定工作去创业？', tool: 'diverge' },
-  { text: '帮我审阅这篇产品分析报告的逻辑和文字', tool: 'review' },
-  { text: '这两版广告文案哪个更好？为什么？', tool: 'compare' },
-  { text: '综合分析：2025年该学什么编程语言？', tool: 'synthesize' },
+
+const EXAMPLES = [
+  { text: '推荐几款3000元以内的降噪耳机', scene: 'compare' },
+  { text: '我该不该从大厂跳槽去创业公司', scene: 'brainstorm' },
+  { text: '帮我写一篇小红书种草文案，主题是露营装备', scene: 'compose' },
+  { text: '帮我审阅这份合同，找出潜在风险条款', scene: 'review' },
 ]
 
 export default function HomePage() {
   const router = useRouter()
   const [text, setText] = useState('')
-  const [selectedModels, setSelectedModels] = useState<string[]>(DEFAULT_MODELS)
-  const [selectedTool, setSelectedTool] = useState<string | null>(null)
-  const [sending, setSending] = useState(false)
-  const [showAtMenu, setShowAtMenu] = useState(false)
-  const [showToolMenu, setShowToolMenu] = useState(false)
-  const [showAgentSearch, setShowAgentSearch] = useState(false)
-  const [favorites, setFavorites] = useState<string[]>(FAVORITE_AGENTS_INIT)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [selected, setSelected] = useState<string[]>(DEFAULT_MODELS)
+  const [showPicker, setShowPicker] = useState(false)
+  const [loading, setLoading] = useState(false)
 
-  async function handleSubmit(overrideText?: string, overrideTool?: string) {
+  function toggleModel(id: string) {
+    setSelected(prev =>
+      prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id]
+    )
+  }
+
+  async function handleSubmit(overrideText?: string) {
     const question = (overrideText ?? text).trim()
-    if (!question || sending) return
-    const tool = overrideTool ?? selectedTool
-    const models = selectedModels.length >= 1 ? selectedModels : DEFAULT_MODELS
-    if (!tool && models.length < 2) { alert('请选择至少 2 个 AI 模型参与协作'); return }
+    if (!question || loading) return
+    if (selected.length < 2) {
+      alert('请至少选择 2 个 AI 模型')
+      return
+    }
+
     try {
-      setSending(true)
-      const mode = tool ?? 'chat'
-      const createRes = await fetch('/api/workspace/create', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: question.slice(0, 30), mode }),
+      setLoading(true)
+      const res = await fetch('/api/workspaces', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: question, selectedModels: selected }),
       })
-      const { workspace } = (await createRes.json()) as { workspace: { id: string } }
-      if (tool) {
-        await fetch('/api/tool/invoke', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ workspaceId: workspace.id, tool, question }),
-        })
-      } else {
-        await fetch('/api/chat/send', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ workspaceId: workspace.id, text: question, mentions: { models, tool: null } }),
-        })
-      }
-      router.push(`/workspace/${workspace.id}`)
-    } catch (err) { alert(err instanceof Error ? err.message : '发送失败') }
-    finally { setSending(false) }
-  }
-
-  function toggleModel(model: string) {
-    setSelectedModels(prev => prev.includes(model) ? prev.filter(m => m !== model) : [...prev, model])
-  }
-
-  function selectFavorite(agent: string) {
-    setFavorites(prev => { const next = [...prev]; next[2] = agent; return next })
-    if (MODEL_OPTIONS.includes(agent) && !selectedModels.includes(agent)) setSelectedModels(prev => [...prev, agent])
-    setShowAgentSearch(false)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      router.push('/workspace/' + data.workspace.id)
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '创建失败')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <div className="min-h-screen blueprint-grid relative overflow-hidden">
-      <div className="blueprint-label fixed left-4 top-1/2 -translate-y-1/2">SECTION A-A</div>
-      <div className="blueprint-label fixed right-4 top-1/2 -translate-y-1/2">DETAIL B</div>
+    <div className="min-h-screen blueprint-grid flex flex-col relative">
+      <div className="fixed left-6 top-1/2 -translate-y-1/2 font-mono text-[22px] font-bold tracking-[0.15em] text-black/[0.07]" style={{writingMode:'vertical-rl'}}>SECTION A-A</div>
+      <div className="fixed right-6 top-1/2 -translate-y-1/2 font-mono text-[22px] font-bold tracking-[0.15em] text-black/[0.07]" style={{writingMode:'vertical-rl'}}>DETAIL B</div>
 
-      <nav className="fixed top-0 w-full z-50 bg-paper/80 backdrop-blur-sm border-b border-black/5 px-6 h-12 flex items-center justify-between">
+      <nav className="h-14 border-b border-black/5 flex items-center justify-between px-8 bg-paper/80 backdrop-blur-sm">
         <div className="flex items-center gap-2">
-          <Image src="/mascot.png" width={24} height={24} alt="Gambit" className="rounded-full" />
-          <span className="font-bold text-ink text-sm">Gambit</span>
+          <img src="/mascot.png" className="w-8 h-8 rounded-full" alt="Gambit" />
+          <span className="font-bold text-ink">Gambit</span>
         </div>
-        <a href="/workspaces" className="text-xs text-ink-light hover:text-ink transition">历史对话</a>
+        <a href="/workspaces" className="text-sm text-inkLight hover:text-accent transition">历史工作台</a>
       </nav>
 
-      <main className="flex flex-col items-center justify-center min-h-screen px-4 pt-12">
-        <div className="flex flex-col items-center mb-8">
-          <div className="drop-shadow-lg"><Image src="/mascot.png" width={120} height={120} alt="Gambit" /></div>
-          <h1 className="text-3xl font-bold text-ink mt-4 tracking-tight">Gambit</h1>
-          <p className="text-ink-light text-sm mt-1">你终于能看到 AI 们在为你争论什么了</p>
-          <p className="text-ink-light/60 text-xs mt-0.5">把 AI 的决策过程变成你能介入的选择题</p>
+      <main className="flex-1 flex flex-col items-center justify-center px-4 pb-8">
+        <img src="/mascot.png" className="w-60 h-60 mb-5 drop-shadow-lg" alt="mascot" />
+        <h1 className="text-5xl font-bold text-ink mb-2 tracking-tight">Gambit</h1>
+        <p className="text-xl text-inkLight mb-1">你的决定，不该只听一个 AI 的</p>
+        <p className="text-sm text-inkLight/60 mb-10">把 AI 的回答变成你能介入的选择题</p>
+
+        {/* 模型选择 */}
+        <div className="flex flex-wrap justify-center gap-2 mb-5">
+          {selected.map(m => (
+            <span key={m} className="inline-flex items-center gap-1 bg-accent text-white rounded-full px-3 py-1 text-sm">
+              {m}
+              <button onClick={() => toggleModel(m)} className="opacity-70 hover:opacity-100">×</button>
+            </span>
+          ))}
+          <button onClick={() => setShowPicker(!showPicker)}
+            className="px-3 py-1 rounded-full text-sm border border-gray-200 bg-white text-inkLight hover:border-accent transition">
+            + 添加模型
+          </button>
         </div>
 
-        <div className="w-full max-w-2xl">
-          {/* 常用Agent胶囊 + 搜索 */}
-          <div className="flex items-center justify-center gap-2 mb-3 relative">
-            {favorites.map((agent, idx) => (
-              <button key={`${agent}-${idx}`} onClick={() => toggleModel(agent)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${selectedModels.includes(agent) ? 'bg-accent text-white border-accent' : 'bg-white text-ink-light border-gray-200 hover:border-gray-300'}`}>{agent}</button>
-            ))}
-            <button onClick={() => setShowAgentSearch(true)} className="w-8 h-8 rounded-full border border-gray-200 bg-white flex items-center justify-center text-ink-light hover:border-gray-300 transition">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-            </button>
-            {showAgentSearch && (<>
-              <div className="fixed inset-0 z-40" onClick={() => setShowAgentSearch(false)} />
-              <div className="absolute top-12 z-50 w-72 bg-white rounded-2xl border border-gray-200 shadow-lg p-4">
-                <div className="flex items-center justify-between mb-3"><span className="text-sm font-medium text-ink">选择 Agent</span><button onClick={() => setShowAgentSearch(false)} className="text-ink-light hover:text-ink">✕</button></div>
-                <div className="space-y-1">{MODEL_OPTIONS.map(model => (<button key={model} onClick={() => selectFavorite(model)} className="block w-full text-left px-3 py-2 rounded-xl text-sm text-ink hover:bg-gray-50 transition">{model}</button>))}</div>
-              </div>
-            </>)}
-          </div>
-
-          {/* 输入框主体 */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="flex flex-wrap items-center gap-1.5 px-4 pt-3 pb-1">
-              {selectedModels.map(model => (
-                <span key={model} className="inline-flex items-center gap-1 bg-accent-light text-accent rounded-full px-2.5 py-0.5 text-xs font-medium">@{model}<button onClick={() => toggleModel(model)} className="hover:text-accent/70 ml-0.5">×</button></span>
+        {showPicker && (
+          <div className="w-full max-w-2xl mb-4 bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-semibold">选择 AI 模型（至少 2 个）</span>
+              <button onClick={() => setShowPicker(false)} className="text-inkLight hover:text-ink">✕</button>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              {ALL_MODELS.map(m => (
+                <button key={m.id} onClick={() => toggleModel(m.id)}
+                  className={`text-left px-3 py-2 rounded-xl text-sm border transition ${
+                    selected.includes(m.id) ? 'bg-accent text-white border-accent' : 'border-gray-200 hover:border-accent'
+                  }`}>
+                  <div className="font-medium">{m.id}</div>
+                  <div className={`text-xs ${selected.includes(m.id) ? 'text-white/70' : 'text-inkLight'}`}>{m.provider}</div>
+                </button>
               ))}
-              {selectedTool && (
-                <span className="inline-flex items-center gap-1 bg-violet-50 text-violet-700 rounded-full px-2.5 py-0.5 text-xs font-medium">
-                  {TOOL_OPTIONS.find(t => t.key === selectedTool)?.icon} {TOOL_OPTIONS.find(t => t.key === selectedTool)?.label}
-                  <button onClick={() => setSelectedTool(null)} className="hover:text-violet-500 ml-0.5">×</button>
-                </span>
-              )}
-              {selectedModels.length === 0 && !selectedTool && <span className="text-xs text-gray-300">@豆包 @DeepSeek</span>}
-            </div>
-            <textarea ref={textareaRef} value={text} onChange={e => setText(e.target.value)}
-              onInput={e => { const t = e.target as HTMLTextAreaElement; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 200) + 'px' }}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void handleSubmit() } }}
-              disabled={sending} placeholder="直接输入你想解决的问题或决策"
-              className="w-full resize-none border-0 px-4 py-3 text-sm outline-none placeholder:text-gray-400 min-h-[60px] max-h-[200px]" />
-
-            <div className="flex items-center justify-between px-4 pb-3">
-              <div className="flex items-center gap-1 relative">
-                <button className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-light hover:bg-gray-100 transition text-sm" title="添加文件">+</button>
-                <div className="relative">
-                  <button onClick={() => { setShowAtMenu(p => !p); setShowToolMenu(false) }} className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-light hover:bg-gray-100 transition text-sm font-medium">@</button>
-                  {showAtMenu && (<>
-                    <div className="fixed inset-0 z-30" onClick={() => setShowAtMenu(false)}/>
-                    <div className="absolute bottom-10 left-0 z-40 w-48 bg-white rounded-xl border border-gray-200 shadow-lg p-2">
-                      <div className="text-[10px] text-ink-light uppercase tracking-wider px-2 py-1 font-mono">模型</div>
-                      {MODEL_OPTIONS.map(model => (
-                        <button key={model} onClick={() => { toggleModel(model); setShowAtMenu(false) }}
-                          className={`block w-full text-left px-3 py-1.5 rounded-lg text-sm transition ${selectedModels.includes(model) ? 'bg-accent-light text-accent' : 'text-ink hover:bg-gray-50'}`}>
-                          {model}{selectedModels.includes(model) && ' ✓'}
-                        </button>
-                      ))}
-                    </div>
-                  </>)}
-                </div>
-                <div className="relative">
-                  <button onClick={() => { setShowToolMenu(p => !p); setShowAtMenu(false) }} className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-light hover:bg-gray-100 transition">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
-                    </svg>
-                  </button>
-                  {showToolMenu && (<>
-                    <div className="fixed inset-0 z-30" onClick={() => setShowToolMenu(false)}/>
-                    <div className="absolute bottom-10 left-0 z-40 w-56 bg-white rounded-xl border border-gray-200 shadow-lg p-2">
-                      {TOOL_OPTIONS.map(tool => (
-                        <button key={tool.key} onClick={() => { setSelectedTool(tool.key); setShowToolMenu(false) }}
-                          className={`block w-full text-left px-3 py-2 rounded-lg transition ${selectedTool === tool.key ? 'bg-accent-light text-accent' : 'hover:bg-gray-50'}`}>
-                          <div className="text-sm font-medium">{tool.icon} {tool.label}</div>
-                          <div className="text-xs text-ink-light mt-0.5">{tool.desc}</div>
-                        </button>
-                      ))}
-                      <div className="border-t border-gray-100 mt-1 pt-1">
-                        <button onClick={() => { setSelectedTool(null); setShowToolMenu(false) }}
-                          className="block w-full text-left px-3 py-2 rounded-lg text-sm text-ink-light hover:bg-gray-50">💬 自由对话</button>
-                      </div>
-                    </div>
-                  </>)}
-                </div>
-              </div>
-              <button onClick={() => void handleSubmit()} disabled={sending || text.trim().length === 0}
-                className="w-8 h-8 rounded-full bg-ink text-white flex items-center justify-center disabled:bg-gray-300 disabled:cursor-not-allowed transition hover:bg-ink/80">
-                {sending ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/> :
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>}
-              </button>
             </div>
           </div>
+        )}
 
-          {/* 示例问题 */}
-          <div className="flex flex-wrap justify-center gap-2 mt-6">
-            {EXAMPLE_QUESTIONS.map((ex, idx) => (
-              <button key={idx} onClick={() => { setText(ex.text); setSelectedTool(ex.tool); textareaRef.current?.focus() }}
-                className="px-3 py-1.5 rounded-full border border-gray-200 bg-white text-xs text-ink-light hover:border-accent hover:text-accent transition">
-                {ex.text}
-              </button>
-            ))}
-          </div>
+        {/* 输入框 */}
+        <div className="w-full max-w-2xl bg-white border border-gray-200 rounded-2xl shadow-sm">
+          <textarea value={text} onChange={e => setText(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit() }}}
+            placeholder="输入你的问题，让多个 AI 同时为你分析..."
+            className="w-full min-h-[80px] max-h-[160px] resize-none px-5 py-4 text-sm outline-none bg-transparent rounded-2xl" />
         </div>
 
-        <div className="mt-16 mb-8">
-          <p className="blueprint-label-horizontal text-center">© 2026 GAMBIT · MULTI-AI DECISION WORKBENCH · REV 2.0</p>
+        <button onClick={() => handleSubmit()} disabled={loading || !text.trim() || selected.length < 2}
+          className="mt-5 bg-ink text-white px-8 py-3 rounded-full text-base font-medium disabled:opacity-30 hover:bg-ink/85 transition">
+          {loading ? '正在创建...' : '开始协作'}
+        </button>
+
+        {/* 示例 */}
+        <div className="w-full max-w-2xl mt-8 grid grid-cols-2 gap-2">
+          {EXAMPLES.map(ex => (
+            <div key={ex.text} onClick={() => { setText(ex.text) }}
+              className="group bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 cursor-pointer hover:bg-gray-100 hover:border-gray-300 transition">
+              <p className="text-sm text-ink leading-snug">{ex.text}</p>
+            </div>
+          ))}
         </div>
       </main>
+
+      <footer className="py-6 text-center">
+        <span className="text-xs font-mono text-black/20">© 2026 Gambit · MULTI-AI DECISION WORKBENCH</span>
+      </footer>
     </div>
   )
 }

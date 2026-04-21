@@ -7,59 +7,72 @@ datasource db {
 }
 
 model Workspace {
-  id           String   @id
-  userId       String?
-  deviceId     String?
-  title        String
-  mode         String
-  toolsUsed    Json
-  currentState Json
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  messages     Message[]
-  artifacts    Artifact[]
-  sources      Source[]
+  id             String         @id @default(uuid())
+  userId         String?
+  deviceId       String?
+  prompt         String
+  selectedModels String         // JSON string: '["DeepSeek V3.2","豆包 Seed 2.0 Pro","Kimi K2.5"]'
+  status         String         @default("pending") // pending / running / completed / archived
+  title          String         @default("新工作台")
+  recommendScene String?        // compare / brainstorm / compose / review
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  modelRuns      ModelRun[]
+  sceneSessions  SceneSession[]
+  artifacts      Artifact[]
 }
 
-model Message {
-  id              String    @id
-  workspaceId     String
-  role            String
-  modelId         String?
-  content         String
-  status          String
-  tokens          Int?
-  cost            Float?
-  parentMessageId String?
-  attachments     Json?
-  createdAt       DateTime  @default(now())
-  workspace       Workspace @relation(fields: [workspaceId], references: [id])
+model ModelRun {
+  id          String    @id @default(uuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  model       String    // 模型显示名，如 "DeepSeek V3.2"
+  modelId     String    // 模型 API ID，如 "deepseek/deepseek-v3.2-251201"
+  status      String    @default("queued") // queued / running / completed / failed
+  content     String    @default("")
+  error       String?
+  tokens      Int?
+  cost        Float?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+model SceneSession {
+  id             String       @id @default(uuid())
+  workspaceId    String
+  workspace      Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  sceneType      String       // compose / brainstorm / review / compare
+  userSelections String       @default("{}") // JSON string
+  status         String       @default("active") // active / completed / abandoned
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  finalDrafts    FinalDraft[]
 }
 
 model Artifact {
-  id          String   @id
+  id          String   @id @default(uuid())
   workspaceId String
-  type        String
-  content     String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  type        String   // reflection / review_suggestions / comparison_table / observer / spark
+  payload     String   @default("{}") // JSON string
   version     Int      @default(1)
   createdAt   DateTime @default(now())
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
 }
 
-model Source {
-  id          String   @id
-  workspaceId String
-  type        String
-  content     String?
-  fileUrl     String?
-  meta        Json?
-  createdAt   DateTime @default(now())
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+model FinalDraft {
+  id             String       @id @default(uuid())
+  sceneSessionId String
+  sceneSession   SceneSession @relation(fields: [sceneSessionId], references: [id], onDelete: Cascade)
+  content        String
+  format         String       @default("markdown") // markdown / html / json
+  version        Int          @default(1)
+  createdAt      DateTime     @default(now())
 }
 
 model LlmCall {
-  id        String   @id
-  messageId String?
+  id        String   @id @default(uuid())
+  runId     String?
   provider  String
   model     String
   tokensIn  Int

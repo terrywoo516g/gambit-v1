@@ -1,88 +1,94 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 
-type WorkspaceItem = { id: string; title: string; mode: string; toolsUsed: unknown; updatedAt: string; _count?: { messages: number } }
-
-function parseTools(value: unknown): string[] {
-  if (Array.isArray(value)) return value.map(v => String(v))
-  try { const p = JSON.parse(String(value ?? '[]')); if (Array.isArray(p)) return p.map(v => String(v)); return [] } catch { return [] }
-}
-function formatTime(input: string) {
-  const d = new Date(input); if (isNaN(d.getTime())) return ''
-  return d.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+type WsItem = {
+  id: string
+  title: string
+  status: string
+  selectedModels: string[]
+  updatedAt: string
+  modelRunCount: number
 }
 
 export default function WorkspacesPage() {
   const router = useRouter()
-  const [workspaces, setWorkspaces] = useState<WorkspaceItem[]>([])
+  const [list, setList] = useState<WsItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [creating, setCreating] = useState(false)
 
   useEffect(() => {
-    let active = true
     async function load() {
-      try { setLoading(true); const res = await fetch('/api/workspaces'); const data = await res.json(); if (!res.ok) throw new Error(); if (active) setWorkspaces(data.workspaces ?? []) }
-      catch { if (active) setWorkspaces([]) } finally { if (active) setLoading(false) }
+      try {
+        const res = await fetch('/api/workspaces')
+        const data = await res.json()
+        setList(data.workspaces ?? [])
+      } catch {
+        setList([])
+      } finally {
+        setLoading(false)
+      }
     }
-    void load(); return () => { active = false }
+    void load()
   }, [])
 
-  async function handleNew() {
-    try { setCreating(true); const res = await fetch('/api/workspace/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: '新工作台', mode: 'chat' }) }); const data = await res.json(); if (!res.ok || !data.workspace?.id) throw new Error(); router.push(`/workspace/${data.workspace.id}`) }
-    catch { alert('创建失败') } finally { setCreating(false) }
-  }
-
   return (
-    <div className="min-h-screen bg-paper blueprint-grid text-ink">
-      <div className="blueprint-label fixed left-4 top-1/2 -translate-y-1/2">SECTION A-A</div>
-      <nav className="fixed top-0 z-50 w-full bg-paper/80 backdrop-blur-sm border-b border-black/5 px-6 h-12 flex items-center justify-between">
-        <div className="flex items-center gap-2"><Image src="/mascot.png" width={24} height={24} alt="Gambit" className="rounded-full"/><span className="font-bold text-ink text-sm">Gambit</span></div>
-        <div className="flex items-center gap-3">
-          <a href="/" className="text-xs text-ink-light hover:text-ink transition">首页</a>
-          <button onClick={() => void handleNew()} disabled={creating} className="bg-ink text-white px-3 py-1.5 rounded-lg text-xs font-medium transition hover:bg-ink/80 disabled:opacity-50">{creating ? '创建中...' : '新建对话'}</button>
+    <div className="min-h-screen blueprint-grid">
+      <nav className="h-14 border-b border-black/5 flex items-center justify-between px-8 bg-paper/80">
+        <div className="flex items-center gap-2">
+          <img src="/mascot.png" className="w-7 h-7 rounded-full" alt="G" />
+          <span className="font-bold text-sm">Gambit</span>
         </div>
+        <a href="/" className="text-sm text-inkLight hover:text-accent">首页</a>
       </nav>
-      <main className="max-w-2xl mx-auto px-6 pt-20 pb-12">
-        <div className="flex items-end justify-between mb-6">
-          <div><div className="blueprint-label-horizontal mb-1">HISTORY</div><h1 className="text-2xl font-bold">历史对话</h1></div>
-          <span className="text-xs text-ink-light font-mono">{workspaces.length} records</span>
-        </div>
+
+      <div className="max-w-3xl mx-auto px-6 pt-10">
+        <h1 className="text-2xl font-bold mb-1">历史工作台</h1>
+        <p className="text-sm text-inkLight mb-6">{list.length} 个任务</p>
+
         {loading ? (
-          <div className="space-y-3">{[1,2,3].map(i => (<div key={i} className="animate-pulse rounded-xl border border-black/5 bg-white p-4"><div className="h-4 w-40 bg-gray-100 rounded"/><div className="h-3 w-24 bg-gray-100 rounded mt-3"/></div>))}</div>
-        ) : workspaces.length === 0 ? (
+          <div className="space-y-3">
+            {[1,2,3].map(i => (
+              <div key={i} className="rounded-xl border border-gray-200 bg-white p-5 animate-pulse">
+                <div className="h-4 w-40 rounded bg-gray-100 mb-3" />
+                <div className="h-3 w-24 rounded bg-gray-100" />
+              </div>
+            ))}
+          </div>
+        ) : list.length === 0 ? (
           <div className="text-center py-20">
-            <Image src="/mascot.png" width={80} height={80} alt="Gambit" className="mx-auto opacity-60"/>
-            <p className="text-sm text-ink-light mt-4">还没有对话，开始你的第一次 AI 协作吧</p>
-            <button onClick={() => void handleNew()} disabled={creating} className="mt-4 bg-ink text-white px-5 py-2 rounded-lg text-sm font-medium transition hover:bg-ink/80">开始</button>
+            <p className="text-inkLight">还没有任务</p>
+            <a href="/" className="mt-4 inline-block bg-accent text-white px-5 py-2 rounded-lg text-sm">开始第一次协作</a>
           </div>
         ) : (
-          <div className="space-y-2">
-            {workspaces.map(w => {
-              const tools = parseTools(w.toolsUsed)
-              return (
-                <div key={w.id} onClick={() => router.push(`/workspace/${w.id}`)} className="group cursor-pointer rounded-xl border border-black/5 bg-white p-4 transition hover:shadow-sm hover:border-black/10">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-sm text-ink">{w.title}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-ink-light font-mono">{formatTime(w.updatedAt)}</span>
-                      <button onClick={e => { e.stopPropagation(); if (!confirm('确定删除？')) return; fetch(`/api/workspace/${w.id}`, { method: 'DELETE' }).then(res => { if (res.ok) setWorkspaces(prev => prev.filter(x => x.id !== w.id)) }).catch(console.error) }}
-                        className="opacity-0 group-hover:opacity-100 text-ink-light hover:text-red-500 transition text-xs" aria-label="删除">✕</button>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="text-[10px] text-ink-light font-mono border border-black/5 rounded px-1.5 py-0.5">{w._count?.messages ?? 0} msgs</span>
-                    {tools.map(t => (<span key={t} className="text-[10px] text-ink-light font-mono border border-black/5 rounded px-1.5 py-0.5">{t}</span>))}
+          <div className="space-y-3">
+            {list.map(w => (
+              <div key={w.id} onClick={() => router.push('/workspace/' + w.id)}
+                className="group cursor-pointer rounded-xl border border-gray-200 bg-white p-5 hover:border-accent transition">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-sm">{w.title}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-inkLight">{new Date(w.updatedAt).toLocaleString('zh-CN')}</span>
+                    <button onClick={e => {
+                      e.stopPropagation()
+                      if (confirm('确定删除？')) {
+                        fetch('/api/workspaces/' + w.id, { method: 'DELETE' })
+                          .then(r => { if (r.ok) setList(p => p.filter(x => x.id !== w.id)) })
+                      }
+                    }} className="hidden group-hover:block text-inkLight hover:text-red-500 text-sm">🗑</button>
                   </div>
                 </div>
-              )
-            })}
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {w.selectedModels.map(m => (
+                    <span key={m} className="rounded bg-gray-50 px-2 py-0.5 text-xs text-inkLight">{m}</span>
+                  ))}
+                  <span className="rounded bg-gray-50 px-2 py-0.5 text-xs text-inkLight">{w.modelRunCount} 个模型</span>
+                </div>
+              </div>
+            ))}
           </div>
         )}
-      </main>
-      <footer className="text-center py-6"><p className="blueprint-label-horizontal">© 2026 GAMBIT · REV 2.0</p></footer>
+      </div>
     </div>
   )
 }
