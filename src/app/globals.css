@@ -2,8 +2,49 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+@layer base {
+  :root {
+    --bg-paper: #f5f3ef;
+    --grid-color: rgba(0, 0, 0, 0.04);
+    --ink: #1a1a2e;
+    --ink-light: #6b7280;
+    --accent: #4f46e5;
+    --accent-light: #e0e7ff;
+    --border: #d1d5db;
+    --card-bg: #ffffff;
   }
+  body {
+    background-color: var(--bg-paper);
+    color: var(--ink);
+    font-family: 'Geist', system-ui, sans-serif;
+  }
+}
+
+.blueprint-grid {
+  background-image:
+    linear-gradient(var(--grid-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.blueprint-label {
+  font-family: 'Geist Mono', 'Courier New', monospace;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(0, 0, 0, 0.15);
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  user-select: none;
+  pointer-events: none;
+}
+
+.blueprint-label-horizontal {
+  font-family: 'Geist Mono', 'Courier New', monospace;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(0, 0, 0, 0.12);
+  user-select: none;
+  pointer-events: none;
 }
