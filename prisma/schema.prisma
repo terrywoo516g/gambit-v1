@@ -73,6 +73,7 @@ model FinalDraft {
 model LlmCall {
   id        String   @id @default(uuid())
   runId     String?
+  messageId String?
   provider  String
   model     String
   tokensIn  Int

@@ -54,7 +54,7 @@ export async function GET(
           'DeepSeek': 'qiniu',
           'Moonshot': 'qiniu',
           '智谱': 'qiniu',
-          '字节跳动': 'volcano',
+          '字节跳动': 'qiniu',
           '阿里云': 'qiniu',
           'MiniMax': 'qiniu',
         }
