@@ -19,6 +19,61 @@ export async function POST(req: NextRequest, { params }: { params: { sceneId: st
     const selections = JSON.parse(session.userSelections)
     const workspace = session.workspace
 
+    // 根据场景类型做分支处理
+    if (session.sceneType === 'brainstorm') {
+      // 获取 reflection artifact
+      const reflectionArtifact = await prisma.artifact.findFirst({
+        where: { workspaceId: workspace.id, type: 'reflection' },
+        orderBy: { version: 'desc' },
+      })
+
+      const reflection = reflectionArtifact ? JSON.parse(reflectionArtifact.payload) : {}
+      const adopted = selections.starred || []
+      const rejected = selections.excluded || []
+      const userNotes = selections.editedRows?.notes || ''
+
+      const generatePrompt = `你是一个决策顾问。用户的问题是：「${workspace.prompt}」
+
+以下是对多个 AI 回答的 Reflection 分析结果：
+${JSON.stringify(reflection, null, 2)}
+
+用户认同的观点：${adopted.length > 0 ? adopted.join('；') : '未标记'}
+用户否定的观点：${rejected.length > 0 ? rejected.join('；') : '未标记'}
+用户补充的想法：${userNotes || '无'}
+
+请生成一份决策建议报告，包含：
+1. 综合分析（基于共识和用户偏好）
+2. 建议结论（不要替用户做决定，用"建议考虑..."的措辞）
+3. 关键风险提醒
+4. 建议的下一步行动（具体可执行的 2-3 步）
+
+用 Markdown 格式输出，控制在 500 字以内。`
+
+      const report = await chatOnce({
+        provider: 'qiniu',
+        model: 'deepseek/deepseek-v3.2-251201',
+        messages: [{ role: 'user', content: generatePrompt }],
+      })
+
+      const draft = await prisma.finalDraft.create({
+        data: {
+          id: uuidv4(),
+          sceneSessionId: session.id,
+          content: report,
+          format: 'markdown',
+          version: 1,
+        },
+      })
+
+      await prisma.sceneSession.update({
+        where: { id: session.id },
+        data: { status: 'completed' },
+      })
+
+      return NextResponse.json({ draftId: draft.id, content: report })
+    }
+
+    // 原有的 compare 逻辑
     // 获取表格数据
     const artifact = await prisma.artifact.findFirst({
       where: { workspaceId: workspace.id, type: 'comparison_table' },
