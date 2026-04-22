@@ -121,6 +121,59 @@ ${customText ? `用户补充的要求：${customText}` : ''}
       return NextResponse.json({ draftId: draft.id, content: article })
     }
 
+    if (session.sceneType === 'review') {
+      const acceptedIds = selections.starred || []
+
+      const reviewArtifact = await prisma.artifact.findFirst({
+        where: { workspaceId: workspace.id, type: 'review_suggestions' },
+        orderBy: { version: 'desc' },
+      })
+
+      const allSuggestions = reviewArtifact ? JSON.parse(reviewArtifact.payload).suggestions : []
+      const acceptedSuggestions = allSuggestions.filter((s: { id: string }) => acceptedIds.includes(s.id))
+
+      const generatePrompt = `你是一个专业的文字编辑。用户的原始文档/问题是：
+
+「${workspace.prompt}」
+
+用户接受了以下修改意见：
+
+${acceptedSuggestions.map((s: { type: string; severity: string; content: string; quote?: string }, i: number) =>
+  `${i + 1}. [${s.type}/${s.severity}] ${s.content}${s.quote ? ` (原文："${s.quote}")` : ''}`
+).join('\n')}
+
+请根据这些修改意见，生成修改后的版本。要求：
+1. 将所有接受的修改意见应用到原文中
+2. 保持原文的整体结构和风格
+3. 在修改处用 **加粗** 标记改动的内容
+4. 文末附一个简短的修改说明，列出改了什么
+
+用 Markdown 格式输出。`
+
+      const revised = await chatOnce({
+        provider: 'qiniu',
+        model: 'deepseek/deepseek-v3.2-251201',
+        messages: [{ role: 'user', content: generatePrompt }],
+      })
+
+      const draft = await prisma.finalDraft.create({
+        data: {
+          id: uuidv4(),
+          sceneSessionId: session.id,
+          content: revised,
+          format: 'markdown',
+          version: 1,
+        },
+      })
+
+      await prisma.sceneSession.update({
+        where: { id: session.id },
+        data: { status: 'completed' },
+      })
+
+      return NextResponse.json({ draftId: draft.id, content: revised })
+    }
+
     // 原有的 compare 逻辑
     // 获取表格数据
     const artifact = await prisma.artifact.findFirst({

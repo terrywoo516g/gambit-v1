@@ -29,6 +29,11 @@ export default function WorkspacePage() {
   const [workspace, setWorkspace] = useState<WorkspaceData | null>(null)
   const [loading, setLoading] = useState(true)
   const [recommendation, setRecommendation] = useState<{ scene: string; reason: string } | null>(null)
+  const [observerContent, setObserverContent] = useState<string | null>(null)
+  const [sparkContent, setSparkContent] = useState<string | null>(null)
+  const [observerLoading, setObserverLoading] = useState(false)
+  const [sparkLoading, setSparkLoading] = useState(false)
+  const [showDrawer, setShowDrawer] = useState<'observer' | 'spark' | null>(null)
 
   // 加载 workspace
   useEffect(() => {
@@ -83,14 +88,36 @@ export default function WorkspacePage() {
   }, [allDone, wsId, completedCount])
 
   function handleSceneClick(scene: string) {
-    if (scene === 'compare') {
-      router.push('/workspace/' + wsId + '/scene/compare')
-    } else if (scene === 'brainstorm') {
-      router.push('/workspace/' + wsId + '/scene/brainstorm')
-    } else if (scene === 'compose') {
-      router.push('/workspace/' + wsId + '/scene/compose')
-    } else {
-      alert('「' + SCENE_BUTTONS.find(s => s.key === scene)?.label + '」即将上线，敬请期待！')
+    router.push('/workspace/' + wsId + '/scene/' + scene)
+  }
+
+  async function handleObserver() {
+    try {
+      setObserverLoading(true)
+      setShowDrawer('observer')
+      const res = await fetch('/api/workspaces/' + wsId + '/observer', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setObserverContent(data.content)
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '旁观者调用失败')
+    } finally {
+      setObserverLoading(false)
+    }
+  }
+
+  async function handleSpark() {
+    try {
+      setSparkLoading(true)
+      setShowDrawer('spark')
+      const res = await fetch('/api/workspaces/' + wsId + '/spark', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setSparkContent(data.content)
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '灵光一闪调用失败')
+    } finally {
+      setSparkLoading(false)
     }
   }
 
@@ -230,7 +257,50 @@ export default function WorkspacePage() {
                   {btn.label}
                 </button>
               ))}
+              <div className="flex items-center gap-2 ml-4 pl-4 border-l border-gray-200">
+                <button onClick={handleObserver} disabled={observerLoading}
+                  className="px-3 py-2 rounded-xl text-sm border border-gray-200 bg-white text-inkLight hover:border-accent transition disabled:opacity-40">
+                  {observerLoading ? '分析中...' : '👁️ 旁观者'}
+                </button>
+                <button onClick={handleSpark} disabled={sparkLoading}
+                  className="px-3 py-2 rounded-xl text-sm border border-gray-200 bg-white text-inkLight hover:border-accent transition disabled:opacity-40">
+                  {sparkLoading ? '思考中...' : '⚡ 灵光一闪'}
+                </button>
+              </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 旁观者和灵光一闪抽屉 */}
+      {showDrawer && (
+        <div className="fixed right-0 top-0 h-full w-96 bg-white border-l border-gray-200 shadow-xl z-50 flex flex-col">
+          <div className="h-14 border-b border-gray-200 flex items-center justify-between px-4 shrink-0">
+            <span className="font-semibold text-sm">
+              {showDrawer === 'observer' ? '👁️ 旁观者视角' : '⚡ 灵光一闪'}
+            </span>
+            <button onClick={() => setShowDrawer(null)} className="text-inkLight hover:text-ink">✕</button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4">
+            {(showDrawer === 'observer' && observerLoading) || (showDrawer === 'spark' && sparkLoading) ? (
+              <div className="flex items-center justify-center h-32">
+                <div className="animate-spin w-6 h-6 border-2 border-accent border-t-transparent rounded-full" />
+              </div>
+            ) : (
+              <div className="prose prose-sm max-w-none">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {(showDrawer === 'observer' ? observerContent : sparkContent) || ''}
+                </ReactMarkdown>
+              </div>
+            )}
+          </div>
+          <div className="border-t border-gray-200 p-3 shrink-0">
+            <button onClick={() => {
+              const content = showDrawer === 'observer' ? observerContent : sparkContent
+              if (content) navigator.clipboard.writeText(content)
+            }} className="w-full text-sm text-inkLight hover:text-accent py-2 border border-gray-200 rounded-lg">
+              复制内容
+            </button>
           </div>
         </div>
       )}
