@@ -5,21 +5,28 @@ import { useParams, useRouter } from 'next/navigation'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
-type Paragraph = { id: string; model: string; text: string; index: number }
-
-const MODEL_COLORS: Record<string, string> = {
-  'DeepSeek V3.2': 'border-blue-300 bg-blue-50',
-  'DeepSeek R1': 'border-blue-400 bg-blue-50',
-  'Kimi K2.6': 'border-purple-300 bg-purple-50',
-  'Kimi K2.5': 'border-purple-300 bg-purple-50',
-  'GLM 5.1': 'border-green-300 bg-green-50',
-  'GLM 5': 'border-green-300 bg-green-50',
-  '豆包 Seed 2.0 Pro': 'border-orange-300 bg-orange-50',
-  '豆包 Seed 2.0 Mini': 'border-orange-200 bg-orange-50',
+type ModelOutput = {
+  model: string
+  content: string
 }
 
-function getColor(model: string) {
-  return MODEL_COLORS[model] || 'border-gray-300 bg-gray-50'
+const MODEL_COLORS: Record<string, string> = {
+  'DeepSeek V3.2': 'bg-blue-500',
+  'DeepSeek R1': 'bg-blue-600',
+  'Kimi K2.6': 'bg-purple-500',
+  'Kimi K2.5': 'bg-purple-500',
+  'GLM 5.1': 'bg-green-500',
+  'GLM 5': 'bg-green-500',
+  '豆包 Seed 2.0 Pro': 'bg-orange-500',
+  '豆包 Seed 2.0 Mini': 'bg-orange-400',
+  'Qwen3 Max': 'bg-cyan-500',
+  'Qwen3.5 Plus': 'bg-cyan-600',
+  'MiniMax M2.7': 'bg-pink-500',
+  'MiniMax M1': 'bg-pink-400',
+}
+
+function getTabColor(model: string) {
+  return MODEL_COLORS[model] || 'bg-gray-500'
 }
 
 export default function ComposeScenePage() {
@@ -29,13 +36,14 @@ export default function ComposeScenePage() {
 
   const [loading, setLoading] = useState(true)
   const [sceneId, setSceneId] = useState<string | null>(null)
-  const [paragraphs, setParagraphs] = useState<Paragraph[]>([])
-  const [modelNames, setModelNames] = useState<string[]>([])
-  const [filterModel, setFilterModel] = useState<string | null>(null)
+  const [modelOutputs, setModelOutputs] = useState<ModelOutput[]>([])
+  const [activeTab, setActiveTab] = useState(0)
 
-  const [title, setTitle] = useState('')
-  const [selectedParagraphs, setSelectedParagraphs] = useState<Paragraph[]>([])
-  const [customText, setCustomText] = useState('')
+  // 右侧结构化模板
+  const [templateTitle, setTemplateTitle] = useState('')
+  const [templateStructure, setTemplateStructure] = useState('')
+  const [templateBody, setTemplateBody] = useState('')
+  const [templateExtra, setTemplateExtra] = useState('')
 
   const [generating, setGenerating] = useState(false)
   const [finalDraft, setFinalDraft] = useState<string | null>(null)
@@ -49,8 +57,21 @@ export default function ComposeScenePage() {
         const data = await res.json()
         if (!res.ok) throw new Error(data.error)
         setSceneId(data.sceneSessionId)
-        setParagraphs(data.paragraphs)
-        setModelNames(data.modelNames)
+
+        // 从 paragraphs 还原每个模型的完整输出
+        const outputMap = new Map<string, string[]>()
+        for (const p of data.paragraphs) {
+          if (!outputMap.has(p.model)) outputMap.set(p.model, [])
+          outputMap.get(p.model)!.push(p.text)
+        }
+        const outputs: ModelOutput[] = []
+        for (const name of data.modelNames) {
+          const parts = outputMap.get(name)
+          if (parts) {
+            outputs.push({ model: name, content: parts.join('\n\n') })
+          }
+        }
+        setModelOutputs(outputs)
       } catch (e) {
         alert(e instanceof Error ? e.message : '初始化失败')
       } finally {
@@ -60,37 +81,32 @@ export default function ComposeScenePage() {
     void init()
   }, [wsId])
 
-  function addParagraph(p: Paragraph) {
-    if (selectedParagraphs.find(s => s.id === p.id)) return
-    setSelectedParagraphs(prev => [...prev, p])
-  }
-
-  function removeParagraph(id: string) {
-    setSelectedParagraphs(prev => prev.filter(p => p.id !== id))
-  }
-
-  function moveParagraph(idx: number, dir: -1 | 1) {
-    const newArr = [...selectedParagraphs]
-    const target = idx + dir
-    if (target < 0 || target >= newArr.length) return
-    ;[newArr[idx], newArr[target]] = [newArr[target], newArr[idx]]
-    setSelectedParagraphs(newArr)
-  }
-
-  function applyBaseModel(model: string) {
-    const modelParas = paragraphs.filter(p => p.model === model)
-    setSelectedParagraphs(modelParas)
+  // "以 XX 为底稿" — 将整篇内容填入正文区
+  function applyAsBase(output: ModelOutput) {
+    setTemplateBody(output.content)
   }
 
   async function handleGenerate() {
     if (!sceneId) return
+
+    const hasContent = templateTitle.trim() || templateStructure.trim() || templateBody.trim()
+    if (!hasContent) {
+      alert('请至少在一个栏位中粘贴内容')
+      return
+    }
+
     // 保存选择
     await fetch(`/api/scenes/${sceneId}/selections`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        starred: selectedParagraphs.map(p => p.id),
-        editedRows: { title, customText, paragraphTexts: selectedParagraphs.map(p => p.text) },
+        starred: [],
+        editedRows: {
+          title: templateTitle,
+          structure: templateStructure,
+          body: templateBody,
+          extra: templateExtra,
+        },
       }),
     })
 
@@ -107,16 +123,43 @@ export default function ComposeScenePage() {
     }
   }
 
-  const filteredParagraphs = filterModel
-    ? paragraphs.filter(p => p.model === filterModel)
-    : paragraphs
-
   if (loading) {
     return (
       <div className="min-h-screen blueprint-grid flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin w-8 h-8 border-2 border-accent border-t-transparent rounded-full mx-auto mb-3" />
-          <p className="text-inkLight text-sm">正在切分段落...</p>
+          <p className="text-inkLight text-sm">正在加载素材...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // 生成最终稿后的视图：左右对比
+  if (finalDraft) {
+    return (
+      <div className="min-h-screen blueprint-grid flex flex-col">
+        <header className="h-14 border-b border-black/5 flex items-center justify-between px-6 bg-paper/80 backdrop-blur-sm shrink-0">
+          <div className="flex items-center gap-3">
+            <button onClick={() => router.push('/workspace/' + wsId)} className="text-inkLight hover:text-accent text-sm">← 返回工作台</button>
+            <span className="font-semibold text-ink text-sm">📝 创意合成 — 最终稿</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setFinalDraft(null)}
+              className="text-sm text-inkLight hover:text-accent border border-gray-200 px-3 py-1.5 rounded-lg">
+              返回编辑
+            </button>
+            <button onClick={() => navigator.clipboard.writeText(finalDraft)}
+              className="text-sm bg-accent text-white px-4 py-1.5 rounded-lg hover:bg-accent/90">
+              复制全文
+            </button>
+          </div>
+        </header>
+        <div className="flex-1 overflow-y-auto px-6 py-6">
+          <div className="max-w-3xl mx-auto bg-white border border-gray-200 rounded-2xl p-8">
+            <div className="prose prose-sm max-w-none">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{finalDraft}</ReactMarkdown>
+            </div>
+          </div>
         </div>
       </div>
     )
@@ -124,120 +167,152 @@ export default function ComposeScenePage() {
 
   return (
     <div className="min-h-screen blueprint-grid flex flex-col">
+      {/* 顶栏 */}
       <header className="h-14 border-b border-black/5 flex items-center justify-between px-6 bg-paper/80 backdrop-blur-sm shrink-0">
         <div className="flex items-center gap-3">
           <button onClick={() => router.push('/workspace/' + wsId)} className="text-inkLight hover:text-accent text-sm">← 返回工作台</button>
           <span className="font-semibold text-ink text-sm">📝 创意合成</span>
         </div>
-        <button onClick={handleGenerate} disabled={generating || selectedParagraphs.length === 0}
-          className="bg-accent text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-40 hover:bg-accent/90 transition">
-          {generating ? '合成中...' : '生成最终稿'}
+        <button onClick={handleGenerate} disabled={generating}
+          className="bg-accent text-white px-5 py-2 rounded-lg text-sm font-medium disabled:opacity-40 hover:bg-accent/90 transition">
+          {generating ? '合成中...' : '✨ 创意合成'}
         </button>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
-        {/* 左栏：素材库 */}
-        <div className="w-2/5 border-r border-gray-200 overflow-y-auto p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-ink">素材库</h3>
-            <div className="flex gap-1">
-              <button onClick={() => setFilterModel(null)}
-                className={`text-xs px-2 py-1 rounded ${!filterModel ? 'bg-accent text-white' : 'bg-gray-100 text-inkLight'}`}>全部</button>
-              {modelNames.map(m => (
-                <button key={m} onClick={() => setFilterModel(m)}
-                  className={`text-xs px-2 py-1 rounded ${filterModel === m ? 'bg-accent text-white' : 'bg-gray-100 text-inkLight'}`}>
-                  {m.split(' ')[0]}
-                </button>
-              ))}
-            </div>
-          </div>
+      {/* 提示条 */}
+      <div className="px-6 py-2.5 bg-amber-50 border-b border-amber-100 text-xs text-amber-700">
+        💡 操作方式：在左侧选中喜欢的文字 → 复制（Ctrl+C）→ 粘贴到右侧对应栏位（Ctrl+V）→ 点击「创意合成」
+      </div>
 
-          {/* 一键以某 AI 为底稿 */}
-          <div className="flex gap-2 mb-3">
-            {modelNames.map(m => (
-              <button key={m} onClick={() => applyBaseModel(m)}
-                className="text-xs px-2 py-1 bg-white border border-gray-200 rounded hover:border-accent text-inkLight">
-                以 {m.split(' ')[0]} 为底稿
+      <div className="flex-1 flex overflow-hidden">
+
+        {/* ===== 左侧：AI 原文浏览区 ===== */}
+        <div className="w-1/2 border-r border-gray-200 flex flex-col">
+          {/* 模型 Tab 切换 */}
+          <div className="flex items-center gap-1 px-4 pt-3 pb-2 border-b border-gray-100 bg-white/50">
+            {modelOutputs.map((output, idx) => (
+              <button
+                key={output.model}
+                onClick={() => setActiveTab(idx)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                  activeTab === idx
+                    ? 'bg-ink text-white'
+                    : 'bg-gray-100 text-inkLight hover:bg-gray-200'
+                }`}
+              >
+                <span className={`w-2 h-2 rounded-full ${getTabColor(output.model)}`} />
+                {output.model}
               </button>
             ))}
           </div>
 
-          <div className="space-y-2">
-            {filteredParagraphs.map(p => {
-              const isSelected = selectedParagraphs.some(s => s.id === p.id)
-              return (
-                <div key={p.id}
-                  onClick={() => !isSelected && addParagraph(p)}
-                  className={`border rounded-lg p-3 cursor-pointer transition text-sm ${
-                    isSelected ? 'opacity-40 cursor-not-allowed border-gray-200' : getColor(p.model) + ' hover:shadow-sm'
-                  }`}>
-                  <div className="text-xs text-inkLight mb-1">{p.model}</div>
-                  <div className="text-ink line-clamp-3">{p.text}</div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* 中栏：编辑区 */}
-        <div className={`overflow-y-auto p-4 ${finalDraft ? 'w-2/5' : 'w-3/5'}`}>
-          <h3 className="text-sm font-semibold text-ink mb-3">合成编辑器</h3>
-
-          <div className="mb-4">
-            <label className="text-xs text-inkLight block mb-1">标题</label>
-            <input value={title} onChange={e => setTitle(e.target.value)}
-              placeholder="输入最终稿标题..."
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-accent" />
+          {/* "以此为底稿"按钮 */}
+          <div className="px-4 py-2 border-b border-gray-100 bg-gray-50/50">
+            <button
+              onClick={() => modelOutputs[activeTab] && applyAsBase(modelOutputs[activeTab])}
+              className="text-xs px-3 py-1.5 bg-white border border-gray-200 rounded-lg hover:border-accent hover:text-accent transition text-inkLight"
+            >
+              📋 以 {modelOutputs[activeTab]?.model} 的全文为底稿
+            </button>
           </div>
 
-          <div className="mb-4">
-            <label className="text-xs text-inkLight block mb-1">
-              已选段落（{selectedParagraphs.length}）— 点击左侧段落添加，拖拽排序
-            </label>
-            {selectedParagraphs.length === 0 ? (
-              <div className="border border-dashed border-gray-300 rounded-lg p-6 text-center text-sm text-inkLight">
-                点击左侧的段落添加到这里
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {selectedParagraphs.map((p, idx) => (
-                  <div key={p.id} className={`border rounded-lg p-3 ${getColor(p.model)}`}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-inkLight">{p.model}</span>
-                      <div className="flex gap-1">
-                        <button onClick={() => moveParagraph(idx, -1)} className="text-xs text-inkLight hover:text-accent">↑</button>
-                        <button onClick={() => moveParagraph(idx, 1)} className="text-xs text-inkLight hover:text-accent">↓</button>
-                        <button onClick={() => removeParagraph(p.id)} className="text-xs text-red-400 hover:text-red-600">✕</button>
-                      </div>
-                    </div>
-                    <div className="text-sm text-ink">{p.text}</div>
-                  </div>
-                ))}
+          {/* 原文内容 */}
+          <div className="flex-1 overflow-y-auto px-5 py-4 select-text">
+            {modelOutputs[activeTab] && (
+              <div className="prose prose-sm max-w-none text-ink">
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
+                  p: ({children}) => <p className="my-2 leading-relaxed">{children}</p>,
+                  h1: ({children}) => <h1 className="text-lg font-bold my-3">{children}</h1>,
+                  h2: ({children}) => <h2 className="text-base font-bold my-2">{children}</h2>,
+                  h3: ({children}) => <h3 className="text-sm font-semibold my-2">{children}</h3>,
+                  ul: ({children}) => <ul className="list-disc pl-4 my-2">{children}</ul>,
+                  ol: ({children}) => <ol className="list-decimal pl-4 my-2">{children}</ol>,
+                  li: ({children}) => <li className="leading-relaxed my-0.5">{children}</li>,
+                  strong: ({children}) => <strong className="font-semibold text-ink">{children}</strong>,
+                  code: ({children}) => <code className="bg-gray-100 px-1 rounded text-xs font-mono">{children}</code>,
+                  blockquote: ({children}) => <blockquote className="border-l-2 border-gray-300 pl-3 my-2 text-inkLight italic">{children}</blockquote>,
+                }}>{modelOutputs[activeTab].content}</ReactMarkdown>
               </div>
             )}
           </div>
-
-          <div className="mb-4">
-            <label className="text-xs text-inkLight block mb-1">补充内容（可选）</label>
-            <textarea value={customText} onChange={e => setCustomText(e.target.value)}
-              placeholder="写下你想补充的内容、要求或风格说明..."
-              className="w-full min-h-[80px] p-3 border border-gray-200 rounded-lg text-sm outline-none focus:border-accent" />
-          </div>
         </div>
 
-        {/* 右栏：最终稿 */}
-        {finalDraft && (
-          <div className="w-1/3 border-l border-gray-200 bg-white p-6 overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-ink">最终稿</h3>
-              <button onClick={() => navigator.clipboard.writeText(finalDraft)}
-                className="text-xs text-inkLight hover:text-accent">复制全文</button>
+        {/* ===== 右侧：结构化模板区 ===== */}
+        <div className="w-1/2 flex flex-col bg-gray-50/30">
+          <div className="px-4 pt-3 pb-2 border-b border-gray-100">
+            <h3 className="text-sm font-semibold text-ink">合成模板</h3>
+            <p className="text-xs text-inkLight mt-0.5">把你喜欢的内容粘贴到对应栏位</p>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+            {/* 栏位 1：标题 */}
+            <div>
+              <label className="flex items-center gap-2 text-xs font-medium text-ink mb-1.5">
+                <span className="w-5 h-5 rounded bg-accent text-white flex items-center justify-center text-xs">1</span>
+                标题
+              </label>
+              <input
+                value={templateTitle}
+                onChange={e => setTemplateTitle(e.target.value)}
+                placeholder="粘贴或输入你喜欢的标题..."
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition bg-white"
+              />
             </div>
-            <div className="prose prose-sm max-w-none">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{finalDraft}</ReactMarkdown>
+
+            {/* 栏位 2：核心思想/结构 */}
+            <div>
+              <label className="flex items-center gap-2 text-xs font-medium text-ink mb-1.5">
+                <span className="w-5 h-5 rounded bg-accent text-white flex items-center justify-center text-xs">2</span>
+                核心思想 / 结构框架
+              </label>
+              <textarea
+                value={templateStructure}
+                onChange={e => setTemplateStructure(e.target.value)}
+                placeholder="粘贴你喜欢的内容结构、大纲、核心论点...&#10;&#10;例如：先用痛点开头 → 产品介绍 → 使用体验 → 总结推荐"
+                className="w-full min-h-[120px] p-3 border border-gray-200 rounded-lg text-sm outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition bg-white resize-y"
+              />
+            </div>
+
+            {/* 栏位 3：正文内容 */}
+            <div>
+              <label className="flex items-center gap-2 text-xs font-medium text-ink mb-1.5">
+                <span className="w-5 h-5 rounded bg-accent text-white flex items-center justify-center text-xs">3</span>
+                正文内容 / 精彩片段
+              </label>
+              <textarea
+                value={templateBody}
+                onChange={e => setTemplateBody(e.target.value)}
+                placeholder="粘贴你喜欢的段落、金句、具体描述...&#10;&#10;可以从不同 AI 的输出中各取所长"
+                className="w-full min-h-[200px] p-3 border border-gray-200 rounded-lg text-sm outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition bg-white resize-y"
+              />
+            </div>
+
+            {/* 栏位 4：补充要求 */}
+            <div>
+              <label className="flex items-center gap-2 text-xs font-medium text-ink mb-1.5">
+                <span className="w-5 h-5 rounded bg-gray-400 text-white flex items-center justify-center text-xs">+</span>
+                补充要求（可选）
+              </label>
+              <textarea
+                value={templateExtra}
+                onChange={e => setTemplateExtra(e.target.value)}
+                placeholder="对最终稿的额外要求，如风格、字数、语气...&#10;&#10;例如：用轻松活泼的语气，控制在 500 字以内，多用 emoji"
+                className="w-full min-h-[80px] p-3 border border-gray-200 rounded-lg text-sm outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition bg-white resize-y"
+              />
             </div>
           </div>
-        )}
+
+          {/* 底部操作区 */}
+          <div className="px-4 py-3 border-t border-gray-200 bg-white flex items-center justify-between">
+            <div className="text-xs text-inkLight">
+              {[templateTitle, templateStructure, templateBody].filter(Boolean).length}/3 个栏位已填写
+            </div>
+            <button onClick={handleGenerate} disabled={generating}
+              className="bg-accent text-white px-5 py-2 rounded-lg text-sm font-medium disabled:opacity-40 hover:bg-accent/90 transition">
+              {generating ? '合成中...' : '✨ 创意合成'}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )

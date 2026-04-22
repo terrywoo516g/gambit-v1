@@ -76,24 +76,31 @@ ${JSON.stringify(reflection, null, 2)}
     if (session.sceneType === 'compose') {
       const editedRows = selections.editedRows || {}
       const title = editedRows.title || ''
-      const customText = editedRows.customText || ''
-      const paragraphTexts = editedRows.paragraphTexts || []
+      const structure = editedRows.structure || ''
+      const body = editedRows.body || ''
+      const extra = editedRows.extra || ''
 
-      const generatePrompt = `你是一个专业文案编辑。用户的原始问题是：「${workspace.prompt}」
+      // 构建素材描述
+      const parts: string[] = []
+      if (title) parts.push(`【用户选定的标题】\n${title}`)
+      if (structure) parts.push(`【用户选定的核心思想/结构框架】\n${structure}`)
+      if (body) parts.push(`【用户选定的正文内容/精彩片段】\n${body}`)
 
-用户从多个 AI 的回答中挑选了以下段落作为素材：
+      const generatePrompt = `你是一个顶级文案编辑。用户的原始需求是：「${workspace.prompt}」
 
-${paragraphTexts.map((t: string, i: number) => `【段落 ${i + 1}】\n${t}`).join('\n\n')}
+用户从多个 AI 的回答中，亲手挑选了以下素材：
 
-${title ? `用户指定的标题：${title}` : ''}
-${customText ? `用户补充的要求：${customText}` : ''}
+${parts.join('\n\n')}
 
-请基于这些素材，写一篇完整、连贯、流畅的文章。要求：
-1. 保留素材中的核心信息和观点
-2. 优化段落之间的衔接和逻辑
-3. 统一全文的语气和风格
-4. 如果有标题就用用户指定的标题
-5. 不要凭空添加素材中没有的信息
+${extra ? `用户对最终稿的额外要求：${extra}` : ''}
+
+请基于用户挑选的素材，生成一篇完整的最终稿。要求：
+1. 如果用户提供了标题，使用该标题（可以微调使其更出彩，但保持用户选择的方向）
+2. 如果用户提供了结构框架，按照该结构组织全文
+3. 如果用户提供了正文片段，保留其中的核心表达和金句，将它们自然地融入文章
+4. 统一全文的语气和风格，确保段落之间衔接流畅
+5. 不要凭空添加用户素材中没有的事实性信息
+6. 可以适当润色、补充过渡句和修辞，使文章更完整
 
 用 Markdown 格式输出。`
 
