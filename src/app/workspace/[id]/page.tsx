@@ -307,9 +307,17 @@ export default function WorkspacePage() {
         {/* 顶栏 */}
         <div className="h-11 shrink-0 border-b border-gray-200 bg-white/90 backdrop-blur-sm px-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="font-semibold text-sm">Gambit</span>
+            <button onClick={() => router.push('/')} className="flex items-center gap-2 hover:opacity-80 transition">
+              <img src="/mascot.png" className="w-5 h-5 rounded-full" alt="Logo" />
+              <span className="font-bold text-sm text-ink hover:text-accent">Gambit</span>
+            </button>
+            <div className="h-3 w-[1px] bg-gray-300 mx-1"></div>
+            <button onClick={() => router.push('/')} className="text-xs text-inkLight hover:text-accent flex items-center gap-1 transition">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>
+              新建对话
+            </button>
             {!allDone && (
-              <span className="text-xs text-inkLight bg-yellow-50 px-2 py-0.5 rounded-full">
+              <span className="text-xs text-inkLight bg-yellow-50 px-2 py-0.5 rounded-full ml-2">
                 {completedCount}/{total} 已完成
               </span>
             )}
