@@ -1,56 +1,19 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
+import { dbWrite } from '@/lib/db-queue'
 import { getModelByName } from '@/lib/model-registry'
 import { streamChat, type Provider } from '@/lib/llm-client'
-
-// ============================================================
-// SQLite 并发 retry 包装器
-// 读操作在有写锁时也会被阻塞（SQLite 默认 journal 模式）
-// 所以读和写都需要 retry
-// ============================================================
-async function retryPrisma<T>(
-  fn: () => Promise<T>,
-  retries = 5,
-  baseDelay = 200
-): Promise<T> {
-  for (let i = 0; i < retries; i++) {
-    try {
-      return await fn()
-    } catch (err: any) {
-      const msg = err?.message || ''
-      const code = err?.code || ''
-      const isLocked =
-        msg.includes('database is locked') ||
-        msg.includes('SQLITE_BUSY') ||
-        code === 'SQLITE_BUSY' ||
-        code === 'P2034'
-
-      if (i === retries - 1 || !isLocked) {
-        throw err
-      }
-
-      const jitter = Math.random() * 100
-      await new Promise(r => setTimeout(r, baseDelay * (i + 1) + jitter))
-    }
-  }
-  throw new Error('retryPrisma exhausted')
-}
 
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string; runId: string } }
 ) {
-  // 读操作也加 retry，防止被并发写锁阻塞
-  const run = await retryPrisma(() =>
-    prisma.modelRun.findUnique({ where: { id: params.runId } })
-  )
+  const run = await prisma.modelRun.findUnique({ where: { id: params.runId } })
   if (!run) {
     return new Response('ModelRun not found', { status: 404 })
   }
 
-  const workspace = await retryPrisma(() =>
-    prisma.workspace.findUnique({ where: { id: params.id } })
-  )
+  const workspace = await prisma.workspace.findUnique({ where: { id: params.id } })
   if (!workspace) {
     return new Response('Workspace not found', { status: 404 })
   }
@@ -60,41 +23,32 @@ export async function GET(
     return new Response('Model not in registry: ' + run.model, { status: 400 })
   }
 
-  // 如果这个 run 已经完成或失败（比如页面刷新后重连），直接返回已有内容
   if (run.status === 'completed' || run.status === 'failed') {
     const encoder = new TextEncoder()
     const existingStream = new ReadableStream({
       start(controller) {
         if (run.status === 'completed' && run.content) {
-          const event = `data: ${JSON.stringify({ type: 'token', data: run.content })}\n\n`
-          controller.enqueue(encoder.encode(event))
-          const doneEvent = `data: ${JSON.stringify({ type: 'done', data: { tokens: run.tokens || 0 } })}\n\n`
-          controller.enqueue(encoder.encode(doneEvent))
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'token', data: run.content })}\n\n`))
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'done', data: { tokens: run.tokens || 0 } })}\n\n`))
         } else {
-          const errorEvent = `data: ${JSON.stringify({ type: 'error', data: run.error || 'Previously failed' })}\n\n`
-          controller.enqueue(encoder.encode(errorEvent))
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'error', data: run.error || 'Previously failed' })}\n\n`))
         }
         controller.close()
       },
     })
     return new Response(existingStream, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        Connection: 'keep-alive',
-      },
+      headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' },
     })
   }
 
-  // 更新状态为 running
-  await retryPrisma(() =>
+  await dbWrite(() =>
     prisma.modelRun.update({
       where: { id: run.id },
       data: { status: 'running', startedAt: new Date() },
     })
   )
 
-  await retryPrisma(() =>
+  await dbWrite(() =>
     prisma.workspace.update({
       where: { id: workspace.id },
       data: { status: 'running' },
@@ -140,7 +94,7 @@ export async function GET(
             totalTokensIn = chunk.data.tokensIn || 0
             totalTokensOut = chunk.data.tokensOut || 0
 
-            await retryPrisma(() =>
+            await dbWrite(() =>
               prisma.modelRun.update({
                 where: { id: run.id },
                 data: {
@@ -152,16 +106,14 @@ export async function GET(
               })
             )
 
-            const allRuns = await retryPrisma(() =>
-              prisma.modelRun.findMany({
-                where: { workspaceId: workspace.id },
-              })
-            )
+            const allRuns = await prisma.modelRun.findMany({
+              where: { workspaceId: workspace.id },
+            })
             const allDone = allRuns.every(r =>
               r.id === run.id ? true : r.status === 'completed' || r.status === 'failed'
             )
             if (allDone) {
-              await retryPrisma(() =>
+              await dbWrite(() =>
                 prisma.workspace.update({
                   where: { id: workspace.id },
                   data: { status: 'completed' },
@@ -169,38 +121,35 @@ export async function GET(
               )
             }
 
-            const doneEvent = `data: ${JSON.stringify({ type: 'done', data: { tokens: totalTokensIn + totalTokensOut } })}\n\n`
-            controller.enqueue(encoder.encode(doneEvent))
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'done', data: { tokens: totalTokensIn + totalTokensOut } })}\n\n`))
             controller.close()
           }
 
           if (chunk.type === 'error') {
-            await retryPrisma(() =>
+            await dbWrite(() =>
               prisma.modelRun.update({
                 where: { id: run.id },
                 data: { status: 'failed', error: chunk.data },
               })
             )
-            const errorEvent = `data: ${JSON.stringify({ type: 'error', data: chunk.data })}\n\n`
-            controller.enqueue(encoder.encode(errorEvent))
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'error', data: chunk.data })}\n\n`))
             controller.close()
           }
         }
       } catch (err) {
         console.error('[stream error]', err)
         try {
-          await retryPrisma(() =>
+          await dbWrite(() =>
             prisma.modelRun.update({
               where: { id: run.id },
               data: { status: 'failed', error: String(err) },
             })
           )
-        } catch (retryErr) {
-          console.error('[stream error] failed to update status:', retryErr)
+        } catch (e) {
+          console.error('[stream error] failed to update status:', e)
         }
 
-        const errorEvent = `data: ${JSON.stringify({ type: 'error', data: String(err) })}\n\n`
-        controller.enqueue(encoder.encode(errorEvent))
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'error', data: String(err) })}\n\n`))
         controller.close()
       }
     },
