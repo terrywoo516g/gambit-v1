@@ -87,6 +87,8 @@ export default function WorkspacePage() {
       router.push('/workspace/' + wsId + '/scene/compare')
     } else if (scene === 'brainstorm') {
       router.push('/workspace/' + wsId + '/scene/brainstorm')
+    } else if (scene === 'compose') {
+      router.push('/workspace/' + wsId + '/scene/compose')
     } else {
       alert('「' + SCENE_BUTTONS.find(s => s.key === scene)?.label + '」即将上线，敬请期待！')
     }

@@ -73,6 +73,54 @@ ${JSON.stringify(reflection, null, 2)}
       return NextResponse.json({ draftId: draft.id, content: report })
     }
 
+    if (session.sceneType === 'compose') {
+      const editedRows = selections.editedRows || {}
+      const title = editedRows.title || ''
+      const customText = editedRows.customText || ''
+      const paragraphTexts = editedRows.paragraphTexts || []
+
+      const generatePrompt = `你是一个专业文案编辑。用户的原始问题是：「${workspace.prompt}」
+
+用户从多个 AI 的回答中挑选了以下段落作为素材：
+
+${paragraphTexts.map((t: string, i: number) => `【段落 ${i + 1}】\n${t}`).join('\n\n')}
+
+${title ? `用户指定的标题：${title}` : ''}
+${customText ? `用户补充的要求：${customText}` : ''}
+
+请基于这些素材，写一篇完整、连贯、流畅的文章。要求：
+1. 保留素材中的核心信息和观点
+2. 优化段落之间的衔接和逻辑
+3. 统一全文的语气和风格
+4. 如果有标题就用用户指定的标题
+5. 不要凭空添加素材中没有的信息
+
+用 Markdown 格式输出。`
+
+      const article = await chatOnce({
+        provider: 'qiniu',
+        model: 'deepseek/deepseek-v3.2-251201',
+        messages: [{ role: 'user', content: generatePrompt }],
+      })
+
+      const draft = await prisma.finalDraft.create({
+        data: {
+          id: uuidv4(),
+          sceneSessionId: session.id,
+          content: article,
+          format: 'markdown',
+          version: 1,
+        },
+      })
+
+      await prisma.sceneSession.update({
+        where: { id: session.id },
+        data: { status: 'completed' },
+      })
+
+      return NextResponse.json({ draftId: draft.id, content: article })
+    }
+
     // 原有的 compare 逻辑
     // 获取表格数据
     const artifact = await prisma.artifact.findFirst({
