@@ -42,3 +42,5 @@ node_modules/
 data/
 *.db
 test-sse.mjs
+github_key
+github_key.pub
