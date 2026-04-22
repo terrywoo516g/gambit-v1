@@ -83,8 +83,11 @@ export default function WorkspacePage() {
   }, [allDone, wsId, completedCount])
 
   function handleSceneClick(scene: string) {
-    // Phase 1-4 会实现具体场景页面，目前显示占位
-    alert('「' + SCENE_BUTTONS.find(s => s.key === scene)?.label + '」即将上线，敬请期待！')
+    if (scene === 'compare') {
+      router.push('/workspace/' + wsId + '/scene/compare')
+    } else {
+      alert('「' + SCENE_BUTTONS.find(s => s.key === scene)?.label + '」即将上线，敬请期待！')
+    }
   }
 
   if (loading) {
