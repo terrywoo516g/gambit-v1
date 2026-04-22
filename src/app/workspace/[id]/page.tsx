@@ -34,6 +34,8 @@ export default function WorkspacePage() {
   const [observerLoading, setObserverLoading] = useState(false)
   const [sparkLoading, setSparkLoading] = useState(false)
   const [showDrawer, setShowDrawer] = useState<'observer' | 'spark' | null>(null)
+  const [chatInput, setChatInput] = useState('')
+  const [chatProcessing, setChatProcessing] = useState(false)
 
   // 加载 workspace
   useEffect(() => {
@@ -118,6 +120,33 @@ export default function WorkspacePage() {
       alert(e instanceof Error ? e.message : '灵光一闪调用失败')
     } finally {
       setSparkLoading(false)
+    }
+  }
+
+  async function handleChatSubmit() {
+    const input = chatInput.trim()
+    if (!input || chatProcessing) return
+
+    setChatProcessing(true)
+    try {
+      // 调用推荐 API，用用户的自然语言输入来判断意图
+      const res = await fetch('/api/workspaces/' + wsId + '/recommend-scene', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userMessage: input }),
+      })
+      const data = await res.json()
+
+      if (data.scene && ['compare', 'brainstorm', 'compose', 'review'].includes(data.scene)) {
+        router.push('/workspace/' + wsId + '/scene/' + data.scene)
+      } else {
+        alert('暂时无法理解你的指令，请尝试使用上方的场景按钮')
+      }
+    } catch {
+      alert('处理失败，请重试')
+    } finally {
+      setChatProcessing(false)
+      setChatInput('')
     }
   }
 
@@ -236,41 +265,7 @@ export default function WorkspacePage() {
         </div>
       </div>
 
-      {/* 底部操作栏 */}
-      {allDone && completedCount >= 2 && (
-        <div className="border-t border-gray-200 bg-white px-6 py-4 shrink-0">
-          <div className="max-w-5xl mx-auto">
-            {recommendation && (
-              <div className="text-xs text-inkLight mb-3">
-                💡 建议进入【{SCENE_BUTTONS.find(s => s.key === recommendation.scene)?.label}】—— {recommendation.reason}
-              </div>
-            )}
-            <div className="flex items-center justify-center gap-3">
-              {SCENE_BUTTONS.map(btn => (
-                <button key={btn.key} onClick={() => handleSceneClick(btn.key)}
-                  className={`px-4 py-2 rounded-xl text-sm border transition ${
-                    recommendation?.scene === btn.key
-                      ? 'bg-accent text-white border-accent'
-                      : 'bg-white text-ink border-gray-200 hover:border-accent'
-                  }`}>
-                  <span className="mr-1">{btn.icon}</span>
-                  {btn.label}
-                </button>
-              ))}
-              <div className="flex items-center gap-2 ml-4 pl-4 border-l border-gray-200">
-                <button onClick={handleObserver} disabled={observerLoading}
-                  className="px-3 py-2 rounded-xl text-sm border border-gray-200 bg-white text-inkLight hover:border-accent transition disabled:opacity-40">
-                  {observerLoading ? '分析中...' : '👁️ 旁观者'}
-                </button>
-                <button onClick={handleSpark} disabled={sparkLoading}
-                  className="px-3 py-2 rounded-xl text-sm border border-gray-200 bg-white text-inkLight hover:border-accent transition disabled:opacity-40">
-                  {sparkLoading ? '思考中...' : '⚡ 灵光一闪'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {/* 旁观者和灵光一闪抽屉 */}
       {showDrawer && (
@@ -301,6 +296,63 @@ export default function WorkspacePage() {
             }} className="w-full text-sm text-inkLight hover:text-accent py-2 border border-gray-200 rounded-lg">
               复制内容
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* 底部操作栏 */}
+      {allDone && completedCount >= 2 && (
+        <div className="border-t border-gray-200 bg-white px-6 py-4 shrink-0">
+          <div className="max-w-5xl mx-auto">
+            {recommendation && (
+              <div className="text-xs text-inkLight mb-3">
+                💡 建议进入【{SCENE_BUTTONS.find(s => s.key === recommendation.scene)?.label}】—— {recommendation.reason}
+              </div>
+            )}
+            <div className="flex items-center justify-center gap-3 mb-3">
+              {SCENE_BUTTONS.map(btn => (
+                <button key={btn.key} onClick={() => handleSceneClick(btn.key)}
+                  className={`px-4 py-2 rounded-xl text-sm border transition ${
+                    recommendation?.scene === btn.key
+                      ? 'bg-accent text-white border-accent'
+                      : 'bg-white text-ink border-gray-200 hover:border-accent'
+                  }`}>
+                  <span className="mr-1">{btn.icon}</span>
+                  {btn.label}
+                </button>
+              ))}
+              <div className="flex items-center gap-2 ml-4 pl-4 border-l border-gray-200">
+                <button onClick={handleObserver} disabled={observerLoading}
+                  className="px-3 py-2 rounded-xl text-sm border border-gray-200 bg-white text-inkLight hover:border-accent transition disabled:opacity-40">
+                  {observerLoading ? '分析中...' : '👁️ 旁观者'}
+                </button>
+                <button onClick={handleSpark} disabled={sparkLoading}
+                  className="px-3 py-2 rounded-xl text-sm border border-gray-200 bg-white text-inkLight hover:border-accent transition disabled:opacity-40">
+                  {sparkLoading ? '思考中...' : '⚡ 灵光一闪'}
+                </button>
+              </div>
+            </div>
+            {/* 对话输入框 */}
+            <div className="flex items-center gap-2 max-w-2xl mx-auto">
+              <div className="flex-1 relative">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={e => setChatInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSubmit() }}}
+                  placeholder="告诉我你想做什么，比如「帮我对比一下价格」「分析一下各方观点」..."
+                  className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-accent transition bg-gray-50"
+                  disabled={chatProcessing}
+                />
+              </div>
+              <button
+                onClick={handleChatSubmit}
+                disabled={chatProcessing || !chatInput.trim()}
+                className="px-4 py-2.5 bg-ink text-white rounded-xl text-sm font-medium disabled:opacity-30 hover:bg-ink/85 transition shrink-0"
+              >
+                {chatProcessing ? '理解中...' : '发送'}
+              </button>
+            </div>
           </div>
         </div>
       )}

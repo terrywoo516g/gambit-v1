@@ -4,6 +4,14 @@ import { chatOnce } from '@/lib/llm-client'
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
+    let userMessage = ''
+    try {
+      const body = await req.json()
+      userMessage = body.userMessage || ''
+    } catch {
+      // 没有 body 也可以，兼容原来无 body 的调用
+    }
+
     const workspace = await prisma.workspace.findUnique({
       where: { id: params.id },
       include: { modelRuns: { where: { status: 'completed' } } },
@@ -31,12 +39,16 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
 不要返回其他任何内容。`
 
+    const userContent = userMessage
+      ? `用户问题：${prompt}\n\n各 AI 回答摘要：\n${summaries}\n\n用户的新指令：${userMessage}\n\n请根据用户的新指令判断最适合的场景。`
+      : `用户问题：${prompt}\n\n各 AI 回答摘要：\n${summaries}`
+
     const result = await chatOnce({
       provider: 'qiniu',
       model: 'deepseek/deepseek-v3.2-251201',
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: `用户问题：${prompt}\n\n各 AI 回答摘要：\n${summaries}` },
+        { role: 'user', content: userContent },
       ],
     })
 

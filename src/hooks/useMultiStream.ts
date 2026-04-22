@@ -16,6 +16,7 @@ export function useMultiStream(
   const [streams, setStreams] = useState<Record<string, RunStream>>({})
   const sourcesRef = useRef<Record<string, EventSource>>({})
   const startedRef = useRef<Set<string>>(new Set())
+  const timersRef = useRef<NodeJS.Timeout[]>([])
 
   useEffect(() => {
     if (!workspaceId || runs.length === 0) return
@@ -27,58 +28,66 @@ export function useMultiStream(
     })
     setStreams(initial)
 
-    // 为每个 run 开启 SSE
-    runs.forEach(run => {
+    // 为每个 run 开启 SSE（加延迟，避免 SQLite 并发写入冲突）
+    runs.forEach((run, index) => {
       if (startedRef.current.has(run.id)) return
       startedRef.current.add(run.id)
 
-      const es = new EventSource(`/api/workspaces/${workspaceId}/stream/${run.id}`)
+      const delay = index * 800
 
-      es.onmessage = (e) => {
-        try {
-          const chunk = JSON.parse(e.data)
+      const timer = setTimeout(() => {
+        const es = new EventSource(`/api/workspaces/${workspaceId}/stream/${run.id}`)
 
-          if (chunk.type === 'token') {
-            setStreams(prev => ({
-              ...prev,
-              [run.id]: {
-                ...prev[run.id],
-                content: (prev[run.id]?.content || '') + chunk.data,
-                status: 'streaming',
-              },
-            }))
-          }
+        es.onmessage = (e) => {
+          try {
+            const chunk = JSON.parse(e.data)
 
-          if (chunk.type === 'done') {
-            setStreams(prev => ({
-              ...prev,
-              [run.id]: { ...prev[run.id], status: 'done' },
-            }))
-            es.close()
-          }
+            if (chunk.type === 'token') {
+              setStreams(prev => ({
+                ...prev,
+                [run.id]: {
+                  ...prev[run.id],
+                  content: (prev[run.id]?.content || '') + chunk.data,
+                  status: 'streaming',
+                },
+              }))
+            }
 
-          if (chunk.type === 'error') {
-            setStreams(prev => ({
-              ...prev,
-              [run.id]: { ...prev[run.id], status: 'error' },
-            }))
-            es.close()
-          }
-        } catch {}
-      }
+            if (chunk.type === 'done') {
+              setStreams(prev => ({
+                ...prev,
+                [run.id]: { ...prev[run.id], status: 'done' },
+              }))
+              es.close()
+            }
 
-      es.onerror = () => {
-        setStreams(prev => ({
-          ...prev,
-          [run.id]: { ...prev[run.id], status: 'error' },
-        }))
-        es.close()
-      }
+            if (chunk.type === 'error') {
+              setStreams(prev => ({
+                ...prev,
+                [run.id]: { ...prev[run.id], status: 'error' },
+              }))
+              es.close()
+            }
+          } catch {}
+        }
 
-      sourcesRef.current[run.id] = es
+        es.onerror = () => {
+          setStreams(prev => ({
+            ...prev,
+            [run.id]: { ...prev[run.id], status: 'error' },
+          }))
+          es.close()
+        }
+
+        sourcesRef.current[run.id] = es
+      }, delay)
+
+      timersRef.current.push(timer)
     })
 
     return () => {
+      timersRef.current.forEach(t => clearTimeout(t))
+      timersRef.current = []
       Object.values(sourcesRef.current).forEach(es => es.close())
       sourcesRef.current = {}
       startedRef.current.clear()
