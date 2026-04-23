@@ -4,22 +4,22 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 const ALL_MODELS = [
-  { id: 'deepseek/deepseek-v3.2-251201', provider: 'DeepSeek', short: 'DeepSeek V3.2' },
-  { id: 'deepseek-v3.1', provider: 'DeepSeek', short: 'DeepSeek V3.1' },
-  { id: 'moonshotai/kimi-k2.6', provider: 'Moonshot', short: 'Kimi K2.6' },
-  { id: 'moonshotai/kimi-k2.5', provider: 'Moonshot', short: 'Kimi K2.5' },
-  { id: 'doubao-seed-2.0-pro', provider: 'ByteDance', short: 'Doubao Seed 2.0 Pro' },
-  { id: 'doubao-seed-2.0-mini', provider: 'ByteDance', short: 'Doubao Seed 2.0 Mini' },
-  { id: 'qwen/qwen3.6-plus', provider: 'Aliyun', short: 'Qwen3.6 Plus' },
-  { id: 'qwen3-max', provider: 'Aliyun', short: 'Qwen3 Max' },
-  { id: 'z-ai/glm-5.1', provider: 'Zhipu', short: 'GLM 5.1' },
-  { id: 'z-ai/glm-5', provider: 'Zhipu', short: 'GLM 5' },
-  { id: 'minimax/minimax-m2.7', provider: 'MiniMax', short: 'MiniMax M2.7' },
-  { id: 'MiniMax-M1', provider: 'MiniMax', short: 'MiniMax M1' },
+  { id: 'DeepSeek V3.2', provider: 'DeepSeek', short: 'DeepSeek V3.2' },
+  { id: 'DeepSeek R1', provider: 'DeepSeek', short: 'DeepSeek R1' },
+  { id: 'Kimi K2.6', provider: 'Moonshot', short: 'Kimi K2.6' },
+  { id: 'Kimi K2.5', provider: 'Moonshot', short: 'Kimi K2.5' },
+  { id: 'Doubao Seed 2.0 Pro', provider: 'ByteDance', short: 'Doubao Seed 2.0 Pro' },
+  { id: 'Doubao Seed 2.0 Mini', provider: 'ByteDance', short: 'Doubao Seed 2.0 Mini' },
+  { id: 'Qwen3.6 Plus', provider: 'Aliyun', short: 'Qwen3.6 Plus' },
+  { id: 'Qwen3 Max', provider: 'Aliyun', short: 'Qwen3 Max' },
+  { id: 'GLM 5.1', provider: 'Zhipu', short: 'GLM 5.1' },
+  { id: 'GLM 5', provider: 'Zhipu', short: 'GLM 5' },
+  { id: 'MiniMax M2.7', provider: 'MiniMax', short: 'MiniMax M2.7' },
+  { id: 'MiniMax M1', provider: 'MiniMax', short: 'MiniMax M1' },
 ]
 
-const DEFAULT_FAVORITES = ['deepseek/deepseek-v3.2-251201', 'doubao-seed-2.0-pro', 'moonshotai/kimi-k2.6']
-const DEFAULT_SELECTED = ['deepseek/deepseek-v3.2-251201', 'doubao-seed-2.0-pro', 'moonshotai/kimi-k2.6']
+const DEFAULT_FAVORITES = ['DeepSeek V3.2', 'Doubao Seed 2.0 Pro', 'Kimi K2.6']
+const DEFAULT_SELECTED = ['DeepSeek V3.2', 'Doubao Seed 2.0 Pro', 'Kimi K2.6']
 
 const TOOL_MENU = [
   { key: 'compose', label: '创意合成', desc: '多源创意整合' },

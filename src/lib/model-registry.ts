@@ -1,10 +1,10 @@
 export interface ModelInfo {
-  id: string          // 显示名，用于前端展示和 ModelRun.model 字段
-  apiId: string       // 七牛云 API 的 model ID
-  provider: string    // 厂商名
-  description: string // 一句话描述
+  id: string
+  apiId: string
+  provider: string
+  description: string
   contextLength: string
-  inputPrice: string  // 每 K tokens
+  inputPrice: string
   outputPrice: string
 }
 
@@ -46,9 +46,45 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     outputPrice: '0.021',
   },
   {
+    id: 'Doubao Seed 2.0 Pro',
+    apiId: 'doubao-seed-2.0-pro',
+    provider: 'ByteDance',
+    description: '多模态理解',
+    contextLength: '256K',
+    inputPrice: '0.0032',
+    outputPrice: '0.016',
+  },
+  {
+    id: 'Doubao Seed 2.0 Mini',
+    apiId: 'doubao-seed-2.0-mini',
+    provider: 'ByteDance',
+    description: '超低成本日常问答',
+    contextLength: '256K',
+    inputPrice: '0.0002',
+    outputPrice: '0.002',
+  },
+  {
+    id: 'Qwen3.6 Plus',
+    apiId: 'qwen/qwen3.6-plus',
+    provider: 'Aliyun',
+    description: '最新一代，超长上下文 1000K',
+    contextLength: '1000K',
+    inputPrice: '0.002',
+    outputPrice: '0.012',
+  },
+  {
+    id: 'Qwen3 Max',
+    apiId: 'qwen3-max',
+    provider: 'Aliyun',
+    description: '阿里旗舰模型',
+    contextLength: '262K',
+    inputPrice: '0.006',
+    outputPrice: '0.024',
+  },
+  {
     id: 'GLM 5.1',
     apiId: 'z-ai/glm-5.1',
-    provider: '智谱',
+    provider: 'Zhipu',
     description: '国产顶级，编程强',
     contextLength: '200K',
     inputPrice: '0.006',
@@ -57,47 +93,11 @@ export const MODEL_REGISTRY: ModelInfo[] = [
   {
     id: 'GLM 5',
     apiId: 'z-ai/glm-5',
-    provider: '智谱',
+    provider: 'Zhipu',
     description: '稳定版 GLM',
     contextLength: '200K',
     inputPrice: '0.004',
     outputPrice: '0.018',
-  },
-  {
-    id: '豆包 Seed 2.0 Pro',
-    apiId: 'doubao-seed-2.0-pro',
-    provider: '字节跳动',
-    description: '多模态理解',
-    contextLength: '256K',
-    inputPrice: '0.0032',
-    outputPrice: '0.016',
-  },
-  {
-    id: '豆包 Seed 2.0 Mini',
-    apiId: 'doubao-seed-2.0-mini',
-    provider: '字节跳动',
-    description: '超低成本日常问答',
-    contextLength: '256K',
-    inputPrice: '0.0002',
-    outputPrice: '0.002',
-  },
-  {
-    id: 'Qwen3 Max',
-    apiId: 'qwen3-max',
-    provider: '阿里云',
-    description: '阿里旗舰模型',
-    contextLength: '262K',
-    inputPrice: '0.006',
-    outputPrice: '0.024',
-  },
-  {
-    id: 'Qwen3.5 Plus',
-    apiId: 'qwen/qwen3.5-plus',
-    provider: '阿里云',
-    description: '超长上下文 1000K',
-    contextLength: '1000K',
-    inputPrice: '0.0008',
-    outputPrice: '0.0048',
   },
   {
     id: 'MiniMax M2.7',
@@ -119,7 +119,7 @@ export const MODEL_REGISTRY: ModelInfo[] = [
   },
 ]
 
-export const DEFAULT_MODELS = ['DeepSeek V3.2', '豆包 Seed 2.0 Pro', 'Kimi K2.5']
+export const DEFAULT_MODELS = ['DeepSeek V3.2', 'Doubao Seed 2.0 Pro', 'Kimi K2.6']
 
 export function getModelByName(name: string): ModelInfo | undefined {
   return MODEL_REGISTRY.find(m => m.id === name)
