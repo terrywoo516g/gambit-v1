@@ -56,8 +56,8 @@ export const MODEL_REGISTRY: ModelInfo[] = [
   },
   {
     id: 'Doubao Seed 2.0 Mini',
-    apiId: 'doubao-seed-2.0-mini',
-    provider: 'ByteDance',
+    apiId: 'doubao-seed-2-0-mini-260215',
+    provider: 'Volcano',
     description: '超低成本日常问答',
     contextLength: '256K',
     inputPrice: '0.0002',
