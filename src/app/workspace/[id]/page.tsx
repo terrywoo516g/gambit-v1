@@ -59,6 +59,8 @@ const STEPS = [
 
 type StepKey = typeof STEPS[number]['key']
 
+import MentionTextarea from '@/components/MentionTextarea'
+
 export default function WorkspacePage() {
   const params = useParams<{ id: string }>()
   const router = useRouter()
@@ -83,26 +85,27 @@ export default function WorkspacePage() {
   const [chatProcessing, setChatProcessing] = useState(false)
   const [activeRunId, setActiveRunId] = useState<string | null>(null)
 
-  useEffect(() => {
+  const loadWorkspace = useCallback(async () => {
     if (!wsId) return
-    async function load() {
-      try {
-        const res = await fetch('/api/workspaces/' + wsId)
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error)
-        setWorkspace(data.workspace)
-        const latest = data.workspace.sceneSessions
-          ?.flatMap((s: WorkspaceData['sceneSessions'][0]) => s.finalDrafts)
-          ?.sort((a: { version: number }, b: { version: number }) => b.version - a.version)[0]
-        if (latest) setDraftContent(latest.content)
-      } catch (e) {
-        alert(e instanceof Error ? e.message : '加载失败')
-      } finally {
-        setLoading(false)
-      }
+    try {
+      const res = await fetch('/api/workspaces/' + wsId)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setWorkspace(data.workspace)
+      const latest = data.workspace.sceneSessions
+        ?.flatMap((s: WorkspaceData['sceneSessions'][0]) => s.finalDrafts)
+        ?.sort((a: { version: number }, b: { version: number }) => b.version - a.version)[0]
+      if (latest) setDraftContent(latest.content)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoading(false)
     }
-    void load()
   }, [wsId])
+
+  useEffect(() => {
+    void loadWorkspace()
+  }, [loadWorkspace])
 
   const runsToStream = workspace?.modelRuns
     ?.filter(r => r.status === 'queued' || r.status === 'running')
@@ -179,23 +182,63 @@ export default function WorkspacePage() {
     const input = chatInput.trim()
     if (!input || chatProcessing) return
     setChatProcessing(true)
+    
+    // Parse mentions and plain text
+    const mentionRegex = /@\[(.*?)\]\((.*?)\)/g
+    const mentionIds: string[] = []
+    let match
+    while ((match = mentionRegex.exec(input)) !== null) {
+      mentionIds.push(match[2])
+    }
+    const plainText = input.replace(mentionRegex, '').trim()
+
     try {
-      const res = await fetch('/api/workspaces/' + wsId + '/recommend-scene', {
+      const res = await fetch('/api/workspaces/' + wsId + '/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userMessage: input }),
+        body: JSON.stringify({ userMessage: plainText || input, mentionIds }),
       })
       const data = await res.json()
-      if (data.scene && ['compare', 'brainstorm', 'compose', 'review'].includes(data.scene)) {
-        enterScene(data.scene as SceneKey)
+      
+      if (data.intent === 'update_cards') {
+        // Just clear the input, the stream hook will pick up the queued models automatically
+        setChatInput('')
+        setActiveStep('models')
+        setActiveScene(null)
+        void loadWorkspace()
+      } else if (data.intent === 'final_draft') {
+        setChatInput('')
+        // Open the output view and stream the text manually
+        setActiveStep('output')
+        setActiveScene(null)
+        setDraftContent('')
+        
+        const streamRes = await fetch('/api/workspaces/' + wsId + '/chat/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: data.sessionId, userMessage: plainText || input }),
+        })
+        
+        if (!streamRes.ok || !streamRes.body) throw new Error('Stream failed')
+        
+        const reader = streamRes.body.getReader()
+        const decoder = new TextDecoder()
+        let content = ''
+        
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          content += decoder.decode(value, { stream: true })
+          setDraftContent(content)
+        }
       } else {
-        alert('暂时无法理解你的指令，请尝试使用场景按钮')
+        alert('无法理解你的指令，请重试')
       }
-    } catch {
+    } catch (e) {
+      console.error(e)
       alert('处理失败，请重试')
     } finally {
       setChatProcessing(false)
-      setChatInput('')
     }
   }
 
@@ -490,12 +533,14 @@ export default function WorkspacePage() {
 
               <div className="flex items-center gap-2">
                 <div className="flex-1 relative">
-                  <input type="text" value={chatInput}
-                    onChange={e => setChatInput(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSubmit() } }}
-                    placeholder="输入指令，如「帮我对比一下价格」「分析各方观点」..."
-                    className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-accent transition bg-gray-50"
-                    disabled={chatProcessing} />
+                  <MentionTextarea
+                      data={runs.map(r => ({ id: r.id, display: r.model }))}
+                      value={chatInput}
+                      onChange={setChatInput}
+                      onSubmit={handleChatSubmit}
+                      placeholder="输入指令，如「帮我对比一下价格」「分析各方观点」..."
+                      disabled={chatProcessing}
+                    />
                 </div>
                 <button onClick={handleChatSubmit} disabled={chatProcessing || !chatInput.trim()}
                   className="w-9 h-9 rounded-full bg-accent text-white flex items-center justify-center disabled:opacity-30 hover:bg-accent/85 transition shrink-0">
