@@ -44,3 +44,4 @@ data/
 test-sse.mjs
 github_key
 github_key.pub
+\n.pnpm-store/
