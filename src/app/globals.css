@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    --bg-paper: #f8fafc;
+    --bg-paper: #f1f3f5;
     --grid-color: rgba(0, 0, 0, 0.04);
     --ink: #1a1a2e;
     --ink-light: #6b7280;
