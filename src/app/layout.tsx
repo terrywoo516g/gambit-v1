@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import localFont from 'next/font/local'
 import './globals.css'
+import ToastContainer from '@/components/Toast'
 
 const geistSans = localFont({
   src: './fonts/GeistVF.woff',
@@ -23,6 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="zh-CN">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         {children}
+        <ToastContainer />
       </body>
     </html>
   )
