@@ -10,7 +10,7 @@ export async function POST(
       where: { id: params.runId },
       data: {
         status: 'running',
-        content: null,
+        content: '',
         error: null,
         tokens: null,
         startedAt: new Date(),
