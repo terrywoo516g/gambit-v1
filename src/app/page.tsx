@@ -133,8 +133,8 @@ export default function HomePage() {
         {/* Logo 和标题 — 缩小间距 */}
         <img src="/mascot.png" className="w-36 h-36 mb-2 drop-shadow-lg" alt="mascot" />
         <h1 className="text-4xl font-bold text-ink mb-1 tracking-tight">Gambit</h1>
-        <p className="text-base text-inkLight mb-0.5">你终于能看到 AI 们在为你争论什么了</p>
-        <p className="text-xs text-inkLight/60 mb-6">把 AI 的决策过程变成你能介入的选择题</p>
+        <p className="text-base text-inkLight mb-0.5">你的决定，不该只听一个 AI 的</p>
+        <p className="text-xs text-inkLight/60 mb-6">让 AI 的决策过程变成你能介入的选择题</p>
 
         {/* 常用模型栏 */}
         <div className="flex items-center gap-2 mb-4 relative">
