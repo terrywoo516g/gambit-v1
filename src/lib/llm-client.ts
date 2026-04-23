@@ -41,24 +41,38 @@ const PROVIDER_CONFIG: Record<Provider, { baseURL: string; apiKeyVar: string }> 
   },
 }
 
-// ─── 模型价格（¥/1M tokens，估算用）─────────────────────────────────────────
+// ─── 模型价格（¥/1K tokens）─────────────────────────────────────────
 
 const MODEL_RATES: Record<string, { in: number; out: number }> = {
-  'doubao-seed-1.6':      { in: 1,  out: 3  },
-  'deepseek-v3':          { in: 1,  out: 3  },
-  'deepseek-r1':          { in: 4,  out: 16 },
-  'moonshotai/kimi-k2.5': { in: 4,  out: 13 },
-  'z-ai/glm-4.7':         { in: 2,  out: 6  },
+  'deepseek/deepseek-v3.2-251201':    { in: 2,    out: 3    },
+  'deepseek-v3.1':                    { in: 4,    out: 12   },
+  'moonshotai/kimi-k2.6':             { in: 6.5,  out: 27   },
+  'moonshotai/kimi-k2.5':             { in: 4,    out: 21   },
+  'doubao-seed-2.0-pro':              { in: 3.2,  out: 16   },
+  'doubao-seed-2.0-mini':             { in: 0.2,  out: 2    },
+  'qwen/qwen3.6-plus':                { in: 2,    out: 12   },
+  'qwen3-max':                        { in: 6,    out: 24   },
+  'z-ai/glm-5.1':                     { in: 6,    out: 24   },
+  'z-ai/glm-5':                       { in: 4,    out: 18   },
+  'minimax/minimax-m2.7':             { in: 2.1,  out: 8.4  },
+  'MiniMax-M1':                       { in: 4,    out: 16   },
 }
 
-// ─── 模型注册表（前端 mention name → 实际 modelId + provider）────────────────
+// ─── 模型注册表（前端 model id → 实际 modelId + provider）────────────────
 
 export const MODEL_REGISTRY: Record<string, { modelId: string; provider: Provider }> = {
-  '豆包':        { modelId: 'doubao-seed-1.6',      provider: 'qiniu' },
-  'DeepSeek':    { modelId: 'deepseek-v3',           provider: 'qiniu' },
-  'DeepSeek-R1': { modelId: 'deepseek-r1',           provider: 'qiniu' },
-  'Kimi':        { modelId: 'moonshotai/kimi-k2.5',  provider: 'qiniu' },
-  'GLM':         { modelId: 'z-ai/glm-4.7',          provider: 'qiniu' },
+  'deepseek/deepseek-v3.2-251201':    { modelId: 'deepseek/deepseek-v3.2-251201',    provider: 'qiniu' },
+  'deepseek-v3.1':                    { modelId: 'deepseek-v3.1',                    provider: 'qiniu' },
+  'moonshotai/kimi-k2.6':             { modelId: 'moonshotai/kimi-k2.6',             provider: 'qiniu' },
+  'moonshotai/kimi-k2.5':             { modelId: 'moonshotai/kimi-k2.5',             provider: 'qiniu' },
+  'doubao-seed-2.0-pro':              { modelId: 'doubao-seed-2.0-pro',              provider: 'qiniu' },
+  'doubao-seed-2.0-mini':             { modelId: 'doubao-seed-2.0-mini',             provider: 'qiniu' },
+  'qwen/qwen3.6-plus':                { modelId: 'qwen/qwen3.6-plus',               provider: 'qiniu' },
+  'qwen3-max':                        { modelId: 'qwen3-max',                        provider: 'qiniu' },
+  'z-ai/glm-5.1':                     { modelId: 'z-ai/glm-5.1',                    provider: 'qiniu' },
+  'z-ai/glm-5':                       { modelId: 'z-ai/glm-5',                      provider: 'qiniu' },
+  'minimax/minimax-m2.7':             { modelId: 'minimax/minimax-m2.7',             provider: 'qiniu' },
+  'MiniMax-M1':                       { modelId: 'MiniMax-M1',                       provider: 'qiniu' },
 }
 
 // ─── Internal Helpers ─────────────────────────────────────────────────────────
