@@ -113,8 +113,11 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen paper-dots flex flex-col relative">
-      {/* 侧边装饰文字 */}
+      {/* 侧边装饰文字与虚线 */}
+      <div className="fixed left-8 top-0 bottom-0 w-[1px] border-l border-dashed border-gray-200/60 pointer-events-none" />
       <div className="fixed left-6 top-1/2 -translate-y-1/2 font-mono text-[22px] font-bold tracking-[0.15em] text-black/[0.07]" style={{ writingMode: 'vertical-rl' }}>SECTION A-A</div>
+      
+      <div className="fixed right-8 top-0 bottom-0 w-[1px] border-r border-dashed border-gray-200/60 pointer-events-none" />
       <div className="fixed right-6 top-1/2 -translate-y-1/2 font-mono text-[22px] font-bold tracking-[0.15em] text-black/[0.07]" style={{ writingMode: 'vertical-rl' }}>DETAIL B</div>
 
       {/* 导航栏 — 透明融入背景 */}

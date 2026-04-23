@@ -22,9 +22,10 @@
 
 /* 不规则散点背景 — 模拟稿纸质感 */
 .paper-dots {
-  background-image: url("data:image/svg+xml,%3Csvg width='48' height='48' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M 48 0 L 48 48' fill='none' stroke='rgba(0,0,0,0.06)' stroke-width='1.5' stroke-dasharray='4 4'/%3E%3Cpath d='M 0 48 L 48 48' fill='none' stroke='rgba(0,0,0,0.06)' stroke-width='1.5' stroke-dasharray='4 4'/%3E%3Ccircle cx='48' cy='48' r='2' fill='rgba(0,0,0,0.15)'/%3E%3C/svg%3E");
+  background-image:
+    radial-gradient(circle, rgba(0,0,0,0.1) 1.5px, transparent 1.5px);
   background-size: 48px 48px;
-  background-position: -24px -24px;
+  background-position: 0 0;
 }
 
 .blueprint-grid {
