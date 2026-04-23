@@ -8,12 +8,15 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { id: string; runId: string } }
 ) {
-  const run = await prisma.modelRun.findUnique({ where: { id: params.runId } })
+  // 并行读取 run 和 workspace，省一次串行等待
+  const [run, workspace] = await Promise.all([
+    prisma.modelRun.findUnique({ where: { id: params.runId } }),
+    prisma.workspace.findUnique({ where: { id: params.id } }),
+  ])
+
   if (!run) {
     return new Response('ModelRun not found', { status: 404 })
   }
-
-  const workspace = await prisma.workspace.findUnique({ where: { id: params.id } })
   if (!workspace) {
     return new Response('Workspace not found', { status: 404 })
   }
@@ -41,19 +44,7 @@ export async function GET(
     })
   }
 
-  await dbWrite(() =>
-    prisma.modelRun.update({
-      where: { id: run.id },
-      data: { status: 'running', startedAt: new Date() },
-    })
-  )
-
-  await dbWrite(() =>
-    prisma.workspace.update({
-      where: { id: workspace.id },
-      data: { status: 'running' },
-    })
-  )
+  // 不再更新 running 状态 — 创建时已经设好了，直接开始调 LLM
 
   const encoder = new TextEncoder()
 
@@ -68,19 +59,10 @@ export async function GET(
           { role: 'user' as const, content: workspace.prompt },
         ]
 
-        const providerMap: Record<string, string> = {
-          'DeepSeek': 'qiniu',
-          'Moonshot': 'qiniu',
-          '智谱': 'qiniu',
-          '字节跳动': 'qiniu',
-          '阿里云': 'qiniu',
-          'MiniMax': 'qiniu',
-        }
-
-        const provider = providerMap[modelInfo.provider] || 'qiniu'
+        const provider: Provider = 'qiniu'
 
         for await (const chunk of streamChat({
-          provider: provider as Provider,
+          provider,
           model: modelInfo.apiId,
           messages,
         })) {
@@ -94,6 +76,7 @@ export async function GET(
             totalTokensIn = chunk.data.tokensIn || 0
             totalTokensOut = chunk.data.tokensOut || 0
 
+            // 完成时一次性更新 ModelRun，并检查是否全部完成
             await dbWrite(() =>
               prisma.modelRun.update({
                 where: { id: run.id },
