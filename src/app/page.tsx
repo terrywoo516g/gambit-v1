@@ -18,7 +18,7 @@ const ALL_MODELS = [
   { id: 'MiniMax M1', provider: 'MiniMax', short: 'MiniMax M1' },
 ]
 
-const DEFAULT_FAVORITES = ['DeepSeek V3.2', 'MiniMax M2.7']
+const DEFAULT_FAVORITES = ['DeepSeek V3.2', 'Doubao Seed 2.0 Pro', 'Kimi K2.6']
 const DEFAULT_SELECTED = ['DeepSeek V3.2', 'MiniMax M2.7']
 
 const TOOL_MENU = [
@@ -59,6 +59,7 @@ export default function HomePage() {
 
   function selectFromSearch(agent: string) {
     const currentFavs = [...favorites]
+    // 优先替换未被选中的快捷模型，如果都选中了则替换最后一个
     const emptyIdx = currentFavs.findIndex(f => !selectedModels.includes(f))
     const idx = emptyIdx !== -1 ? emptyIdx : 2
     setFavorites(prev => {
