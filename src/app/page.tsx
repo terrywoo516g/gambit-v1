@@ -112,29 +112,29 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle,_rgba(0,0,0,0.03)_1px,_transparent_1px)] bg-[length:24px_24px] flex flex-col relative">
+    <div className="min-h-screen paper-dots flex flex-col relative">
       {/* 侧边装饰文字 */}
       <div className="fixed left-6 top-1/2 -translate-y-1/2 font-mono text-[22px] font-bold tracking-[0.15em] text-black/[0.07]" style={{ writingMode: 'vertical-rl' }}>SECTION A-A</div>
       <div className="fixed right-6 top-1/2 -translate-y-1/2 font-mono text-[22px] font-bold tracking-[0.15em] text-black/[0.07]" style={{ writingMode: 'vertical-rl' }}>DETAIL B</div>
 
-      {/* 导航栏 */}
-      <nav className="h-14 border-b border-black/5 flex items-center justify-between px-8 bg-white/80 backdrop-blur-sm">
+      {/* 导航栏 — 透明融入背景 */}
+      <nav className="h-12 flex items-center justify-between px-8">
         <div className="flex items-center gap-2">
-          <img src="/mascot.png" className="w-8 h-8 rounded-full" alt="G" />
-          <span className="font-bold text-ink">Gambit</span>
+          <img src="/mascot.png" className="w-7 h-7 rounded-full" alt="G" />
+          <span className="font-bold text-ink text-sm">Gambit</span>
         </div>
         <a href="/workspaces" className="text-sm text-inkLight hover:text-accent transition">历史工作台</a>
       </nav>
 
-      <main className="flex-1 flex flex-col items-center justify-center px-4 pb-8">
-        {/* Logo 和标题 */}
-        <img src="/mascot.png" className="w-52 h-52 mb-4 drop-shadow-lg" alt="mascot" />
-        <h1 className="text-5xl font-bold text-ink mb-2 tracking-tight">Gambit</h1>
-        <p className="text-lg text-inkLight mb-1">你终于能看到 AI 们在为你争论什么了</p>
-        <p className="text-sm text-inkLight/60 mb-10">把 AI 的决策过程变成你能介入的选择题</p>
+      <main className="flex-1 flex flex-col items-center px-4 pt-4 pb-6">
+        {/* Logo 和标题 — 缩小间距 */}
+        <img src="/mascot.png" className="w-36 h-36 mb-2 drop-shadow-lg" alt="mascot" />
+        <h1 className="text-4xl font-bold text-ink mb-1 tracking-tight">Gambit</h1>
+        <p className="text-base text-inkLight mb-0.5">你终于能看到 AI 们在为你争论什么了</p>
+        <p className="text-xs text-inkLight/60 mb-6">把 AI 的决策过程变成你能介入的选择题</p>
 
         {/* 常用模型栏 */}
-        <div className="flex items-center gap-2 mb-5 relative">
+        <div className="flex items-center gap-2 mb-4 relative">
           {favorites.map((a, idx) => (
             <button
               key={a + idx}
@@ -322,29 +322,29 @@ export default function HomePage() {
         <button
           onClick={() => handleSubmit()}
           disabled={loading || !text.trim() || selectedModels.length < 2}
-          className="mt-6 bg-ink text-white px-8 py-3 rounded-full text-base font-medium disabled:opacity-30 hover:bg-ink/85 transition flex items-center gap-2 shadow-sm"
+          className="mt-4 bg-ink text-white px-8 py-2.5 rounded-full text-sm font-medium disabled:opacity-30 hover:bg-ink/85 transition flex items-center gap-2 shadow-sm"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
           {loading ? '正在创建...' : '开始生成分歧'}
         </button>
 
         {/* 模板卡片 */}
-        <div className="w-full max-w-3xl mt-8 grid grid-cols-2 gap-2">
+        <div className="w-full max-w-3xl mt-5 grid grid-cols-2 gap-2">
           {TEMPLATES.map(tpl => (
             <div
               key={tpl.tool}
               onClick={() => applyTemplate(tpl)}
-              className="group relative bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 cursor-pointer hover:bg-gray-100 hover:border-gray-300 transition"
+              className="group relative bg-white/60 border border-gray-200 rounded-xl px-4 py-2.5 cursor-pointer hover:bg-white hover:border-gray-300 transition"
             >
               <span className="text-[11px] font-mono font-semibold text-gray-400 uppercase tracking-wider">{tpl.label}</span>
-              <p className="text-sm text-ink mt-1 leading-snug line-clamp-2">{tpl.text}</p>
-              <span className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition text-[11px] bg-ink text-white px-2 py-1 rounded font-medium">一键输入</span>
+              <p className="text-sm text-ink mt-0.5 leading-snug line-clamp-2">{tpl.text}</p>
+              <span className="absolute right-3 top-2.5 opacity-0 group-hover:opacity-100 transition text-[11px] bg-ink text-white px-2 py-1 rounded font-medium">一键输入</span>
             </div>
           ))}
         </div>
       </main>
 
-      <footer className="py-6 text-center">
+      <footer className="py-4 text-center">
         <span className="text-xs font-mono text-black/20">© 2026 Gambit · MULTI-AI DECISION WORKBENCH · REV 2.0</span>
       </footer>
     </div>
