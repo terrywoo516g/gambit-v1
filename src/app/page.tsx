@@ -18,8 +18,8 @@ const ALL_MODELS = [
   { id: 'MiniMax M1', provider: 'MiniMax', short: 'MiniMax M1' },
 ]
 
-const DEFAULT_FAVORITES = ['DeepSeek V3.2', 'Qwen3 Max', 'MiniMax M1']
-const DEFAULT_SELECTED = ['DeepSeek V3.2', 'Qwen3 Max', 'MiniMax M1']
+const DEFAULT_FAVORITES = ['DeepSeek V3.2', 'MiniMax M2.7']
+const DEFAULT_SELECTED = ['DeepSeek V3.2', 'MiniMax M2.7']
 
 const TOOL_MENU = [
   { key: 'compose', label: '创意合成', desc: '多源创意整合' },
