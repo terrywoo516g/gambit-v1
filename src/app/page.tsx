@@ -140,15 +140,9 @@ export default function HomePage() {
         <div className="w-full max-w-4xl relative">
           
           {/* 顶部标题与模型选择栏同一行 */}
-            <div className="flex items-center justify-between mb-2 px-1 relative z-20">
-              {/* 左上角标题和黑线 */}
-              <div className="flex items-center gap-2">
-                <div className="w-[5px] h-5 bg-ink rounded-full" />
-                <span className="text-[15px] font-normal text-ink">你的决策或问题</span>
-              </div>
-  
-              {/* 常用模型栏 */}
-              <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3">
+          <div className="flex items-center justify-center mb-3 px-1 relative z-20">
+            {/* 常用模型栏 */}
+            <div className="flex items-center gap-3 relative">
                 {favorites.map((a, idx) => (
                   <button
                     key={a + idx}
