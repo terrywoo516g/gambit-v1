@@ -15,7 +15,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     const allOutputs = workspace.modelRuns
-      .map(r => `【${r.model}】：${r.content.slice(0, 500)}`)
+      .map((r: { model: string; content: string }) => `【${r.model}】：${r.content.slice(0, 500)}`)
       .join('\n\n')
 
     const sparkPrompt = `你是一个创意思维专家。你的任务是跳出所有 AI 回答的思维框架，提供一个出人意料但有价值的新角度。

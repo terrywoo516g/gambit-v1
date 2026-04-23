@@ -23,7 +23,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     const prompt = workspace.prompt
     const summaries = workspace.modelRuns
-      .map(r => `【${r.model}】：${r.content.slice(0, 500)}`)
+      .map((r: { model: string; content: string }) => `【${r.model}】：${r.content.slice(0, 500)}`)
       .join('\n\n')
 
     const systemPrompt = `你是 Gambit 的场景推荐引擎。根据用户的问题和各 AI 的回答摘要，判断最适合的处理场景。

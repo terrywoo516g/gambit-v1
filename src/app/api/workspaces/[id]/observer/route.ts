@@ -15,7 +15,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     const allOutputs = workspace.modelRuns
-      .map(r => `【${r.model}】：${r.content.slice(0, 800)}`)
+      .map((r: { model: string; content: string }) => `【${r.model}】：${r.content.slice(0, 800)}`)
       .join('\n\n')
 
     const observerPrompt = `你是一个独立的第三方观察者。你的任务是以局外人的视角审视以下多个 AI 对同一个问题的回答，找出它们共同的盲点和潜在问题。

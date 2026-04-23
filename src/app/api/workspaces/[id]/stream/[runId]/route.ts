@@ -109,7 +109,7 @@ export async function GET(
             const allRuns = await prisma.modelRun.findMany({
               where: { workspaceId: workspace.id },
             })
-            const allDone = allRuns.every(r =>
+            const allDone = allRuns.every((r: { id: string; status: string }) =>
               r.id === run.id ? true : r.status === 'completed' || r.status === 'failed'
             )
             if (allDone) {

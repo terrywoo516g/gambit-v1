@@ -15,7 +15,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     const allOutputs = workspace.modelRuns
-      .map(r => `【${r.model}】的审阅意见：\n${r.content}`)
+      .map((r: { model: string; content: string }) => `【${r.model}】的审阅意见：\n${r.content}`)
       .join('\n\n---\n\n')
 
     const extractPrompt = `你是一个审阅意见整理专家。用户提交了一份文档让多个 AI 审阅。

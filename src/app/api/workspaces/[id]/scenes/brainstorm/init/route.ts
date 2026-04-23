@@ -19,7 +19,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     const allOutputs = workspace.modelRuns
-      .map(r => `【${r.model}】的回答：\n${r.content}`)
+      .map((r: { model: string; content: string }) => `【${r.model}】的回答：\n${r.content}`)
       .join('\n\n---\n\n')
 
     const reflectionPrompt = `你是一个决策分析专家。用户的问题是：「${workspace.prompt}」

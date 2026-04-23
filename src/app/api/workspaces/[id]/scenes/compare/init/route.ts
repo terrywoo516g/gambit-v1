@@ -20,7 +20,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     // 构建提取 prompt
     const allOutputs = workspace.modelRuns
-      .map(r => `【${r.model}】的回答：\n${r.content}`)
+      .map((r: { model: string; content: string }) => `【${r.model}】的回答：\n${r.content}`)
       .join('\n\n---\n\n')
 
     const extractPrompt = `你是一个信息整理专家。用户的问题是：「${workspace.prompt}」

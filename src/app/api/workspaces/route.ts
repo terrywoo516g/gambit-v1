@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
         id: workspace.id,
         title: workspace.title,
       },
-      modelRunIds: modelRuns.map((r) => r.id),
+      modelRunIds: modelRuns.map((r: { id: string }) => r.id),
     })
   } catch (err) {
     console.error('[POST /api/workspaces]', err)
@@ -72,7 +72,7 @@ export async function GET() {
     })
 
     return NextResponse.json({
-      workspaces: workspaces.map((w) => ({
+      workspaces: workspaces.map((w: any) => ({
         id: w.id,
         title: w.title,
         status: w.status,

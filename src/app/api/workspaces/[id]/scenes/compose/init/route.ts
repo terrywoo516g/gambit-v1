@@ -14,7 +14,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     // 按段落切分每个 AI 的输出
-    const paragraphs = workspace.modelRuns.flatMap(run => {
+    const paragraphs = workspace.modelRuns.flatMap((run: { id: string; model: string; content: string }) => {
       const parts = run.content
         .split(/\n{2,}/) // 双换行分段
         .map(p => p.trim())
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({
       sceneSessionId: session.id,
       paragraphs,
-      modelNames: workspace.modelRuns.map(r => r.model),
+      modelNames: workspace.modelRuns.map((r: { model: string }) => r.model),
     })
   } catch (err) {
     console.error('[compose/init]', err)
