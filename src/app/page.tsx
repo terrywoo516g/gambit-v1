@@ -267,12 +267,13 @@ export default function HomePage() {
                         <button
                           key={m.id}
                           onClick={() => { toggleModel(m.id); setShowModelPicker(false) }}
-                          className={`flex items-center gap-2 w-full text-left px-3 py-2 text-sm rounded-lg transition ${
-                            selectedModels.includes(m.id) ? 'bg-gray-100 text-ink font-medium' : 'text-ink hover:bg-gray-50'
-                          }`}
+                          className="flex items-center gap-2 w-full text-left px-3 py-2 text-sm rounded-lg transition hover:bg-gray-50"
                         >
-                          <span className={`text-xs ${selectedModels.includes(m.id) ? 'text-inkLight' : 'text-gray-400'}`}>{m.provider}</span>
-                          <span>{m.id}</span>
+                          <span className="text-xs text-inkLight">{m.provider}</span>
+                          <span className="text-ink">{m.short}</span>
+                          {selectedModels.includes(m.id) && (
+                            <svg className="w-4 h-4 ml-auto text-accent flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
+                          )}
                         </button>
                       ))}
                     </div>
