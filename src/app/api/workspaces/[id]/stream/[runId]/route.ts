@@ -120,7 +120,13 @@ export async function GET(
               if (chunk.type === 'token') {
                 resetTimer()
                 fullContent += chunk.data
-                safeSend(controller, { type: 'token', data: chunk.data })
+                
+                // 确保数据按规范的 SSE 格式发送，并立即加上 flush 注释（如果 Nginx 还是死命缓冲）
+                const eventPayload = `data: ${JSON.stringify({ type: 'token', data: chunk.data })}\n\n`
+                controller.enqueue(encoder.encode(eventPayload))
+                // 附加换行符，有时候能帮助冲刷缓冲区
+                controller.enqueue(encoder.encode('\n'))
+
               } else if (chunk.type === 'done') {
                 tokensIn = chunk.data.tokensIn ?? 0
                 tokensOut = chunk.data.tokensOut ?? 0

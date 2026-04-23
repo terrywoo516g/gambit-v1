@@ -51,9 +51,12 @@ function getNextQiniuKey(): string {
   if (keys.length === 0) {
     if (process.env.QINIU_API_KEY) keys.push(process.env.QINIU_API_KEY)
   }
-  
-  if (keys.length === 0) throw new Error('No QINIU API keys configured')
-  
+
+  if (keys.length === 0) {
+    console.error('No QINIU API keys configured in environment variables')
+    throw new Error('No QINIU API keys configured')
+  }
+
   // 使用随机选择而不是简单的自增轮询，以解决 PM2 cluster 多进程下索引互相独立（都从0开始）的问题
   const randomIndex = Math.floor(Math.random() * keys.length)
   return keys[randomIndex]
