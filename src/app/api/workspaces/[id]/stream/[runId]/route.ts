@@ -35,7 +35,7 @@ export async function GET(
     const body = new ReadableStream({
       start(controller) {
         controller.enqueue(encoder.encode(
-          `data: ${JSON.stringify({ type: 'done', content: run.content, tokensIn: run.tokensIn, tokensOut: run.tokensOut })}\n\n`
+          `data: ${JSON.stringify({ type: 'done', content: run.content, tokens: run.tokens })}\n\n`
         ))
         controller.close()
       }
@@ -131,8 +131,7 @@ export async function GET(
             safeSend(controller, {
               type: 'done',
               content: fullContent,
-              tokensIn,
-              tokensOut,
+              tokens: tokensIn + tokensOut,
             })
 
             // 异步更新数据库（不阻塞客户端）
@@ -142,7 +141,7 @@ export async function GET(
                 data: {
                   status: 'completed',
                   content: fullContent,
-                  tokens: tokensIn + tokensOut,
+                  tokens: (tokensIn || 0) + (tokensOut || 0),
                   completedAt: new Date(),
                 },
               })
