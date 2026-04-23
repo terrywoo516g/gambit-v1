@@ -122,11 +122,14 @@ export default function HomePage() {
 
       {/* 导航栏 — 透明融入背景 */}
       <nav className="h-12 flex items-center justify-between px-8">
-        <div className="flex items-center gap-2">
-          <img src="/mascot.png" className="w-7 h-7 rounded-full" alt="G" />
-          <span className="font-bold text-ink text-sm">Gambit</span>
+        <a href="/workspaces" className="text-sm font-medium text-inkLight hover:text-ink transition flex items-center gap-1.5">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+          历史工作台
+        </a>
+        <div className="flex items-center gap-4">
+          <button className="text-sm font-medium text-inkLight hover:text-ink transition" onClick={() => alert('登录功能即将支持')}>登录</button>
+          <button className="text-sm font-medium bg-ink text-white px-4 py-1.5 rounded-full hover:bg-ink/80 transition" onClick={() => alert('注册功能即将支持')}>注册</button>
         </div>
-        <a href="/workspaces" className="text-sm text-inkLight hover:text-accent transition">历史工作台</a>
       </nav>
 
       <main className="flex-1 flex flex-col items-center px-4 pt-0 pb-6">
