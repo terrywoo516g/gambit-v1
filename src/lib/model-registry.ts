@@ -119,7 +119,7 @@ export const MODEL_REGISTRY: ModelInfo[] = [
   },
 ]
 
-export const DEFAULT_MODELS = ['DeepSeek V3.2', 'Doubao Seed 2.0 Pro', 'Kimi K2.6']
+export const DEFAULT_MODELS = ['DeepSeek V3.2', 'Qwen3 Max', 'MiniMax M1']
 
 export function getModelByName(name: string): ModelInfo | undefined {
   return MODEL_REGISTRY.find(m => m.id === name)
