@@ -52,9 +52,11 @@ function getNextQiniuKey(): string {
     if (process.env.QINIU_API_KEY) keys.push(process.env.QINIU_API_KEY)
   }
 
+  // 兜底方案：如果没有配置环境变量，给一个占位的错误Key，让后续请求在真正发送到大模型时再报错
+  // 避免抛出错误导致应用启动崩溃 (PM2 无限重启)
   if (keys.length === 0) {
-    console.error('No QINIU API keys configured in environment variables')
-    throw new Error('No QINIU API keys configured')
+    console.error('[llm-client] ERROR: No QINIU API keys configured in environment variables.')
+    return 'MISSING_API_KEY'
   }
 
   // 使用随机选择而不是简单的自增轮询，以解决 PM2 cluster 多进程下索引互相独立（都从0开始）的问题
