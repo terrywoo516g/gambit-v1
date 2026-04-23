@@ -79,10 +79,12 @@ function getNextQiniuKey(): string {
 
 const MODEL_RATES: Record<string, { in: number; out: number }> = {
   'deepseek/deepseek-v3.2-251201':  { in: 2,    out: 3    },
+  'deepseek-v3-2-251201':           { in: 2,    out: 3    },
   'deepseek-r1-0528':               { in: 4,    out: 16   },
   'moonshotai/kimi-k2.6':           { in: 6.5,  out: 27   },
   'moonshotai/kimi-k2.5':           { in: 4,    out: 21   },
   'doubao-seed-2.0-pro':            { in: 3.2,  out: 16   },
+  'doubao-seed-2-0-pro-260215':     { in: 3.2,  out: 16   },
   'doubao-seed-2.0-mini':           { in: 0.2,  out: 2    },
   'qwen/qwen3.6-plus':              { in: 2,    out: 12   },
   'qwen3-max':                      { in: 6,    out: 24   },
@@ -95,11 +97,11 @@ const MODEL_RATES: Record<string, { in: number; out: number }> = {
 // ─── 模型注册表（兼容旧引用，实际路由用 model-registry.ts）────────────────
 
 export const MODEL_REGISTRY: Record<string, { modelId: string; provider: Provider }> = {
-  'DeepSeek V3.2':        { modelId: 'deepseek/deepseek-v3.2-251201',  provider: 'qiniu' },
+  'DeepSeek V3.2':        { modelId: 'deepseek-v3-2-251201',           provider: 'volcano' },
   'DeepSeek R1':          { modelId: 'deepseek-r1-0528',               provider: 'qiniu' },
   'Kimi K2.6':            { modelId: 'moonshotai/kimi-k2.6',           provider: 'qiniu' },
   'Kimi K2.5':            { modelId: 'moonshotai/kimi-k2.5',           provider: 'qiniu' },
-  'Doubao Seed 2.0 Pro':  { modelId: 'doubao-seed-2.0-pro',            provider: 'qiniu' },
+  'Doubao Seed 2.0 Pro':  { modelId: 'doubao-seed-2-0-pro-260215',     provider: 'volcano' },
   'Doubao Seed 2.0 Mini': { modelId: 'doubao-seed-2.0-mini',           provider: 'qiniu' },
   'Qwen3.6 Plus':         { modelId: 'qwen/qwen3.6-plus',             provider: 'qiniu' },
   'Qwen3 Max':            { modelId: 'qwen3-max',                      provider: 'qiniu' },

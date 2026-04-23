@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { streamChat } from '@/lib/llm-client'
 import { getModelByName } from '@/lib/model-registry'
+import { MODEL_REGISTRY } from '@/lib/llm-client'
 import { dbWrite } from '@/lib/db-queue'
 
 export const dynamic = 'force-dynamic'
@@ -113,7 +114,7 @@ export async function GET(
             const stream = streamChat({
               model: modelInfo.apiId,
               messages: [{ role: 'user', content: workspace.prompt }],
-              provider: 'qiniu',
+              provider: MODEL_REGISTRY[run.model]?.provider || 'qiniu',
             })
 
             for await (const chunk of stream) {

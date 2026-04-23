@@ -11,8 +11,8 @@ export interface ModelInfo {
 export const MODEL_REGISTRY: ModelInfo[] = [
   {
     id: 'DeepSeek V3.2',
-    apiId: 'deepseek/deepseek-v3.2-251201',
-    provider: 'DeepSeek',
+    apiId: 'deepseek-v3-2-251201',
+    provider: 'Volcano',
     description: '主力通用模型',
     contextLength: '128K',
     inputPrice: '0.002',
@@ -47,8 +47,8 @@ export const MODEL_REGISTRY: ModelInfo[] = [
   },
   {
     id: 'Doubao Seed 2.0 Pro',
-    apiId: 'doubao-seed-2.0-pro',
-    provider: 'ByteDance',
+    apiId: 'doubao-seed-2-0-pro-260215',
+    provider: 'Volcano',
     description: '多模态理解',
     contextLength: '256K',
     inputPrice: '0.0032',
