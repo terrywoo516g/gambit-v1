@@ -22,17 +22,17 @@ const DEFAULT_FAVORITES = ['DeepSeek V3.2', '豆包 Seed 2.0 Pro', 'Kimi K2.5']
 const DEFAULT_SELECTED = ['DeepSeek V3.2', '豆包 Seed 2.0 Pro', 'Kimi K2.5']
 
 const TOOL_MENU = [
-  { key: 'compare', label: '对比', desc: '结构化表格对比' },
-  { key: 'brainstorm', label: '决策', desc: '共识/分歧/盲点' },
-  { key: 'compose', label: '合成', desc: '多源创意整合' },
-  { key: 'review', label: '审稿', desc: '多AI审阅意见' },
+  { key: 'compose', label: '创意合成', desc: '多源创意整合' },
+  { key: 'brainstorm', label: '头脑风暴', desc: '共识/分歧/盲点' },
+  { key: 'review', label: '多AI审稿', desc: '多AI审阅文档' },
+  { key: 'compare', label: '多源对比', desc: '生成推荐报告' },
 ]
 
 const TEMPLATES = [
-  { tool: 'compare', label: '对比', text: '推荐几款3000元以内的降噪耳机，帮我整理成对比表格' },
-  { tool: 'brainstorm', label: '决策', text: '我该不该从大厂跳槽去创业公司，帮我分析共识和分歧' },
-  { tool: 'compose', label: '合成', text: '帮我写一篇小红书种草文案，主题是露营装备' },
-  { tool: 'review', label: '审稿', text: '帮我审阅这份合同，找出潜在风险条款' },
+  { tool: 'compose', label: '创意合成', text: '帮我写一篇小红书种草文案，主题是露营装备' },
+  { tool: 'brainstorm', label: '头脑风暴', text: '我该不该从大厂跳槽去创业公司，帮我分析共识和分歧' },
+  { tool: 'review', label: '多AI审稿', text: '帮我审阅这份合同，找出潜在风险条款' },
+  { tool: 'compare', label: '多源对比', text: '推荐几款3000元以内的降噪耳机，帮我整理成对比表格' },
 ]
 
 function getShortName(id: string): string {
