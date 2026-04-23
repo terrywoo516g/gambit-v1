@@ -115,7 +115,7 @@ export default function HomePage() {
     <div className="min-h-screen paper-dots flex flex-col relative">
       {/* 侧边装饰文字与虚线 */}
       <div className="fixed left-8 top-0 bottom-0 w-[1px] border-l border-dashed border-gray-200/60 pointer-events-none" />
-      <div className="fixed left-6 top-1/2 -translate-y-1/2 font-mono text-[22px] font-bold tracking-[0.15em] text-black/[0.07]" style={{ writingMode: 'vertical-rl' }}>SECTION A-A</div>
+      <div className="fixed left-6 top-1/2 -translate-y-1/2 font-mono text-[22px] font-bold tracking-[0.15em] text-black/[0.07] rotate-180" style={{ writingMode: 'vertical-rl' }}>SECTION A-A</div>
       
       <div className="fixed right-8 top-0 bottom-0 w-[1px] border-r border-dashed border-gray-200/60 pointer-events-none" />
       <div className="fixed right-6 top-1/2 -translate-y-1/2 font-mono text-[22px] font-bold tracking-[0.15em] text-black/[0.07]" style={{ writingMode: 'vertical-rl' }}>DETAIL B</div>
@@ -199,11 +199,15 @@ export default function HomePage() {
         </div>
 
         {/* 对话框式输入区 */}
-        <div className="w-full max-w-4xl bg-gray-50 border border-gray-200 rounded-[20px] shadow-sm relative overflow-hidden flex pl-4 pr-2 py-2">
-          {/* 左侧粗竖线 */}
-          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-12 bg-ink rounded-r-md" />
+        <div className="w-full max-w-4xl relative">
           
-          <div className="flex-1 flex flex-col justify-center">
+          {/* 左上角标题和黑线 */}
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-1.5 h-4 bg-ink rounded-full" />
+            <span className="text-[15px] font-semibold text-ink">你的决策或问题</span>
+          </div>
+
+          <div className="w-full bg-white border border-gray-200 rounded-[12px] shadow-sm relative overflow-hidden flex flex-col pl-4 pr-2 py-2">
             {/* 已选模型和工具标签 */}
             <div className="flex flex-wrap gap-1.5 px-2 pb-1">
               {selectedModels.map(m => (
@@ -308,28 +312,28 @@ export default function HomePage() {
                 )}
               </div>
             </div>
-          </div>
-          
-          {/* 麦克风和发送按钮容器 */}
-          <div className="flex items-end pb-2 pl-2">
-            <button
-              className="w-10 h-10 rounded-full flex items-center justify-center text-inkLight hover:text-ink transition mr-1"
-              title="语音输入（即将支持）"
-              onClick={() => alert('语音功能即将支持')}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>
-            </button>
-            <button
-              onClick={() => handleSubmit()}
-              disabled={loading || !text.trim() || selectedModels.length < 2}
-              className="w-10 h-10 rounded-full bg-accent text-white flex items-center justify-center disabled:opacity-30 hover:bg-accent/85 transition shrink-0"
-            >
-              {loading ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-              )}
-            </button>
+            
+            {/* 麦克风和发送按钮容器 */}
+            <div className="absolute right-3 bottom-3 flex items-center">
+              <button
+                className="w-10 h-10 rounded-full flex items-center justify-center text-inkLight hover:text-ink transition mr-1"
+                title="语音输入（即将支持）"
+                onClick={() => alert('语音功能即将支持')}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>
+              </button>
+              <button
+                onClick={() => handleSubmit()}
+                disabled={loading || !text.trim() || selectedModels.length < 2}
+                className="w-10 h-10 rounded-full bg-accent text-white flex items-center justify-center disabled:opacity-30 hover:bg-accent/85 transition shrink-0"
+              >
+                {loading ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
