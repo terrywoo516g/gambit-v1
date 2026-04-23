@@ -41,44 +41,70 @@ const PROVIDER_CONFIG: Record<Provider, { baseURL: string; apiKeyVar: string }> 
   },
 }
 
+const qiniuKeys: string[] = []
+;(() => {
+  for (let i = 1; i <= 3; i++) {
+    const key = process.env[`QINIU_API_KEY_${i}`]
+    if (key) qiniuKeys.push(key)
+  }
+  if (qiniuKeys.length === 0) {
+    const fallback = process.env.QINIU_API_KEY
+    if (fallback) qiniuKeys.push(fallback)
+  }
+})()
+
+let qiniuKeyIndex = 0
+
+function getNextQiniuKey(): string {
+  if (qiniuKeys.length === 0) throw new Error('No QINIU API keys configured')
+  const key = qiniuKeys[qiniuKeyIndex % qiniuKeys.length]
+  qiniuKeyIndex++
+  return key
+}
+
 // ─── 模型价格（¥/1K tokens）─────────────────────────────────────────
 
 const MODEL_RATES: Record<string, { in: number; out: number }> = {
-  'deepseek/deepseek-v3.2-251201':    { in: 2,    out: 3    },
-  'deepseek-v3.1':                    { in: 4,    out: 12   },
-  'moonshotai/kimi-k2.6':             { in: 6.5,  out: 27   },
-  'moonshotai/kimi-k2.5':             { in: 4,    out: 21   },
-  'doubao-seed-2.0-pro':              { in: 3.2,  out: 16   },
-  'doubao-seed-2.0-mini':             { in: 0.2,  out: 2    },
-  'qwen/qwen3.6-plus':                { in: 2,    out: 12   },
-  'qwen3-max':                        { in: 6,    out: 24   },
-  'z-ai/glm-5.1':                     { in: 6,    out: 24   },
-  'z-ai/glm-5':                       { in: 4,    out: 18   },
-  'minimax/minimax-m2.7':             { in: 2.1,  out: 8.4  },
-  'MiniMax-M1':                       { in: 4,    out: 16   },
+  'deepseek/deepseek-v3.2-251201':  { in: 2,    out: 3    },
+  'deepseek-r1-0528':               { in: 4,    out: 16   },
+  'moonshotai/kimi-k2.6':           { in: 6.5,  out: 27   },
+  'moonshotai/kimi-k2.5':           { in: 4,    out: 21   },
+  'doubao-seed-2.0-pro':            { in: 3.2,  out: 16   },
+  'doubao-seed-2.0-mini':           { in: 0.2,  out: 2    },
+  'qwen/qwen3.6-plus':              { in: 2,    out: 12   },
+  'qwen3-max':                      { in: 6,    out: 24   },
+  'z-ai/glm-5.1':                   { in: 6,    out: 24   },
+  'z-ai/glm-5':                     { in: 4,    out: 18   },
+  'minimax/minimax-m2.7':           { in: 2.1,  out: 8.4  },
+  'MiniMax-M1':                     { in: 4,    out: 16   },
 }
 
-// ─── 模型注册表（前端 model id → 实际 modelId + provider）────────────────
+// ─── 模型注册表（兼容旧引用，实际路由用 model-registry.ts）────────────────
 
 export const MODEL_REGISTRY: Record<string, { modelId: string; provider: Provider }> = {
-  'deepseek/deepseek-v3.2-251201':    { modelId: 'deepseek/deepseek-v3.2-251201',    provider: 'qiniu' },
-  'deepseek-v3.1':                    { modelId: 'deepseek-v3.1',                    provider: 'qiniu' },
-  'moonshotai/kimi-k2.6':             { modelId: 'moonshotai/kimi-k2.6',             provider: 'qiniu' },
-  'moonshotai/kimi-k2.5':             { modelId: 'moonshotai/kimi-k2.5',             provider: 'qiniu' },
-  'doubao-seed-2.0-pro':              { modelId: 'doubao-seed-2.0-pro',              provider: 'qiniu' },
-  'doubao-seed-2.0-mini':             { modelId: 'doubao-seed-2.0-mini',             provider: 'qiniu' },
-  'qwen/qwen3.6-plus':                { modelId: 'qwen/qwen3.6-plus',               provider: 'qiniu' },
-  'qwen3-max':                        { modelId: 'qwen3-max',                        provider: 'qiniu' },
-  'z-ai/glm-5.1':                     { modelId: 'z-ai/glm-5.1',                    provider: 'qiniu' },
-  'z-ai/glm-5':                       { modelId: 'z-ai/glm-5',                      provider: 'qiniu' },
-  'minimax/minimax-m2.7':             { modelId: 'minimax/minimax-m2.7',             provider: 'qiniu' },
-  'MiniMax-M1':                       { modelId: 'MiniMax-M1',                       provider: 'qiniu' },
+  'DeepSeek V3.2':        { modelId: 'deepseek/deepseek-v3.2-251201',  provider: 'qiniu' },
+  'DeepSeek R1':          { modelId: 'deepseek-r1-0528',               provider: 'qiniu' },
+  'Kimi K2.6':            { modelId: 'moonshotai/kimi-k2.6',           provider: 'qiniu' },
+  'Kimi K2.5':            { modelId: 'moonshotai/kimi-k2.5',           provider: 'qiniu' },
+  'Doubao Seed 2.0 Pro':  { modelId: 'doubao-seed-2.0-pro',            provider: 'qiniu' },
+  'Doubao Seed 2.0 Mini': { modelId: 'doubao-seed-2.0-mini',           provider: 'qiniu' },
+  'Qwen3.6 Plus':         { modelId: 'qwen/qwen3.6-plus',             provider: 'qiniu' },
+  'Qwen3 Max':            { modelId: 'qwen3-max',                      provider: 'qiniu' },
+  'GLM 5.1':              { modelId: 'z-ai/glm-5.1',                   provider: 'qiniu' },
+  'GLM 5':                { modelId: 'z-ai/glm-5',                     provider: 'qiniu' },
+  'MiniMax M2.7':         { modelId: 'minimax/minimax-m2.7',           provider: 'qiniu' },
+  'MiniMax M1':           { modelId: 'MiniMax-M1',                     provider: 'qiniu' },
 }
 
 // ─── Internal Helpers ─────────────────────────────────────────────────────────
 
 function buildClient(provider: Provider): OpenAI {
   const cfg = PROVIDER_CONFIG[provider]
+  if (provider === 'qiniu') {
+    const apiKey = getNextQiniuKey()
+    return new OpenAI({ apiKey, baseURL: cfg.baseURL })
+  }
+
   const apiKey = process.env[cfg.apiKeyVar]
   if (!apiKey) throw new Error(`Missing env var: ${cfg.apiKeyVar}`)
   return new OpenAI({ apiKey, baseURL: cfg.baseURL })
