@@ -132,9 +132,9 @@ export default function HomePage() {
       <main className="flex-1 flex flex-col items-center px-4 pt-4 pb-6">
         {/* Logo 和标题 — 缩小间距 */}
         <img src="/mascot.png" className="w-[172px] h-[172px] mb-2 drop-shadow-lg" alt="mascot" />
-        <h1 className="text-4xl font-bold text-ink mb-1 tracking-tight">Gambit</h1>
-        <p className="text-base text-inkLight mb-0.5">你的决定，不该只听一个 AI 的</p>
-        <p className="text-xs text-inkLight/60 mb-6">让 AI 的决策过程变成你能介入的选择题</p>
+        <h1 className="text-[44px] font-black text-ink mb-1 tracking-tight">Gambit</h1>
+        <h2 className="text-xl font-extrabold text-inkLight mb-1.5">国王的选择题</h2>
+        <p className="text-sm text-inkLight/80 mb-6">你的决定，不该只听一个 AI 的</p>
 
         {/* 常用模型栏 */}
         <div className="flex items-center gap-3 mb-3 relative">
