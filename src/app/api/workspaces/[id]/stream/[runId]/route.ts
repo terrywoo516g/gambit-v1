@@ -78,7 +78,6 @@ export async function GET(
         let fullContent = ''
         let tokensIn = 0
         let tokensOut = 0
-        let success = false
 
         for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
           try {
@@ -127,7 +126,6 @@ export async function GET(
             if (timer) clearTimeout(timer)
 
             // 成功完成
-            success = true
 
             // 发送 done 事件
             safeSend(controller, {
