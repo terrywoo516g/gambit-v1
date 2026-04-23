@@ -18,39 +18,36 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: '请至少选择 2 个模型' }, { status: 400 })
     }
 
-    // 生成标题（截取前 30 字）
     const title = prompt.slice(0, 30) + (prompt.length > 30 ? '...' : '')
 
+    // 用事务一次性创建 workspace + 所有 modelRuns，减少 DB 往返
     const workspace = await prisma.workspace.create({
       data: {
         prompt,
         selectedModels: JSON.stringify(selectedModels),
         title,
-        status: 'pending',
+        status: 'running',
+        modelRuns: {
+          create: selectedModels.map((modelName) => {
+            const modelInfo = getModelByName(modelName)
+            return {
+              model: modelName,
+              modelId: modelInfo?.apiId ?? modelName,
+              status: 'running',
+              startedAt: new Date(),
+            }
+          }),
+        },
       },
+      include: { modelRuns: true },
     })
-
-    // 为每个选中的模型创建 ModelRun
-    const modelRuns = await Promise.all(
-      selectedModels.map(async (modelName) => {
-        const modelInfo = getModelByName(modelName)
-        return prisma.modelRun.create({
-          data: {
-            workspaceId: workspace.id,
-            model: modelName,
-            modelId: modelInfo?.apiId ?? modelName,
-            status: 'queued',
-          },
-        })
-      })
-    )
 
     return NextResponse.json({
       workspace: {
         id: workspace.id,
         title: workspace.title,
       },
-      modelRunIds: modelRuns.map((r: { id: string }) => r.id),
+      modelRunIds: workspace.modelRuns.map((r: { id: string }) => r.id),
     })
   } catch (err) {
     console.error('[POST /api/workspaces]', err)
