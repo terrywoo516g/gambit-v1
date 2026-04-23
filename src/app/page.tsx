@@ -140,43 +140,43 @@ export default function HomePage() {
         <div className="w-full max-w-4xl relative">
           
           {/* 顶部标题与模型选择栏同一行 */}
-          <div className="flex items-center justify-between mb-2 px-1">
-            {/* 左上角标题和黑线 */}
-            <div className="flex items-center gap-2">
-              <div className="w-[5px] h-5 bg-ink rounded-full" />
-              <span className="text-[15px] font-normal text-ink">你的决策或问题</span>
-            </div>
-
-            {/* 常用模型栏 */}
-            <div className="flex items-center gap-3 relative">
-              {favorites.map((a, idx) => (
+            <div className="flex items-center justify-between mb-2 px-1 relative z-20">
+              {/* 左上角标题和黑线 */}
+              <div className="flex items-center gap-2">
+                <div className="w-[5px] h-5 bg-ink rounded-full" />
+                <span className="text-[15px] font-normal text-ink">你的决策或问题</span>
+              </div>
+  
+              {/* 常用模型栏 */}
+              <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3">
+                {favorites.map((a, idx) => (
+                  <button
+                    key={a + idx}
+                    onClick={() => clickFavorite(a)}
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition flex items-center gap-1.5 ${
+                      selectedModels.includes(a)
+                        ? 'bg-gray-100 text-ink shadow-sm'
+                        : 'bg-transparent text-inkLight hover:text-ink'
+                    }`}
+                  >
+                    <div className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold ${selectedModels.includes(a) ? 'bg-ink text-white' : 'bg-gray-200 text-inkLight'}`}>
+                      {getShortName(a)[0]}
+                    </div>
+                    {getShortName(a)}
+                  </button>
+                ))}
                 <button
-                  key={a + idx}
-                  onClick={() => clickFavorite(a)}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition flex items-center gap-1.5 ${
-                    selectedModels.includes(a)
-                      ? 'bg-gray-100 text-ink shadow-sm'
-                      : 'bg-transparent text-inkLight hover:text-ink'
-                  }`}
+                  onClick={() => setShowAgentSearch(!showAgentSearch)}
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-inkLight hover:text-ink transition"
                 >
-                  <div className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold ${selectedModels.includes(a) ? 'bg-ink text-white' : 'bg-gray-200 text-inkLight'}`}>
-                    {getShortName(a)[0]}
-                  </div>
-                  {getShortName(a)}
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
                 </button>
-              ))}
-              <button
-                onClick={() => setShowAgentSearch(!showAgentSearch)}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-inkLight hover:text-ink transition"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-              </button>
-
-              {/* 模型搜索弹窗 */}
-              {showAgentSearch && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => { setShowAgentSearch(false); setSearchQuery('') }} />
-                  <div className="absolute top-10 right-0 z-50 w-80 bg-white rounded-2xl border border-gray-200 shadow-xl p-5">
+  
+                {/* 模型搜索弹窗 */}
+                {showAgentSearch && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => { setShowAgentSearch(false); setSearchQuery('') }} />
+                    <div className="absolute top-10 left-1/2 -translate-x-1/2 z-50 w-80 bg-white rounded-2xl border border-gray-200 shadow-xl p-5">
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-sm font-semibold text-ink">选择模型替换到常用栏</span>
                       <button onClick={() => { setShowAgentSearch(false); setSearchQuery('') }} className="text-inkLight hover:text-ink text-lg">&times;</button>
@@ -210,7 +210,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="w-full bg-white border border-gray-200 rounded-[12px] shadow-sm relative overflow-hidden flex flex-col pl-4 pr-2 py-2">
+          <div className="w-full bg-white border border-gray-200 rounded-[12px] shadow-sm overflow-visible flex flex-col pl-4 pr-2 py-2">
             {/* 已选模型和工具标签 */}
             <div className="flex flex-wrap gap-1.5 px-2 pb-1">
               {selectedModels.map(m => (
@@ -265,7 +265,7 @@ export default function HomePage() {
                 {showModelPicker && (
                   <>
                     <div className="fixed inset-0 z-30" onClick={() => setShowModelPicker(false)} />
-                    <div className="absolute bottom-10 left-0 bg-white border border-gray-200 rounded-xl p-2 shadow-lg z-40 w-64 max-h-80 overflow-y-auto">
+                    <div className="absolute bottom-10 left-0 bg-white border border-gray-200 rounded-xl p-2 shadow-lg z-[100] w-64 max-h-80 overflow-y-auto">
                       {ALL_MODELS.map(m => (
                         <button
                           key={m.id}
@@ -295,7 +295,7 @@ export default function HomePage() {
                 {showToolMenu && (
                   <>
                     <div className="fixed inset-0 z-30" onClick={() => setShowToolMenu(false)} />
-                    <div className="absolute bottom-10 left-0 bg-white border border-gray-200 rounded-xl p-2 shadow-lg z-40 w-60">
+                    <div className="absolute bottom-10 left-0 bg-white border border-gray-200 rounded-xl p-2 shadow-lg z-[100] w-60">
                       {TOOL_MENU.map(t => (
                         <button
                           key={t.key}
