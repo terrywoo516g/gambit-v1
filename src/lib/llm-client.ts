@@ -98,12 +98,12 @@ const MODEL_RATES: Record<string, { in: number; out: number }> = {
 // ─── 模型注册表（兼容旧引用，实际路由用 model-registry.ts）────────────────
 
 export const MODEL_REGISTRY: Record<string, { modelId: string; provider: Provider }> = {
-  'DeepSeek V3.2':        { modelId: 'deepseek-v3-2-251201',           provider: 'volcano' },
+  'DeepSeek V3.2':        { modelId: 'deepseek/deepseek-v3.2-251201',  provider: 'qiniu' },
   'DeepSeek R1':          { modelId: 'deepseek-r1-0528',               provider: 'qiniu' },
   'Kimi K2.6':            { modelId: 'moonshotai/kimi-k2.6',           provider: 'qiniu' },
   'Kimi K2.5':            { modelId: 'moonshotai/kimi-k2.5',           provider: 'qiniu' },
-  'Doubao Seed 2.0 Pro':  { modelId: 'doubao-seed-2-0-pro-260215',     provider: 'volcano' },
-  'Doubao Seed 2.0 Mini': { modelId: 'doubao-seed-2-0-mini-260215',    provider: 'volcano' },
+  'Doubao Seed 2.0 Pro':  { modelId: 'doubao-seed-2.0-pro',            provider: 'qiniu' },
+  'Doubao Seed 2.0 Mini': { modelId: 'doubao-seed-2.0-mini',           provider: 'qiniu' },
   'Qwen3.6 Plus':         { modelId: 'qwen/qwen3.6-plus',             provider: 'qiniu' },
   'Qwen3 Max':            { modelId: 'qwen3-max',                      provider: 'qiniu' },
   'GLM 5.1':              { modelId: 'z-ai/glm-5.1',                   provider: 'qiniu' },
