@@ -4,6 +4,11 @@ import { v4 as uuidv4 } from 'uuid'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+declare global {
+  // eslint-disable-next-line no-var
+  var qiniuKeyIndex: number | undefined
+}
+
 export type Provider = 'qiniu' | 'volcano' | 'dmxapi'
 
 export interface ChatMessage {
@@ -59,9 +64,15 @@ function getNextQiniuKey(): string {
     return 'MISSING_API_KEY'
   }
 
-  // 使用随机选择而不是简单的自增轮询，以解决 PM2 cluster 多进程下索引互相独立（都从0开始）的问题
-  const randomIndex = Math.floor(Math.random() * keys.length)
-  return keys[randomIndex]
+  // 使用简单的全局计数器轮询，避免随机可能导致的某些 Key 被频繁使用
+  if (typeof globalThis.qiniuKeyIndex === 'undefined') {
+    globalThis.qiniuKeyIndex = 0
+  }
+  
+  const index = globalThis.qiniuKeyIndex % keys.length
+  globalThis.qiniuKeyIndex++
+  
+  return keys[index]
 }
 
 // ─── 模型价格（¥/1K tokens）─────────────────────────────────────────
