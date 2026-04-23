@@ -25,8 +25,8 @@ export function useMultiStream(
   const finalStateRef = useRef<Record<string, { status: 'done' | 'error'; content?: string }>>({})
   const rafRef = useRef<number>(0)
   const mountedRef = useRef(true)
-  const sourcesRef = useRef<Record<string, EventSource>>({})
-  const retryCountRef = useRef<Record<string, number>>({})
+  const sourceRef = useRef<EventSource | null>(null)
+  const retryCountRef = useRef<number>(0)
 
   // RAF 刷新循环：每帧把缓冲区内容合并到 React state
   const startFlushLoop = useCallback(() => {
@@ -84,24 +84,29 @@ export function useMultiStream(
     rafRef.current = requestAnimationFrame(flush)
   }, [])
 
-  const connectStream = useCallback((runId: string, model: string) => {
-    // 初始化缓冲区
-    if (!bufferRef.current[runId]) {
-      bufferRef.current[runId] = []
-    }
+  const connectStreamAll = useCallback(() => {
+    if (sourceRef.current) return
 
-    const url = `/api/workspaces/${workspaceId}/stream/${runId}`
+    const url = `/api/workspaces/${workspaceId}/stream-all`
     const es = new EventSource(url)
-    sourcesRef.current[runId] = es
+    sourceRef.current = es
 
     es.onmessage = (event) => {
       if (!mountedRef.current) return
       try {
         const chunk = JSON.parse(event.data)
 
+        if (chunk.type === 'all-done') {
+          es.close()
+          sourceRef.current = null
+          return
+        }
+
+        const runId = chunk.runId
+        if (!runId) return
+
         switch (chunk.type) {
           case 'token':
-            // 写入 ref 缓冲区，不触发 React 渲染
             if (bufferRef.current[runId]) {
               bufferRef.current[runId].push(chunk.token)
             }
@@ -118,19 +123,14 @@ export function useMultiStream(
             break
 
           case 'done':
-            // 标记最终状态，让 RAF 循环处理
             finalStateRef.current[runId] = {
               status: 'done',
-              content: chunk.content // 服务端返回的完整内容
+              content: chunk.content 
             }
-            es.close()
-            delete sourcesRef.current[runId]
             break
 
           case 'error':
             finalStateRef.current[runId] = { status: 'error' }
-            es.close()
-            delete sourcesRef.current[runId]
             break
         }
       } catch (e) {
@@ -141,25 +141,33 @@ export function useMultiStream(
     es.onerror = () => {
       if (!mountedRef.current) return
       es.close()
-      delete sourcesRef.current[runId]
+      sourceRef.current = null
 
-      const retries = retryCountRef.current[runId] || 0
+      const retries = retryCountRef.current || 0
       if (retries < MAX_RETRIES) {
-        retryCountRef.current[runId] = retries + 1
-        setStreams(prev => ({
-          ...prev,
-          [runId]: {
-            ...prev[runId],
-            status: 'retrying'
+        retryCountRef.current = retries + 1
+        
+        setStreams(prev => {
+          const next = { ...prev }
+          for (const runId in next) {
+            if (next[runId].status !== 'done' && next[runId].status !== 'error') {
+              next[runId] = { ...next[runId], status: 'retrying' }
+            }
           }
-        }))
+          return next
+        })
+        
         setTimeout(() => {
           if (mountedRef.current) {
-            connectStream(runId, model)
+            connectStreamAll()
           }
         }, RETRY_DELAY)
       } else {
-        finalStateRef.current[runId] = { status: 'error' }
+        for (const runId in bufferRef.current) {
+          if (!finalStateRef.current[runId]) {
+             finalStateRef.current[runId] = { status: 'error' }
+          }
+        }
       }
     }
   }, [workspaceId])
@@ -170,7 +178,7 @@ export function useMultiStream(
     mountedRef.current = true
     bufferRef.current = {}
     finalStateRef.current = {}
-    retryCountRef.current = {}
+    retryCountRef.current = 0
 
     // 初始化所有 stream 的状态
     const initialStreams: Record<string, RunStream> = {}
@@ -181,27 +189,27 @@ export function useMultiStream(
         content: '',
         status: 'queued'
       }
+      bufferRef.current[r.id] = []
     })
     setStreams(initialStreams)
 
     // 启动 RAF 刷新循环
     startFlushLoop()
 
-    // 连接所有 stream
-    runs.forEach(r => {
-      bufferRef.current[r.id] = []
-      connectStream(r.id, r.model)
-    })
+    // 连接 stream-all
+    connectStreamAll()
 
     return () => {
       mountedRef.current = false
       cancelAnimationFrame(rafRef.current)
-      Object.values(sourcesRef.current).forEach(es => es.close())
-      sourcesRef.current = {}
+      if (sourceRef.current) {
+        sourceRef.current.close()
+        sourceRef.current = null
+      }
       bufferRef.current = {}
       finalStateRef.current = {}
     }
-  }, [workspaceId, runs.length, connectStream, startFlushLoop])
+  }, [workspaceId, runs.length, connectStreamAll, startFlushLoop])
 
   const allDone = Object.values(streams).length > 0 && Object.values(streams).every(s => s.status === 'done' || s.status === 'error')
   const completedCount = Object.values(streams).filter(s => s.status === 'done').length
