@@ -43,8 +43,9 @@ const SCENE_DEFS: { key: SceneKey; label: string; desc: string; icon: React.Reac
 const MODEL_STATUS_COLORS: Record<string, string> = {
   done: 'bg-green-400',
   completed: 'bg-green-400',
-  streaming: 'bg-yellow-400 animate-pulse',
-  running: 'bg-yellow-400 animate-pulse',
+  streaming: 'bg-blue-400 animate-pulse',
+  running: 'bg-blue-400 animate-pulse',
+  retrying: 'bg-yellow-400 animate-pulse',
   queued: 'bg-gray-300',
   error: 'bg-red-400',
   failed: 'bg-red-400',
@@ -207,6 +208,17 @@ export default function WorkspacePage() {
     }, 100)
   }
 
+  async function retryRun(runId: string) {
+    try {
+      // 重置后端状态
+      await fetch(`/api/workspaces/${wsId}/retry/${runId}`, { method: 'POST' })
+      // 刷新页面数据来重新触发 SSE
+      window.location.reload()
+    } catch {
+      alert('重试失败，请刷新页面')
+    }
+  }
+
   if (loading) {
     return (
       <main className="flex h-screen bg-[radial-gradient(circle,_rgba(0,0,0,0.03)_1px,_transparent_1px)] bg-[length:24px_24px] items-center justify-center">
@@ -340,11 +352,13 @@ export default function WorkspacePage() {
                         <span className={`text-xs px-2 py-0.5 rounded-full ${
                           status === 'done' || status === 'completed' ? 'bg-green-50 text-green-600' :
                           status === 'error' || status === 'failed' ? 'bg-red-50 text-red-600' :
-                          status === 'streaming' || status === 'running' ? 'bg-yellow-50 text-yellow-600' :
+                          status === 'retrying' ? 'bg-yellow-50 text-yellow-600' :
+                          status === 'streaming' || status === 'running' ? 'bg-blue-50 text-blue-600' :
                           'bg-gray-50 text-gray-400'
                         }`}>
                           {status === 'done' || status === 'completed' ? '已完成' :
                            status === 'error' || status === 'failed' ? '失败' :
+                           status === 'retrying' ? '重试中...' :
                            status === 'streaming' || status === 'running' ? '生成中...' : '等待中'}
                         </span>
                       </div>
@@ -356,21 +370,38 @@ export default function WorkspacePage() {
                             <div className="h-3 w-52 animate-pulse rounded bg-gray-100" />
                           </div>
                         )}
+                        {status === 'retrying' && !content && (
+                          <div className="flex items-center gap-2 text-yellow-600 text-sm">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>请求超时，正在自动重试...</span>
+                          </div>
+                        )}
                         {content && (
-                          <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
-                            p: ({children}) => <p className="my-1 leading-relaxed">{children}</p>,
-                            h1: ({children}) => <h1 className="text-lg font-bold my-2">{children}</h1>,
-                            h2: ({children}) => <h2 className="text-base font-bold my-2">{children}</h2>,
-                            h3: ({children}) => <h3 className="text-sm font-semibold my-1">{children}</h3>,
-                            ul: ({children}) => <ul className="list-disc pl-4 my-1">{children}</ul>,
-                            ol: ({children}) => <ol className="list-decimal pl-4 my-1">{children}</ol>,
-                            li: ({children}) => <li className="leading-relaxed">{children}</li>,
-                            strong: ({children}) => <strong className="font-semibold">{children}</strong>,
-                            code: ({children}) => <code className="bg-gray-100 px-1 rounded text-xs font-mono">{children}</code>,
-                          }}>{content}</ReactMarkdown>
+                          <div className={status === 'streaming' || status === 'running' ? 'streaming-cursor' : ''}>
+                            <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
+                              p: ({children}) => <p className="my-1 leading-relaxed">{children}</p>,
+                              h1: ({children}) => <h1 className="text-lg font-bold my-2">{children}</h1>,
+                              h2: ({children}) => <h2 className="text-base font-bold my-2">{children}</h2>,
+                              h3: ({children}) => <h3 className="text-sm font-semibold my-1">{children}</h3>,
+                              ul: ({children}) => <ul className="list-disc pl-4 my-1">{children}</ul>,
+                              ol: ({children}) => <ol className="list-decimal pl-4 my-1">{children}</ol>,
+                              li: ({children}) => <li className="leading-relaxed">{children}</li>,
+                              strong: ({children}) => <strong className="font-semibold">{children}</strong>,
+                              code: ({children}) => <code className="bg-gray-100 px-1 rounded text-xs font-mono">{children}</code>,
+                            }}>{content}</ReactMarkdown>
+                          </div>
                         )}
                         {(status === 'error' || status === 'failed') && !content && (
-                          <div className="text-red-500 text-sm">生成失败，请刷新重试</div>
+                          <div className="text-center py-4">
+                            <div className="text-red-500 text-sm mb-3">生成失败</div>
+                            <button
+                              onClick={() => retryRun(run.id)}
+                              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm bg-accent text-white rounded-lg hover:bg-accent/90 transition"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                              重新生成
+                            </button>
+                          </div>
                         )}
                       </div>
                       {(status === 'done' || status === 'completed') && content && (
