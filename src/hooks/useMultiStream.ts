@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback } from 'react'
+import { flushSync } from 'react-dom'
 
 export type RunStream = {
   runId: string
@@ -38,15 +39,17 @@ export function useMultiStream(
         const chunk = JSON.parse(e.data)
 
         if (chunk.type === 'token') {
-          setStreams(prev => ({
-            ...prev,
-            [run.id]: {
-              runId: run.id,
-              model: run.model,
-              content: (prev[run.id]?.content || '') + chunk.data,
-              status: 'streaming',
-            },
-          }))
+          flushSync(() => {
+            setStreams(prev => ({
+              ...prev,
+              [run.id]: {
+                runId: run.id,
+                model: run.model,
+                content: (prev[run.id]?.content || '') + chunk.data,
+                status: 'streaming',
+              },
+            }))
+          })
         }
 
         if (chunk.type === 'retry') {
