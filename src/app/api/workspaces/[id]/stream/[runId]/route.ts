@@ -72,6 +72,12 @@ export async function GET(
 
   const body = new ReadableStream({
     start(controller) {
+      // 核心修复：发送一个 2KB 的空注释，强制冲刷 Nginx/Vercel 等代理服务器的初始缓冲区
+      // 防止因为 token 数据太小，一直被代理憋在缓冲区里不发给前端
+      try {
+        controller.enqueue(encoder.encode(`: ${' '.repeat(2048)}\n\n`))
+      } catch (e) {}
+
       // 把整个异步流程放在一个立即执行的 async 函数里
       // start 本身同步返回，不会阻塞
       ;(async () => {

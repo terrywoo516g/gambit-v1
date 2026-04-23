@@ -41,25 +41,22 @@ const PROVIDER_CONFIG: Record<Provider, { baseURL: string; apiKeyVar: string }> 
   },
 }
 
-const qiniuKeys: string[] = []
-;(() => {
-  for (let i = 1; i <= 3; i++) {
-    const key = process.env[`QINIU_API_KEY_${i}`]
-    if (key) qiniuKeys.push(key)
-  }
-  if (qiniuKeys.length === 0) {
-    const fallback = process.env.QINIU_API_KEY
-    if (fallback) qiniuKeys.push(fallback)
-  }
-})()
-
-let qiniuKeyIndex = 0
-
 function getNextQiniuKey(): string {
-  if (qiniuKeys.length === 0) throw new Error('No QINIU API keys configured')
-  const key = qiniuKeys[qiniuKeyIndex % qiniuKeys.length]
-  qiniuKeyIndex++
-  return key
+  const keys: string[] = []
+  // 动态读取环境变量，避免 Next.js 静态内联或 PM2 多进程导致的环境变量未加载问题
+  for (let i = 1; i <= 10; i++) {
+    const val = process.env[`QINIU_API_KEY_${i}`]
+    if (val) keys.push(val)
+  }
+  if (keys.length === 0) {
+    if (process.env.QINIU_API_KEY) keys.push(process.env.QINIU_API_KEY)
+  }
+  
+  if (keys.length === 0) throw new Error('No QINIU API keys configured')
+  
+  // 使用随机选择而不是简单的自增轮询，以解决 PM2 cluster 多进程下索引互相独立（都从0开始）的问题
+  const randomIndex = Math.floor(Math.random() * keys.length)
+  return keys[randomIndex]
 }
 
 // ─── 模型价格（¥/1K tokens）─────────────────────────────────────────
