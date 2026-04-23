@@ -129,82 +129,85 @@ export default function HomePage() {
         <a href="/workspaces" className="text-sm text-inkLight hover:text-accent transition">历史工作台</a>
       </nav>
 
-      <main className="flex-1 flex flex-col items-center px-4 pt-4 pb-6">
+      <main className="flex-1 flex flex-col items-center px-4 pt-0 pb-6">
         {/* Logo 和标题 — 缩小间距 */}
-        <img src="/mascot.png" className="w-[172px] h-[172px] mb-2 drop-shadow-lg" alt="mascot" />
+        <img src="/mascot.png" className="w-[172px] h-[172px] mb-2 drop-shadow-lg -mt-2" alt="mascot" />
         <h1 className="text-[44px] font-black text-ink mb-1 tracking-tight">Gambit</h1>
         <h2 className="text-xl font-extrabold text-inkLight mb-1.5">国王的选择题</h2>
-        <p className="text-sm text-inkLight/80 mb-6">你的决定，不该只听一个 AI 的</p>
-
-        {/* 常用模型栏 */}
-        <div className="flex items-center gap-3 mb-3 relative">
-          {favorites.map((a, idx) => (
-            <button
-              key={a + idx}
-              onClick={() => clickFavorite(a)}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition flex items-center gap-1.5 ${
-                selectedModels.includes(a)
-                  ? 'bg-gray-100 text-ink shadow-sm'
-                  : 'bg-transparent text-inkLight hover:text-ink'
-              }`}
-            >
-              <div className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold ${selectedModels.includes(a) ? 'bg-ink text-white' : 'bg-gray-200 text-inkLight'}`}>
-                {getShortName(a)[0]}
-              </div>
-              {getShortName(a)}
-            </button>
-          ))}
-          <button
-            onClick={() => setShowAgentSearch(!showAgentSearch)}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-inkLight hover:text-ink transition"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          </button>
-
-          {/* 模型搜索弹窗 */}
-          {showAgentSearch && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => { setShowAgentSearch(false); setSearchQuery('') }} />
-              <div className="absolute top-12 left-1/2 -translate-x-1/2 z-50 w-80 bg-white rounded-2xl border border-gray-200 shadow-xl p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-semibold text-ink">选择模型替换到常用栏</span>
-                  <button onClick={() => { setShowAgentSearch(false); setSearchQuery('') }} className="text-inkLight hover:text-ink text-lg">&times;</button>
-                </div>
-                <input
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  placeholder="搜索模型..."
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none mb-3 focus:border-accent"
-                />
-                <div className="space-y-1 max-h-60 overflow-y-auto">
-                  {ALL_MODELS.filter(m => m.id.toLowerCase().includes(searchQuery.toLowerCase()) || m.provider.toLowerCase().includes(searchQuery.toLowerCase())).map(model => (
-                    <button
-                      key={model.id}
-                      onClick={() => selectFromSearch(model.id)}
-                      className="flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-xl text-sm text-ink hover:bg-gray-50 transition"
-                    >
-                      <span className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-ink text-xs font-bold border border-gray-200">
-                        {model.short[0]}
-                      </span>
-                      <div>
-                        <div className="font-medium">{model.id}</div>
-                        <div className="text-xs text-inkLight">{model.provider}</div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-        </div>
+        <p className="text-sm text-inkLight/80 mb-4">你的决定，不该只听一个 AI 的</p>
 
         {/* 对话框式输入区 */}
         <div className="w-full max-w-4xl relative">
           
-          {/* 左上角标题和黑线 */}
-          <div className="flex items-center gap-2 mb-3 pl-1">
-            <div className="w-[5px] h-5 bg-ink rounded-full" />
-            <span className="text-[15px] font-normal text-ink">你的决策或问题</span>
+          {/* 顶部标题与模型选择栏同一行 */}
+          <div className="flex items-center justify-between mb-2 px-1">
+            {/* 左上角标题和黑线 */}
+            <div className="flex items-center gap-2">
+              <div className="w-[5px] h-5 bg-ink rounded-full" />
+              <span className="text-[15px] font-normal text-ink">你的决策或问题</span>
+            </div>
+
+            {/* 常用模型栏 */}
+            <div className="flex items-center gap-3 relative">
+              {favorites.map((a, idx) => (
+                <button
+                  key={a + idx}
+                  onClick={() => clickFavorite(a)}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition flex items-center gap-1.5 ${
+                    selectedModels.includes(a)
+                      ? 'bg-gray-100 text-ink shadow-sm'
+                      : 'bg-transparent text-inkLight hover:text-ink'
+                  }`}
+                >
+                  <div className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold ${selectedModels.includes(a) ? 'bg-ink text-white' : 'bg-gray-200 text-inkLight'}`}>
+                    {getShortName(a)[0]}
+                  </div>
+                  {getShortName(a)}
+                </button>
+              ))}
+              <button
+                onClick={() => setShowAgentSearch(!showAgentSearch)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-inkLight hover:text-ink transition"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              </button>
+
+              {/* 模型搜索弹窗 */}
+              {showAgentSearch && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => { setShowAgentSearch(false); setSearchQuery('') }} />
+                  <div className="absolute top-10 right-0 z-50 w-80 bg-white rounded-2xl border border-gray-200 shadow-xl p-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-semibold text-ink">选择模型替换到常用栏</span>
+                      <button onClick={() => { setShowAgentSearch(false); setSearchQuery('') }} className="text-inkLight hover:text-ink text-lg">&times;</button>
+                    </div>
+                    <input
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                      placeholder="搜索模型..."
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none mb-3 focus:border-accent"
+                    />
+                    <div className="space-y-1 max-h-60 overflow-y-auto">
+                      {ALL_MODELS.filter(m => m.id.toLowerCase().includes(searchQuery.toLowerCase()) || m.provider.toLowerCase().includes(searchQuery.toLowerCase())).map(model => (
+                        <button
+                          key={model.id}
+                          onClick={() => selectFromSearch(model.id)}
+                          className="flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-xl text-sm text-ink hover:bg-gray-50 transition"
+                        >
+                          <span className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-ink text-xs font-bold border border-gray-200">
+                            {model.short[0]}
+                          </span>
+                          <div>
+                            <div className="font-medium">{model.id}</div>
+                            <div className="text-xs text-inkLight">{model.provider}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
           <div className="w-full bg-white border border-gray-200 rounded-[12px] shadow-sm relative overflow-hidden flex flex-col pl-4 pr-2 py-2">
@@ -313,25 +316,14 @@ export default function HomePage() {
               </div>
             </div>
             
-            {/* 麦克风和发送按钮容器 */}
+            {/* 麦克风容器 */}
             <div className="absolute right-3 bottom-3 flex items-center">
               <button
-                className="w-10 h-10 rounded-full flex items-center justify-center text-inkLight hover:text-ink transition mr-1"
+                className="w-10 h-10 rounded-full flex items-center justify-center text-inkLight hover:text-ink transition"
                 title="语音输入（即将支持）"
                 onClick={() => alert('语音功能即将支持')}
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>
-              </button>
-              <button
-                onClick={() => handleSubmit()}
-                disabled={loading || !text.trim() || selectedModels.length < 2}
-                className="w-10 h-10 rounded-full bg-accent text-white flex items-center justify-center disabled:opacity-30 hover:bg-accent/85 transition shrink-0"
-              >
-                {loading ? (
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                )}
               </button>
             </div>
           </div>
