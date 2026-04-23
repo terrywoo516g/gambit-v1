@@ -6,7 +6,7 @@ export type RunStream = {
   runId: string
   model: string
   content: string
-  status: 'queued' | 'streaming' | 'done' | 'error'
+  status: 'queued' | 'streaming' | 'done' | 'error' | 'retrying'
 }
 
 const MAX_RETRIES = 2
@@ -21,17 +21,13 @@ export function useMultiStream(
   const retriesRef = useRef<Record<string, number>>({})
   const mountedRef = useRef(true)
 
-  // 稳定化 runs 引用：用 JSON 序列化做依赖比较
   const runsKey = JSON.stringify(runs.map(r => r.id).sort())
 
   const connectRun = useCallback((
     wsId: string,
     run: { id: string; model: string }
   ) => {
-    // 如果已经有活跃连接，不重复创建
-    if (sourcesRef.current[run.id]) {
-      return
-    }
+    if (sourcesRef.current[run.id]) return
 
     const es = new EventSource(`/api/workspaces/${wsId}/stream/${run.id}`)
     sourcesRef.current[run.id] = es
@@ -49,6 +45,18 @@ export function useMultiStream(
               model: run.model,
               content: (prev[run.id]?.content || '') + chunk.data,
               status: 'streaming',
+            },
+          }))
+        }
+
+        if (chunk.type === 'retry') {
+          setStreams(prev => ({
+            ...prev,
+            [run.id]: {
+              runId: run.id,
+              model: run.model,
+              content: '',
+              status: 'retrying',
             },
           }))
         }
@@ -81,7 +89,7 @@ export function useMultiStream(
           delete sourcesRef.current[run.id]
         }
       } catch {
-        // JSON 解析失败，忽略这个 chunk
+        // JSON 解析失败，忽略
       }
     }
 
@@ -91,19 +99,22 @@ export function useMultiStream(
       es.close()
       delete sourcesRef.current[run.id]
 
-      // 自动重连：如果还没超过最大重试次数
       const currentRetries = retriesRef.current[run.id] || 0
       if (currentRetries < MAX_RETRIES) {
         retriesRef.current[run.id] = currentRetries + 1
-        console.log(`[useMultiStream] Retrying ${run.model} (attempt ${currentRetries + 1}/${MAX_RETRIES})`)
-
+        setStreams(prev => ({
+          ...prev,
+          [run.id]: {
+            runId: run.id,
+            model: run.model,
+            content: prev[run.id]?.content || '',
+            status: 'retrying',
+          },
+        }))
         setTimeout(() => {
-          if (mountedRef.current) {
-            connectRun(wsId, run)
-          }
+          if (mountedRef.current) connectRun(wsId, run)
         }, RETRY_DELAY)
       } else {
-        // 重试耗尽，标记为错误
         setStreams(prev => ({
           ...prev,
           [run.id]: {
@@ -122,18 +133,13 @@ export function useMultiStream(
 
     mountedRef.current = true
 
-    // 初始化所有 stream 状态
     const initial: Record<string, RunStream> = {}
     runs.forEach(r => {
       initial[r.id] = { runId: r.id, model: r.model, content: '', status: 'queued' }
     })
     setStreams(initial)
-
-    // 重置重试计数
     retriesRef.current = {}
 
-    // 所有 SSE 同时启动，不再加延迟
-    // 后端的 retryPrisma 已经处理了 SQLite 并发写入问题
     runs.forEach(run => {
       connectRun(workspaceId, run)
     })
