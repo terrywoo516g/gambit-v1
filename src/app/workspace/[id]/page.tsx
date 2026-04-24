@@ -8,7 +8,7 @@ import remarkGfm from 'remark-gfm'
 import { 
   ArrowLeft, Eye, Copy, Send, Loader2,
   LayoutGrid, MessageSquare, Pencil, FileCheck, 
-  FileText, Pin, RefreshCw
+  FileText, Pin, RefreshCw, Target
 } from 'lucide-react'
 
 import CompareScene from '@/components/scenes/CompareScene'
@@ -513,8 +513,8 @@ export default function WorkspacePage() {
                         return (
                           <div key={obs.id} className="border rounded-xl p-3 text-sm flex flex-col gap-2">
                             <div className="flex items-center">
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${colorClass}`}>
-                                🎯 {obs.type}
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border flex items-center gap-1 ${colorClass}`}>
+                                <Target className="w-3 h-3" /> {obs.type}
                               </span>
                             </div>
                             <div className="text-ink/80 leading-relaxed">

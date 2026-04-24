@@ -581,13 +581,13 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
       <div className="p-3 border-t border-gray-200 bg-white shrink-0 flex items-center gap-2">
         <button onClick={runReview} disabled={reviewing || !editor?.getText().trim()} className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm hover:bg-blue-100 transition disabled:opacity-50 font-medium">
           {reviewing ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileCheck className="w-4 h-4" />} 
-          {reviewing ? '审阅中...' : '🔍 审阅'}
+          {reviewing ? '审阅中...' : '审阅'}
         </button>
         <button onClick={() => { if(editor) { navigator.clipboard.writeText(editor.getText()); alert('已复制全文到剪贴板') } }} className="flex-1 flex items-center justify-center gap-1.5 py-2 border border-gray-200 rounded-lg text-sm text-ink hover:border-accent hover:text-accent transition font-medium">
-          <Copy className="w-4 h-4" /> 📋 复制全文
+          <Copy className="w-4 h-4" /> 复制全文
         </button>
         <button onClick={exportMarkdown} className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-ink text-white rounded-lg text-sm hover:bg-ink/80 transition font-medium">
-          <Download className="w-4 h-4" /> ⬇ 导出 MD
+          <Download className="w-4 h-4" /> 导出 MD
         </button>
       </div>
     </div>
