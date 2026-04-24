@@ -20,20 +20,12 @@
   }
 }
 
-/* 不规则散点背景 — 模拟稿纸质感 */
+/* 规则圆点背景 — 模拟网格稿纸质感 */
 .paper-dots {
-  background-image:
-    radial-gradient(circle, rgba(0,0,0,0.035) 1px, transparent 1px),
-    radial-gradient(circle, rgba(0,0,0,0.025) 1px, transparent 1px),
-    radial-gradient(circle, rgba(0,0,0,0.02) 0.8px, transparent 0.8px);
-  background-size:
-    24px 24px,
-    37px 41px,
-    53px 59px;
-  background-position:
-    0 0,
-    13px 17px,
-    7px 31px;
+  background-color: #f5f5f5; /* 变灰一点的底色 */
+  background-image: radial-gradient(circle, rgba(0,0,0,0.06) 1.5px, transparent 1.5px);
+  background-size: 36px 36px;
+  background-position: 0 0;
 }
 
 .blueprint-grid {
