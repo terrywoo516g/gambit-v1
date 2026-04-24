@@ -8,7 +8,7 @@ import remarkGfm from 'remark-gfm'
 import { 
   ArrowLeft, Eye, Copy, Send, Loader2,
   LayoutGrid, MessageSquare, Pencil, FileCheck, 
-  FileText, Pin, RefreshCw, Target
+  FileText, Pin, RefreshCw, 
 } from 'lucide-react'
 
 import CompareScene from '@/components/scenes/CompareScene'
@@ -44,11 +44,6 @@ type WorkspaceData = {
 
 type SceneKey = 'compare' | 'brainstorm' | 'compose' | 'review'
 
-type Observation = {
-  id: string
-  type: string
-  content: string
-}
 
 const SCENE_DEFS = [
   { id: 'compare', icon: LayoutGrid, label: '多源对比', desc: '生成推荐报告' },
@@ -72,38 +67,12 @@ type StepKey = 'models' | 'scene' | 'output'
 
 
 function AICard({ run, status, content, activeRunId, referencedRunIds, retryRun, toggleRef }: any) {
-  let summary = ''
-  let body = ''
-  let sec = 'pending'
-  
-  if (content) {
-    const lines = content.split('\n')
-    for (const line of lines) {
-      if (line.trim() === '[摘要]') {
-        sec = 'summary'
-        continue
-      }
-      if (line.trim() === '[正文]') {
-        sec = 'body'
-        continue
-      }
-      if (sec === 'summary') summary += line + '\n'
-      else if (sec === 'body') body += line + '\n'
-      else if (line.trim()) summary += line + '\n'
-    }
-  }
-
-  summary = summary.trim()
-  body = body.trim()
-  const totalLength = summary.length + body.length
-
   const [expanded, setExpanded] = useState(false)
-  
-  useEffect(() => {
-    if (sec === 'body' && (status === 'streaming' || status === 'running')) {
-      setExpanded(true)
-    }
-  }, [sec, status])
+  const totalLength = content ? content.length : 0
+
+  const displayContent = (!expanded && content && content.length > 150)
+    ? content.substring(0, 150) + '...'
+    : content
 
   return (
     <div id={'run-' + run.id}
@@ -146,28 +115,22 @@ function AICard({ run, status, content, activeRunId, referencedRunIds, retryRun,
         
         {content && (
           <>
-            <div className={`text-gray-500 ${sec === 'summary' && (status === 'streaming' || status === 'running') ? 'streaming-cursor' : ''}`}>
-              {summary || (sec === 'summary' && <span className="animate-pulse">...</span>)}
+            <div className={`overflow-y-auto ${status === 'streaming' || status === 'running' ? 'streaming-cursor' : ''}`} style={expanded ? { maxHeight: '280px' } : undefined}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
+                p: ({children}) => <p className="my-1 leading-relaxed">{children}</p>,
+                h1: ({children}) => <h1 className="text-lg font-bold my-2">{children}</h1>,
+                h2: ({children}) => <h2 className="text-base font-bold my-2">{children}</h2>,
+                h3: ({children}) => <h3 className="text-sm font-semibold my-1">{children}</h3>,
+                ul: ({children}) => <ul className="list-disc pl-4 my-1">{children}</ul>,
+                ol: ({children}) => <ol className="list-decimal pl-4 my-1">{children}</ol>,
+                li: ({children}) => <li className="leading-relaxed">{children}</li>,
+                strong: ({children}) => <strong className="font-semibold">{children}</strong>,
+                code: ({children}) => <code className="bg-gray-100 px-1 rounded text-xs font-mono">{children}</code>,
+              }}>{displayContent}</ReactMarkdown>
             </div>
 
-            {expanded && (
-              <div className={`mt-2 pt-2 border-t border-gray-100 overflow-y-auto ${sec === 'body' && (status === 'streaming' || status === 'running') ? 'streaming-cursor' : ''}`} style={{ maxHeight: '280px' }}>
-                <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
-                  p: ({children}) => <p className="my-1 leading-relaxed">{children}</p>,
-                  h1: ({children}) => <h1 className="text-lg font-bold my-2">{children}</h1>,
-                  h2: ({children}) => <h2 className="text-base font-bold my-2">{children}</h2>,
-                  h3: ({children}) => <h3 className="text-sm font-semibold my-1">{children}</h3>,
-                  ul: ({children}) => <ul className="list-disc pl-4 my-1">{children}</ul>,
-                  ol: ({children}) => <ol className="list-decimal pl-4 my-1">{children}</ol>,
-                  li: ({children}) => <li className="leading-relaxed">{children}</li>,
-                  strong: ({children}) => <strong className="font-semibold">{children}</strong>,
-                  code: ({children}) => <code className="bg-gray-100 px-1 rounded text-xs font-mono">{children}</code>,
-                }}>{body}</ReactMarkdown>
-              </div>
-            )}
-
-            {body && (
-              <button onClick={() => setExpanded(!expanded)} className="mt-3 w-full py-1.5 text-xs text-inkLight hover:text-ink bg-gray-50 hover:bg-gray-100 rounded-lg transition flex items-center justify-center">
+            {content.length > 150 && (
+              <button onClick={() => setExpanded(!expanded)} className="mt-3 w-full py-1.5 text-xs text-inkLight hover:text-ink bg-gray-50 hover:bg-gray-100 rounded-lg transition flex items-center justify-center shrink-0">
                 {expanded ? '收起 ↑' : '展开全文 ↓'}
               </button>
             )}
@@ -202,11 +165,11 @@ function AICard({ run, status, content, activeRunId, referencedRunIds, retryRun,
           >
             {referencedRunIds.includes(run.id) ? '✓ 已引用' : '@ 引用'}
           </button>
-          <button onClick={() => navigator.clipboard.writeText(body || summary)}
+          <button onClick={() => navigator.clipboard.writeText(content)}
             className="text-xs text-inkLight hover:text-accent transition flex items-center gap-1">
             <Copy className="w-3 h-3" /> 复制
           </button>
-          <button onClick={() => window.dispatchEvent(new CustomEvent('gambit:pin-to-draft', { detail: { sourceType: 'card', sourceId: run.id, sourceLabel: run.model, content: body || summary } }))}
+          <button onClick={() => window.dispatchEvent(new CustomEvent('gambit:pin-to-draft', { detail: { sourceType: 'card', sourceId: run.id, sourceLabel: run.model, content } }))}
             className="text-xs text-inkLight hover:text-accent transition flex items-center gap-1">
             <Pin className="w-3 h-3" /> 加入最终稿
           </button>
@@ -225,7 +188,7 @@ export default function WorkspacePage() {
   const [workspace, setWorkspace] = useState<WorkspaceData | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const [observerObservations, setObserverObservations] = useState<Observation[]>([])
+  const [observerObservations, setObserverObservations] = useState<string[]>([])
   const [observerLoading, setObserverLoading] = useState(false)
   const [showDrawer, setShowDrawer] = useState<'observer' | null>(null)
 
@@ -333,7 +296,7 @@ export default function WorkspacePage() {
       const res = await fetch('/api/workspaces/' + wsId + '/observer', { method: 'POST' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      setObserverObservations(data.observations)
+      setObserverObservations(data.text ? data.text.split('\n').filter((p: string) => p.trim()) : [])
     } catch (e) {
       alert(e instanceof Error ? e.message : '旁观者调用失败')
     } finally {
@@ -651,33 +614,21 @@ export default function WorkspacePage() {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {observerObservations.map(obs => {
-                        let colorClass = 'bg-gray-100 text-gray-700 border-gray-200'
-                        if (obs.type === '盲点') colorClass = 'bg-purple-50 text-purple-700 border-purple-200'
-                        else if (obs.type === '偏差') colorClass = 'bg-orange-50 text-orange-700 border-orange-200'
-                        else if (obs.type === '矛盾') colorClass = 'bg-red-50 text-red-700 border-red-200'
-                        else if (obs.type === '提醒') colorClass = 'bg-blue-50 text-blue-700 border-blue-200'
-
-                        return (
-                          <div key={obs.id} className="border rounded-xl p-3 text-sm flex flex-col gap-2">
-                            <div className="flex items-center">
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border flex items-center gap-1 ${colorClass}`}>
-                                <Target className="w-3 h-3" /> {obs.type}
-                              </span>
-                            </div>
-                            <div className="text-ink/80 leading-relaxed">
-                              {obs.content}
-                            </div>
+                      {observerObservations.map((obs, i) => (
+                        <div key={i}>
+                          <div className="text-sm text-ink/80 leading-relaxed py-1">
+                            {obs}
                           </div>
-                        )
-                      })}
+                          {i < observerObservations.length - 1 && <div className="h-px bg-gray-100 my-2" />}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
                 {!observerLoading && observerObservations.length > 0 && (
                   <div className="border-t border-gray-100 p-3 shrink-0 bg-gray-50/50">
                     <button onClick={() => {
-                      const text = observerObservations.map(o => `[${o.type}] ${o.content}`).join('\n\n')
+                      const text = observerObservations.join('\n\n')
                       navigator.clipboard.writeText(text)
                       // ideally a toast here, but alert is fine as per spec simple copy logic, wait spec didn't mention toast, just "toast 已复制"
                       // Since we don't have toast in this file easily without import, we'll just alert or if we imported sonner we could use it.
