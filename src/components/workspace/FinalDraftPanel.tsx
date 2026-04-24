@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { useState, useEffect, useCallback } from 'react'
-import { Copy, Download, Loader2, Sparkles, FileCheck, ChevronDown, ChevronRight, X, Pin, LayoutGrid, Plus, Wand2, FileText } from 'lucide-react'
+import { Loader2, Sparkles, FileCheck, ChevronDown, ChevronRight, X, Pin, LayoutGrid, Plus, Wand2, FileText } from 'lucide-react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
@@ -60,6 +60,10 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [reviewing, setReviewing] = useState(false)
 
+  // Draft Mode State
+  const [draftMode, setDraftMode] = useState<'prepare' | 'result'>('prepare')
+  const [draftContent, setDraftContent] = useState('') // eslint-disable-line @typescript-eslint/no-unused-vars
+
   const saveDraft = useCallback(async (t: string, c: string) => {
     await fetch(`/api/workspaces/${workspaceId}/final-draft`, {
       method: 'PUT',
@@ -76,7 +80,7 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
     content: '',
     editorProps: {
       attributes: {
-        class: 'prose prose-sm max-w-none focus:outline-none min-h-[300px] p-4'
+        class: `prose max-w-none focus:outline-none min-h-[300px] p-4 ${draftMode === 'result' ? 'prose-base leading-[1.8] text-[16px]' : 'prose-sm'}`
       }
     },
     onUpdate: ({ editor }) => {
@@ -92,8 +96,12 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
       if (draftRes.ok) {
         const { draft } = await draftRes.json()
         setTitle(draft.title || '')
-        if (editor && draft.content && editor.getHTML() !== draft.content) {
-          editor.commands.setContent(draft.content)
+        if (draft.content) {
+          setDraftContent(draft.content)
+          setDraftMode('result')
+          if (editor && editor.getHTML() !== draft.content) {
+            editor.commands.setContent(draft.content)
+          }
         }
       }
       if (blocksRes.ok) {
@@ -245,6 +253,7 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
       let fullText = ''
+      let buffer = ''
 
       if (composeMode === 'replace') {
         editor.commands.clearContent()
@@ -253,32 +262,36 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
-        const chunk = decoder.decode(value)
-        const lines = chunk.split('\n')
+        const chunk = decoder.decode(value, { stream: true })
+        buffer += chunk
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+        
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const dataStr = line.slice(6)
-            if (!dataStr.trim()) continue
-            try {
-              const data = JSON.parse(dataStr)
-              if (data.type === 'delta') {
-                fullText += data.text
-                if (composeMode === 'preview') {
-                  setComposePreview(fullText)
-                } else {
-                  editor.commands.insertContent(data.text.replace(/\n/g, '<br/>'))
-                }
-              } else if (data.type === 'done') {
-                // Done
-                if (composeMode !== 'preview') {
-                  // Save handled by backend, but we can clear selections
-                  setSelectedBlockIds(new Set())
-                  setComposeInstruction('')
-                }
+          if (!line.startsWith('data: ')) continue
+          const dataStr = line.slice(6)
+          if (!dataStr.trim()) continue
+          try {
+            const data = JSON.parse(dataStr)
+            if (data.type === 'delta') {
+              fullText += data.text
+              if (composeMode === 'preview') {
+                setComposePreview(fullText)
+              } else {
+                editor.commands.setContent(fullText.replace(/\n/g, '<br/>'))
               }
-            } catch (e) {
-              console.error(e)
+            } else if (data.type === 'done') {
+              // Done
+              if (composeMode !== 'preview') {
+                // Save handled by backend, but we can clear selections
+                setSelectedBlockIds(new Set())
+                setComposeInstruction('')
+                setDraftContent(fullText.replace(/\n/g, '<br/>'))
+                setDraftMode('result')
+              }
             }
+          } catch (e) {
+            console.error(e)
           }
         }
       }
@@ -359,20 +372,40 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
       {/* 顶栏: 标题与操作 */}
       <div className="p-3 bg-white border-b border-gray-200 shrink-0 flex items-center justify-between">
         <div className="flex items-center gap-2 flex-1">
-          <FileText className="w-4 h-4 text-ink" />
-          <span className="text-sm font-bold text-ink whitespace-nowrap">最终稿</span>
-          <div className="w-[1px] h-3 bg-gray-300 mx-1" />
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="无标题文稿"
-            className="flex-1 text-sm font-medium outline-none bg-transparent placeholder-gray-400 min-w-0"
-          />
+          {draftMode === 'prepare' ? (
+            <>
+              <FileText className="w-4 h-4 text-ink" />
+              <span className="text-sm font-bold text-ink whitespace-nowrap">最终稿</span>
+              <div className="w-[1px] h-3 bg-gray-300 mx-1" />
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="无标题文稿"
+                className="flex-1 text-sm font-medium outline-none bg-transparent placeholder-gray-400 min-w-0"
+              />
+            </>
+          ) : (
+            <>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="无标题文稿"
+                className="flex-1 text-base font-bold text-ink outline-none bg-transparent placeholder-gray-400 min-w-0"
+              />
+              <button 
+                onClick={() => setDraftMode('prepare')} 
+                className="text-xs text-gray-500 hover:text-accent transition px-2 py-1 shrink-0"
+              >
+                返回素材
+              </button>
+            </>
+          )}
         </div>
-        <button 
-          onClick={() => setShowSpark(!showSpark)} 
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition whitespace-nowrap shrink-0 ${
+        <button
+          onClick={() => setShowSpark(!showSpark)}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition whitespace-nowrap shrink-0 ml-2 ${
             showSpark ? 'bg-purple-100 text-purple-700' : 'text-purple-600 hover:bg-purple-50'
           }`}
         >
@@ -384,7 +417,7 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
       <div className="flex-1 overflow-y-auto flex flex-col">
         {/* 灵光一闪 (移动到顶部) */}
         {showSpark && (
-          <div className="p-3 bg-white border-b border-gray-200 shadow-sm z-10 relative">
+          <div className="p-3 bg-white border-b border-gray-200 shadow-sm z-10 relative shrink-0">
             <button onClick={() => setShowSpark(false)} className="absolute top-3 right-3 text-inkLight hover:text-ink">
               <X className="w-4 h-4" />
             </button>
@@ -413,48 +446,51 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
           </div>
         )}
         {/* 素材库 */}
-        <div className="border-b border-gray-200 bg-white">
-          <button onClick={() => setShowBlocks(!showBlocks)} className="w-full flex items-center justify-between p-3 hover:bg-gray-50 transition">
-            <div className="flex items-center gap-2 font-medium text-sm text-ink">
-              <LayoutGrid className="w-3.5 h-3.5" />
-              素材库 <span className="text-xs text-inkLight bg-gray-100 px-1.5 rounded">{blocks.length}</span>
-            </div>
-            {showBlocks ? <ChevronDown className="w-4 h-4 text-inkLight" /> : <ChevronRight className="w-4 h-4 text-inkLight" />}
-          </button>
-          
-          {showBlocks && (
-            <div className="p-3 pt-0 space-y-2 max-h-[300px] overflow-y-auto">
-              {blocks.length === 0 ? (
-                <div className="text-xs text-center text-gray-400 py-4">从左侧 AI 卡片或场景中收藏素材到这里</div>
-              ) : (
-                blocks.map(b => (
-                  <div key={b.id} className={`flex items-start gap-2 p-2 border rounded-lg text-sm transition ${b.inDraft ? 'bg-gray-50 border-gray-100 opacity-60' : 'bg-white border-gray-200 hover:border-accent/50'}`}>
-                    <input type="checkbox" checked={selectedBlockIds.has(b.id)} onChange={() => toggleBlockSelect(b.id)} className="mt-1" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[10px] text-inkLight mb-1 flex items-center gap-1">
-                        <span className="bg-gray-100 px-1 rounded">{b.sourceLabel}</span>
-                        {b.inDraft && <span className="text-green-500">已加入</span>}
+        {draftMode === 'prepare' && (
+          <div className="border-b border-gray-200 bg-white shrink-0">
+            <button onClick={() => setShowBlocks(!showBlocks)} className="w-full flex items-center justify-between p-3 hover:bg-gray-50 transition">
+              <div className="flex items-center gap-2 font-medium text-sm text-ink">
+                <LayoutGrid className="w-3.5 h-3.5" />
+                素材库 <span className="text-xs text-inkLight bg-gray-100 px-1.5 rounded">{blocks.length}</span>
+              </div>
+              {showBlocks ? <ChevronDown className="w-4 h-4 text-inkLight" /> : <ChevronRight className="w-4 h-4 text-inkLight" />}
+            </button>
+
+            {showBlocks && (
+              <div className="p-3 pt-0 space-y-2 max-h-[300px] overflow-y-auto">
+                {blocks.length === 0 ? (
+                  <div className="text-xs text-center text-gray-400 py-4">从左侧 AI 卡片或场景中收藏素材到这里</div>
+                ) : (
+                  blocks.map(b => (
+                    <div key={b.id} className={`flex items-start gap-2 p-2 border rounded-lg text-sm transition ${b.inDraft ? 'bg-gray-50 border-gray-100 opacity-60' : 'bg-white border-gray-200 hover:border-accent/50'}`}>
+                      <input type="checkbox" checked={selectedBlockIds.has(b.id)} onChange={() => toggleBlockSelect(b.id)} className="mt-1" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[10px] text-inkLight mb-1 flex items-center gap-1">
+                          <span className="bg-gray-100 px-1 rounded">{b.sourceLabel}</span>
+                          {b.inDraft && <span className="text-green-500">已加入</span>}
+                        </div>
+                        <div className="text-xs text-ink truncate">{b.content.substring(0, 60)}{b.content.length > 60 ? '...' : ''}</div>
                       </div>
-                      <div className="text-xs text-ink truncate">{b.content.substring(0, 60)}{b.content.length > 60 ? '...' : ''}</div>
+                      <div className="flex flex-col gap-1 shrink-0">
+                        <button onClick={() => addBlockToEditor(b)} className="p-1 text-gray-400 hover:text-accent hover:bg-accent/10 rounded transition" title="追加到编辑器"><Plus className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => removeBlock(b.id)} className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition" title="删除素材"><X className="w-3.5 h-3.5" /></button>
+                      </div>
                     </div>
-                    <div className="flex flex-col gap-1 shrink-0">
-                      <button onClick={() => addBlockToEditor(b)} className="p-1 text-gray-400 hover:text-accent hover:bg-accent/10 rounded transition" title="追加到编辑器"><Plus className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => removeBlock(b.id)} className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition" title="删除素材"><X className="w-3.5 h-3.5" /></button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-        </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
       {/* 编辑器与生成控制台 */}
       <div className="flex-1 overflow-y-auto flex flex-col relative">
         <div className="flex-1 p-4 pb-32">
-          {/* 金句与段落标题 */}
-          <div className="flex items-end justify-between mb-2">
-            <span className="text-[12px] text-gray-500 font-light">用于粘贴可用段落或句子</span>
-          </div>
+          {draftMode === 'prepare' && (
+            <div className="flex items-end justify-between mb-2">
+              <span className="text-[12px] text-gray-500 font-light">用于粘贴可用段落或句子</span>
+            </div>
+          )}
           {editor && (
             <div className="flex items-center gap-1 mb-2 border-b border-gray-100 pb-2">
               <button onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded hover:bg-gray-200 text-ink ${editor.isActive('bold') ? 'bg-gray-200' : ''}`}><strong className="font-serif px-1">B</strong></button>
@@ -522,71 +558,72 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
       </div>
 
       {/* 合成区 */}
-      <div className="bg-white border-t border-gray-200 p-4 shrink-0">
-        <div className="mb-3">
-          <input
-            type="text"
-            value={composeInstruction}
-            onChange={e => setComposeInstruction(e.target.value)}
-            placeholder="生成指令（可选）：如改成小红书风格 / 生成汇总表格"
-            className="w-full text-sm p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-accent transition"
-          />
-        </div>
-
-        {composing ? (
-          <button 
-            onClick={() => {
-              if (window.confirm('确定停止生成吗？')) {
-                window.dispatchEvent(new CustomEvent('gambit:abort-compose'))
-              }
-            }}
-            className="w-full py-2.5 bg-red-50 text-red-600 rounded-xl text-sm font-bold hover:bg-red-100 transition flex items-center justify-center gap-2 border border-red-100"
-          >
-            <Loader2 className="w-4 h-4 animate-spin" />
-            停止生成
-          </button>
-        ) : (
-          <button 
-            onClick={runCompose} 
-            disabled={blocks.length === 0}
-            title={blocks.length === 0 ? "请先从 AI 卡片或场景中添加素材" : ""}
-            className="w-full py-2.5 bg-accent text-white rounded-xl text-sm font-bold hover:bg-accent/90 transition disabled:opacity-50 disabled:hover:bg-accent flex items-center justify-center gap-2 shadow-sm"
-          >
-            <Wand2 className="w-4 h-4" />
-            生成最终稿
-          </button>
-        )}
-
-        {/* 纯生成预览 */}
-        {composePreview && composeMode === 'preview' && !composing && (
-          <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-xl relative group">
-            <button onClick={() => setComposePreview('')} className="absolute top-2 right-2 text-inkLight hover:text-ink"><X className="w-3.5 h-3.5" /></button>
-            <div className="prose prose-sm max-w-none text-ink/80 max-h-40 overflow-y-auto">{composePreview}</div>
-            <div className="mt-2 pt-2 border-t border-gray-200 flex justify-end">
-              <button onClick={() => {
-                if (editor) {
-                  editor.commands.setContent(composePreview.replace(/\n/g, '<br/>'))
-                  setComposePreview('')
-                }
-              }} className="text-xs text-accent hover:text-accent/80 font-medium">复制到编辑器</button>
-            </div>
+      {draftMode === 'prepare' && (
+        <div className="bg-white border-t border-gray-200 p-4 shrink-0">
+          <div className="mb-3">
+            <input
+              type="text"
+              value={composeInstruction}
+              onChange={e => setComposeInstruction(e.target.value)}
+              placeholder="生成指令（可选）：如改成小红书风格 / 生成汇总表格"
+              className="w-full text-sm p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-accent transition"
+            />
           </div>
-        )}
-      </div>
+
+          {composing ? (
+            <button
+              onClick={() => {
+                if (window.confirm('确定停止生成吗？')) {
+                  window.dispatchEvent(new CustomEvent('gambit:abort-compose'))
+                }
+              }}
+              className="w-full py-2.5 bg-red-50 text-red-600 rounded-xl text-sm font-bold hover:bg-red-100 transition flex items-center justify-center gap-2 border border-red-100"
+            >
+              <Loader2 className="w-4 h-4 animate-spin" />
+              停止生成
+            </button>
+          ) : (
+            <button
+              onClick={runCompose}
+              disabled={blocks.length === 0}
+              title={blocks.length === 0 ? "请先从 AI 卡片或场景中添加素材" : ""}
+              className="w-full py-2.5 bg-accent text-white rounded-xl text-sm font-bold hover:bg-accent/90 transition disabled:opacity-50 disabled:hover:bg-accent flex items-center justify-center gap-2 shadow-sm"
+            >
+              <Wand2 className="w-4 h-4" />
+              生成最终稿
+            </button>
+          )}
+
+          {/* 纯生成预览 */}
+          {composePreview && composeMode === 'preview' && !composing && (
+            <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-xl relative group">
+              <button onClick={() => setComposePreview('')} className="absolute top-2 right-2 text-inkLight hover:text-ink"><X className="w-3.5 h-3.5" /></button>
+              <div className="prose prose-sm max-w-none text-ink/80 max-h-40 overflow-y-auto">{composePreview}</div>
+              <div className="mt-2 pt-2 border-t border-gray-200 flex justify-end">
+                <button onClick={() => {
+                  if (editor) {
+                    editor.commands.setContent(composePreview.replace(/\n/g, '<br/>'))
+                    setComposePreview('')
+                  }
+                }} className="text-xs text-accent hover:text-accent/80 font-medium">复制到编辑器</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       </div>
 
       {/* 底栏: 操作 */}
       <div className="p-3 border-t border-gray-200 bg-white shrink-0 flex items-center gap-2">
-        <button onClick={runReview} disabled={reviewing || !editor?.getText().trim()} className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm hover:bg-blue-100 transition disabled:opacity-50 font-medium">
-          {reviewing ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileCheck className="w-4 h-4" />} 
-          {reviewing ? '审阅中...' : '审阅'}
+        <button onClick={runReview} disabled={reviewing || !editor?.getText().trim()} className="flex-1 flex items-center justify-center gap-1.5 py-2 border border-gray-200 rounded-lg text-sm text-ink hover:bg-gray-50 transition disabled:opacity-50 font-medium">
+          {reviewing ? <Loader2 className="w-4 h-4 animate-spin" /> : '审阅'}
         </button>
-        <button onClick={() => { if(editor) { navigator.clipboard.writeText(editor.getText()); alert('已复制全文到剪贴板') } }} className="flex-1 flex items-center justify-center gap-1.5 py-2 border border-gray-200 rounded-lg text-sm text-ink hover:border-accent hover:text-accent transition font-medium">
-          <Copy className="w-4 h-4" /> 复制全文
+        <button onClick={() => { if(editor) { navigator.clipboard.writeText(editor.getText()); alert('已复制全文到剪贴板') } }} className="flex-1 flex items-center justify-center gap-1.5 py-2 border border-gray-200 rounded-lg text-sm text-ink hover:bg-gray-50 transition font-medium">
+          复制全文
         </button>
-        <button onClick={exportMarkdown} className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-ink text-white rounded-lg text-sm hover:bg-ink/80 transition font-medium">
-          <Download className="w-4 h-4" /> 导出 MD
+        <button onClick={exportMarkdown} className="flex-1 flex items-center justify-center gap-1.5 py-2 border border-gray-200 rounded-lg text-sm text-ink hover:bg-gray-50 transition font-medium">
+          导出 MD
         </button>
       </div>
     </div>
