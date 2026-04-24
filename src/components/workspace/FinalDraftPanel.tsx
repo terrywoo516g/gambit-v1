@@ -233,7 +233,8 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
         body: JSON.stringify({
           instruction: composeInstruction,
           mode: composeMode,
-          selectedBlockIds: Array.from(selectedBlockIds)
+          // If no specific blocks selected, send all block ids
+          selectedBlockIds: selectedBlockIds.size > 0 ? Array.from(selectedBlockIds) : blocks.map(b => b.id)
         }),
         signal: abortControllerRef.current.signal
       })
@@ -447,6 +448,80 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
           )}
         </div>
 
+      {/* 编辑器与生成控制台 */}
+      <div className="flex-1 overflow-y-auto flex flex-col relative">
+        <div className="flex-1 p-4 pb-32">
+          {/* 金句与段落标题 */}
+          <div className="flex items-end justify-between mb-2">
+            <span className="text-[12px] text-gray-500 font-light">金句与段落</span>
+            <span className="text-[10px] text-gray-400 font-light">可粘贴可用段落或金句</span>
+          </div>
+          {editor && (
+            <div className="flex items-center gap-1 mb-2 border-b border-gray-100 pb-2">
+              <button onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded hover:bg-gray-200 text-ink ${editor.isActive('bold') ? 'bg-gray-200' : ''}`}><strong className="font-serif px-1">B</strong></button>
+              <button onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-1.5 rounded hover:bg-gray-200 text-ink ${editor.isActive('italic') ? 'bg-gray-200' : ''}`}><em className="font-serif px-1">I</em></button>
+              <div className="w-px h-4 bg-gray-300 mx-1" />
+              <button onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={`p-1.5 rounded hover:bg-gray-200 text-ink text-xs font-bold ${editor.isActive('heading', { level: 2 }) ? 'bg-gray-200' : ''}`}>H2</button>
+              <button onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} className={`p-1.5 rounded hover:bg-gray-200 text-ink text-xs font-bold ${editor.isActive('heading', { level: 3 }) ? 'bg-gray-200' : ''}`}>H3</button>
+              <div className="w-px h-4 bg-gray-300 mx-1" />
+              <button onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1.5 rounded hover:bg-gray-200 text-ink text-xs ${editor.isActive('bulletList') ? 'bg-gray-200' : ''}`}>• List</button>
+            </div>
+          )}
+          <div className="min-h-[300px] border border-gray-100 rounded-lg p-2 bg-white">
+            <EditorContent editor={editor} />
+          </div>
+        </div>
+
+        {/* 审阅模式结果面板 (悬浮) */}
+        {showReview && (
+          <div className="absolute bottom-full left-0 w-full bg-white border-t border-b border-gray-200 shadow-[0_-10px_20px_rgba(0,0,0,0.05)] z-20 max-h-[50vh] flex flex-col">
+            <div className="p-3 border-b border-gray-100 flex items-center justify-between bg-blue-50/50">
+              <span className="font-semibold text-sm text-ink flex items-center gap-1.5">
+                <FileCheck className="w-4 h-4 text-blue-500" />
+                {reviewing ? '多 AI 交叉审阅中...' : `审阅建议（${suggestions.filter(s => !s.rejected).length} 条）`}
+              </span>
+              <button onClick={() => setShowReview(false)} className="text-inkLight hover:text-ink"><X className="w-4 h-4" /></button>
+            </div>
+            
+            {reviewing ? (
+              <div className="p-6 flex flex-col items-center justify-center text-blue-500 gap-3">
+                <Loader2 className="w-6 h-6 animate-spin" />
+                <span className="text-sm">正在深度分析正文...</span>
+              </div>
+            ) : suggestions.length === 0 ? (
+              <div className="p-6 text-center text-sm text-inkLight">没有找到需要修改的建议</div>
+            ) : (
+              <div className="flex-1 overflow-y-auto p-3 space-y-3">
+                {suggestions.map(s => (
+                  <div key={s.id} className={`p-3 border rounded-lg text-sm transition ${s.rejected ? 'bg-gray-50 border-gray-100 opacity-50' : 'bg-white border-blue-100 shadow-sm'}`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${s.severity === '高' || s.severity === '重要' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>{s.severity}</span>
+                      <span className="text-xs font-semibold text-ink">{s.type}</span>
+                      <span className="ml-auto text-[10px] text-inkLight">来自 {s.sources?.join(', ')}</span>
+                    </div>
+                    <div className={`text-xs bg-gray-50 p-2 rounded text-inkLight mb-2 border-l-2 border-gray-300 ${s.rejected ? 'line-through' : ''}`}>
+                      &quot;{s.quote}&quot;
+                    </div>
+                    <div className={`text-xs text-ink/90 leading-relaxed mb-3 ${s.rejected ? 'line-through' : ''}`}>
+                      {s.content}
+                    </div>
+                    {!s.rejected && (
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => applySuggestion(s)} className="flex-1 py-1.5 bg-blue-50 text-blue-600 text-xs rounded hover:bg-blue-100 transition font-medium">接受修改</button>
+                        <button onClick={() => rejectSuggestion(s)} className="flex-1 py-1.5 bg-gray-100 text-inkLight text-xs rounded hover:bg-gray-200 transition">忽略</button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {suggestions.every(s => s.rejected || false /* if we keep rejected ones in list */) && (
+                  <div className="text-center text-xs text-inkLight py-2">全部处理完毕</div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* 合成区 */}
       <div className="bg-white border-t border-gray-200 p-4 shrink-0">
         <div className="mb-3">
@@ -496,67 +571,6 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
                 }
               }} className="text-xs text-accent hover:text-accent/80 font-medium">复制到编辑器</button>
             </div>
-          </div>
-        )}
-      </div>
-
-      {/* 编辑器与生成控制台 */}
-      <div className="flex-1 overflow-y-auto flex flex-col relative">
-        <div className="flex-1 p-4 pb-32">
-          {/* 金句与段落标题 */}
-          <div className="flex items-end justify-between mb-2">
-            <span className="text-[12px] text-gray-500 font-light">金句与段落</span>
-            <span className="text-[10px] text-gray-400 font-light">可粘贴可用段落或金句</span>
-          </div>
-          <EditorContent editor={editor} />
-        </div>
-
-        {/* 审阅模式结果面板 (悬浮) */}
-        {showReview && (
-          <div className="absolute bottom-full left-0 w-full bg-white border-t border-b border-gray-200 shadow-[0_-10px_20px_rgba(0,0,0,0.05)] z-20 max-h-[50vh] flex flex-col">
-            <div className="p-3 border-b border-gray-100 flex items-center justify-between bg-blue-50/50">
-              <span className="font-semibold text-sm text-ink flex items-center gap-1.5">
-                <FileCheck className="w-4 h-4 text-blue-500" />
-                {reviewing ? '多 AI 交叉审阅中...' : `审阅建议（${suggestions.filter(s => !s.rejected).length} 条）`}
-              </span>
-              <button onClick={() => setShowReview(false)} className="text-inkLight hover:text-ink"><X className="w-4 h-4" /></button>
-            </div>
-            
-            {reviewing ? (
-              <div className="p-6 flex flex-col items-center justify-center text-blue-500 gap-3">
-                <Loader2 className="w-6 h-6 animate-spin" />
-                <span className="text-sm">正在深度分析正文...</span>
-              </div>
-            ) : suggestions.length === 0 ? (
-              <div className="p-6 text-center text-sm text-inkLight">没有找到需要修改的建议</div>
-            ) : (
-              <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                {suggestions.map(s => (
-                  <div key={s.id} className={`p-3 border rounded-lg text-sm transition ${s.rejected ? 'bg-gray-50 border-gray-100 opacity-50' : 'bg-white border-blue-100 shadow-sm'}`}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${s.severity === '高' || s.severity === '重要' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>{s.severity}</span>
-                      <span className="text-xs font-semibold text-ink">{s.type}</span>
-                      <span className="ml-auto text-[10px] text-inkLight">来自 {s.sources?.join(', ')}</span>
-                    </div>
-                    <div className={`text-xs bg-gray-50 p-2 rounded text-inkLight mb-2 border-l-2 border-gray-300 ${s.rejected ? 'line-through' : ''}`}>
-                      &quot;{s.quote}&quot;
-                    </div>
-                    <div className={`text-xs text-ink/90 leading-relaxed mb-3 ${s.rejected ? 'line-through' : ''}`}>
-                      {s.content}
-                    </div>
-                    {!s.rejected && (
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => applySuggestion(s)} className="flex-1 py-1.5 bg-blue-50 text-blue-600 text-xs rounded hover:bg-blue-100 transition font-medium">接受修改</button>
-                        <button onClick={() => rejectSuggestion(s)} className="flex-1 py-1.5 bg-gray-100 text-inkLight text-xs rounded hover:bg-gray-200 transition">忽略</button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {suggestions.every(s => s.rejected || false /* if we keep rejected ones in list */) && (
-                  <div className="text-center text-xs text-inkLight py-2">全部处理完毕</div>
-                )}
-              </div>
-            )}
           </div>
         )}
       </div>
