@@ -8,7 +8,7 @@ import remarkGfm from 'remark-gfm'
 import { 
   ArrowLeft, Eye, Copy, Send, Loader2,
   LayoutGrid, MessageSquare, Pencil, FileCheck, 
-  FileText, Pin, RefreshCw, 
+  FileText, Pin, RefreshCw, X, 
 } from 'lucide-react'
 
 import CompareScene from '@/components/scenes/CompareScene'
@@ -194,6 +194,9 @@ export default function WorkspacePage() {
 
   const [activeStep, setActiveStep] = useState<StepKey>('models')
   const [activeScene, setActiveScene] = useState<SceneKey | null>(null)
+  
+  const [recommendation, setRecommendation] = useState<{scene: string, reason: string} | null>(null)
+  const [showRecommendation, setShowRecommendation] = useState(false)
   const [draftContent, setDraftContent] = useState<string | null>(null)
 
   // 聊天状态
@@ -204,6 +207,7 @@ export default function WorkspacePage() {
   const [chatLimitReached, setChatLimitReached] = useState(false)
   
   const [activeRunId, setActiveRunId] = useState<string | null>(null)
+
 
   // 引用的 AI 卡片
   const [referencedRunIds, setReferencedRunIds] = useState<string[]>([])
@@ -220,6 +224,23 @@ export default function WorkspacePage() {
     runsToStream.length > 0 ? wsId : null,
     runsToStream
   )
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (allDone && !recommendation && activeScene === null && wsId && completedCount > 0) {
+      fetch(`/api/workspaces/${wsId}/recommend-scene`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+          if (data && data.scene) {
+            setRecommendation(data)
+            setShowRecommendation(true)
+            timer = setTimeout(() => setShowRecommendation(false), 5000)
+          }
+        })
+        .catch(console.error)
+    }
+    return () => { if (timer) clearTimeout(timer) }
+  }, [allDone, activeScene, wsId, recommendation, completedCount])
+
 
   useEffect(() => {
     if (!wsId) return
@@ -292,7 +313,7 @@ export default function WorkspacePage() {
       const res = await fetch('/api/workspaces/' + wsId + '/observer', { method: 'POST' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      setObserverObservations(data.text ? data.text.split('\n').filter((p: string) => p.trim()) : [])
+      setObserverObservations(data.text ? data.text.split('').filter((p: string) => p.trim()) : [])
     } catch (e) {
       alert(e instanceof Error ? e.message : '旁观者调用失败')
     } finally {
@@ -339,7 +360,7 @@ export default function WorkspacePage() {
         if (done) break
         
         const chunk = decoder.decode(value, { stream: true })
-        const lines = chunk.split('\n\n')
+        const lines = chunk.split('\n')
         
         for (const line of lines) {
           if (line.startsWith('data: ')) {
@@ -627,7 +648,7 @@ export default function WorkspacePage() {
                 {!observerLoading && observerObservations.length > 0 && (
                   <div className="border-t border-gray-100 p-3 shrink-0 bg-gray-50/50">
                     <button onClick={() => {
-                      const text = observerObservations.join('\n\n')
+                      const text = observerObservations.join('\n')
                       navigator.clipboard.writeText(text)
                       // ideally a toast here, but alert is fine as per spec simple copy logic, wait spec didn't mention toast, just "toast 已复制"
                       // Since we don't have toast in this file easily without import, we'll just alert or if we imported sonner we could use it.
@@ -912,6 +933,25 @@ export default function WorkspacePage() {
                 </div>
               )}
 
+              {showRecommendation && recommendation && (
+                <div className="mb-3 px-4 py-2.5 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-between animate-in slide-in-from-bottom-2 fade-in duration-300 shadow-sm shrink-0">
+                  <div className="flex items-center gap-2 text-sm text-blue-800">
+                    <span className="text-base">💡</span>
+                    <span>{recommendation.reason}，建议使用「{SCENE_DEFS.find(s => s.id === recommendation.scene)?.label || '相关场景'}」</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => {
+                      enterScene(recommendation.scene as SceneKey)
+                      setShowRecommendation(false)
+                    }} className="text-xs font-medium text-blue-600 hover:text-blue-800 transition bg-white px-3 py-1.5 rounded-lg border border-blue-200 shadow-sm">
+                      立即使用
+                    </button>
+                    <button onClick={() => setShowRecommendation(false)} className="text-blue-400 hover:text-blue-600 transition p-1">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <div className="flex-1 relative">
                   <input type="text" value={chatInput}

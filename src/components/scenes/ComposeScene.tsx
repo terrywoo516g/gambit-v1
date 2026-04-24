@@ -1,12 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Copy, Pencil, RotateCcw, Pin } from 'lucide-react'
 
 type ModelOutput = { model: string; content: string }
-
 
 interface ComposeSceneProps {
   workspaceId: string
@@ -15,10 +15,14 @@ interface ComposeSceneProps {
 }
 
 export default function ComposeScene({ workspaceId, onDraftGenerated, referencedRunIds = [] }: ComposeSceneProps) {
+  const [rightNode, setRightNode] = useState<HTMLElement | null>(null)
+  useEffect(() => {
+    setRightNode(document.getElementById('right-panel-container'))
+  }, [])
   const [loading, setLoading] = useState(true)
   const [sceneId, setSceneId] = useState<string | null>(null)
   const [modelOutputs, setModelOutputs] = useState<ModelOutput[]>([])
-    const [templateTitle, setTemplateTitle] = useState('')
+  const [templateTitle, setTemplateTitle] = useState('')
   const [templateStructure, setTemplateStructure] = useState('')
   const [templateBody, setTemplateBody] = useState('')
   const [templateExtra, setTemplateExtra] = useState('')
@@ -50,9 +54,8 @@ export default function ComposeScene({ workspaceId, onDraftGenerated, referenced
     }
     void init()
     return () => { cancelled = true }
-  }, [workspaceId])
+  }, [workspaceId, referencedRunIds])
 
-  
   async function handleGenerate() {
     if (!sceneId) return
     const hasContent = templateTitle.trim() || templateStructure.trim() || templateBody.trim()
@@ -75,11 +78,6 @@ export default function ComposeScene({ workspaceId, onDraftGenerated, referenced
         <div className="h-64 bg-gray-100 rounded-xl animate-pulse" />
         <div className="h-64 bg-gray-100 rounded-xl animate-pulse" />
       </div>
-      <div className="w-1/2 p-6 space-y-6">
-        <div className="h-10 bg-gray-100 rounded-lg animate-pulse" />
-        <div className="h-32 bg-gray-100 rounded-lg animate-pulse" />
-        <div className="h-48 bg-gray-100 rounded-lg animate-pulse" />
-      </div>
     </div>
   )
 
@@ -90,7 +88,6 @@ export default function ComposeScene({ workspaceId, onDraftGenerated, referenced
           <h3 className="text-sm font-semibold text-ink flex items-center gap-2"><Pencil className="w-4 h-4 text-accent" />创意合成 — 最终稿</h3>
           <div className="flex items-center gap-2">
             <button onClick={() => setFinalDraft(null)} className="text-sm text-inkLight hover:text-accent border border-gray-200 px-3 py-1 rounded-lg flex items-center gap-1"><RotateCcw className="w-3 h-3" /> 返回编辑</button>
-            <button onClick={() => handleGenerate()} className="text-sm text-inkLight hover:text-accent border border-gray-200 px-3 py-1 rounded-lg flex items-center gap-1"><RotateCcw className="w-3 h-3" /> 重新生成</button>
             <button onClick={() => navigator.clipboard.writeText(finalDraft)} className="text-sm bg-accent text-white px-4 py-1 rounded-lg hover:bg-accent/90 flex items-center gap-1"><Copy className="w-3 h-3" /> 复制全文</button>
           </div>
         </div>
@@ -107,10 +104,9 @@ export default function ComposeScene({ workspaceId, onDraftGenerated, referenced
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
         <h3 className="text-sm font-semibold text-ink flex items-center gap-2"><Pencil className="w-4 h-4 text-accent" />创意合成</h3>
-        <button onClick={handleGenerate} disabled={generating} className="bg-accent text-white px-5 py-1.5 rounded-lg text-sm font-medium disabled:opacity-40 hover:bg-accent/90 transition">{generating ? '合成中...' : '创意合成'}</button>
       </div>
       <div className="flex-1 flex overflow-hidden">
-        <div className="w-1/2 border-r border-gray-200 flex flex-col bg-gray-50/50 p-4 gap-4 overflow-y-auto">
+        <div className="w-full flex flex-col bg-gray-50/50 p-4 gap-4 overflow-y-auto">
           {modelOutputs.map((output, idx) => (
             <div key={idx} className="bg-white border border-gray-200 rounded-xl flex flex-col shadow-sm shrink-0">
               <div className="px-3 py-2 border-b border-gray-100 flex items-center justify-between bg-gray-50/50 rounded-t-xl shrink-0">
@@ -126,19 +122,22 @@ export default function ComposeScene({ workspaceId, onDraftGenerated, referenced
             </div>
           ))}
         </div>
-        <div className="w-1/2 flex flex-col bg-gray-50/30">
-          <div className="px-4 pt-3 pb-2 border-b border-gray-100"><h3 className="text-sm font-semibold text-ink">合成模板</h3><p className="text-xs text-inkLight mt-0.5">把你喜欢的内容粘贴到对应栏位</p></div>
-          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
-            <div><label className="flex items-center gap-2 text-xs font-medium text-ink mb-1.5"><span className="w-5 h-5 rounded bg-accent text-white flex items-center justify-center text-xs">1</span>标题</label><input value={templateTitle} onChange={e => setTemplateTitle(e.target.value)} placeholder="粘贴或输入你喜欢的标题..." className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition bg-white" /></div>
-            <div><label className="flex items-center gap-2 text-xs font-medium text-ink mb-1.5"><span className="w-5 h-5 rounded bg-accent text-white flex items-center justify-center text-xs">2</span>核心思想 / 结构框架</label><textarea value={templateStructure} onChange={e => setTemplateStructure(e.target.value)} placeholder="粘贴你喜欢的内容结构、大纲、核心论点..." className="w-full min-h-[120px] p-3 border border-gray-200 rounded-lg text-sm outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition bg-white resize-y" /></div>
-            <div><label className="flex items-center gap-2 text-xs font-medium text-ink mb-1.5"><span className="w-5 h-5 rounded bg-accent text-white flex items-center justify-center text-xs">3</span>正文内容 / 精彩片段</label><textarea value={templateBody} onChange={e => setTemplateBody(e.target.value)} placeholder="粘贴你喜欢的段落、金句、具体描述..." className="w-full min-h-[200px] p-3 border border-gray-200 rounded-lg text-sm outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition bg-white resize-y" /></div>
-            <div><label className="flex items-center gap-2 text-xs font-medium text-ink mb-1.5"><span className="w-5 h-5 rounded bg-gray-400 text-white flex items-center justify-center text-xs">+</span>补充要求（可选）</label><textarea value={templateExtra} onChange={e => setTemplateExtra(e.target.value)} placeholder="对最终稿的额外要求，如风格、字数、语气..." className="w-full min-h-[80px] p-3 border border-gray-200 rounded-lg text-sm outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition bg-white resize-y" /></div>
-          </div>
-          <div className="px-4 py-3 border-t border-gray-200 bg-white flex items-center justify-between">
-            <div className="text-xs text-inkLight">{[templateTitle, templateStructure, templateBody].filter(Boolean).length}/3 个栏位已填写</div>
-            <button onClick={handleGenerate} disabled={generating} className="bg-accent text-white px-5 py-1.5 rounded-lg text-sm font-medium disabled:opacity-40 hover:bg-accent/90 transition">{generating ? '合成中...' : '创意合成'}</button>
-          </div>
-        </div>
+        {rightNode && createPortal(
+          <div className="flex flex-col h-full bg-gray-50/30 w-full">
+            <div className="px-4 pt-3 pb-2 border-b border-gray-100"><h3 className="text-sm font-semibold text-ink">合成模板</h3><p className="text-xs text-inkLight mt-0.5">把你喜欢的内容粘贴到对应栏位</p></div>
+            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+              <div><label className="flex items-center gap-2 text-xs font-medium text-ink mb-1.5"><span className="w-5 h-5 rounded bg-accent text-white flex items-center justify-center text-xs">1</span>标题</label><input value={templateTitle} onChange={e => setTemplateTitle(e.target.value)} placeholder="粘贴或输入你喜欢的标题..." className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition bg-white" /></div>
+              <div><label className="flex items-center gap-2 text-xs font-medium text-ink mb-1.5"><span className="w-5 h-5 rounded bg-accent text-white flex items-center justify-center text-xs">2</span>核心思想 / 结构框架</label><textarea value={templateStructure} onChange={e => setTemplateStructure(e.target.value)} placeholder="粘贴你喜欢的内容结构、大纲、核心论点..." className="w-full min-h-[120px] p-3 border border-gray-200 rounded-lg text-sm outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition bg-white resize-y" /></div>
+              <div><label className="flex items-center gap-2 text-xs font-medium text-ink mb-1.5"><span className="w-5 h-5 rounded bg-accent text-white flex items-center justify-center text-xs">3</span>正文内容 / 精彩片段</label><textarea value={templateBody} onChange={e => setTemplateBody(e.target.value)} placeholder="粘贴你喜欢的段落、金句、具体描述..." className="w-full min-h-[200px] p-3 border border-gray-200 rounded-lg text-sm outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition bg-white resize-y" /></div>
+              <div><label className="flex items-center gap-2 text-xs font-medium text-ink mb-1.5"><span className="w-5 h-5 rounded bg-gray-400 text-white flex items-center justify-center text-xs">+</span>补充要求（可选）</label><textarea value={templateExtra} onChange={e => setTemplateExtra(e.target.value)} placeholder="对最终稿的额外要求，如风格、字数、语气..." className="w-full min-h-[80px] p-3 border border-gray-200 rounded-lg text-sm outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition bg-white resize-y" /></div>
+            </div>
+            <div className="px-4 py-3 border-t border-gray-200 bg-white flex items-center justify-between">
+              <div className="text-xs text-inkLight">{[templateTitle, templateStructure, templateBody].filter(Boolean).length}/3 个栏位已填写</div>
+              <button onClick={handleGenerate} disabled={generating} className="bg-accent text-white px-5 py-1.5 rounded-lg text-sm font-medium disabled:opacity-40 hover:bg-accent/90 transition">{generating ? '合成中...' : '创意合成'}</button>
+            </div>
+          </div>,
+          rightNode
+        )}
       </div>
     </div>
   )
