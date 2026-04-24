@@ -20,6 +20,7 @@ model Workspace {
   modelRuns      ModelRun[]
   sceneSessions  SceneSession[]
   artifacts      Artifact[]
+  chatMessages   ChatMessage[]
 }
 
 model ModelRun {
@@ -82,4 +83,16 @@ model LlmCall {
   cost      Float
   status    String
   createdAt DateTime @default(now())
+}
+
+model ChatMessage {
+  id                 String    @id @default(uuid())
+  workspaceId        String
+  role               String    // "user" | "assistant"
+  content            String
+  referencedRunIds   String    @default("[]") // JSON array
+  createdAt          DateTime  @default(now())
+  workspace          Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  @@index([workspaceId, createdAt])
 }

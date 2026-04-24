@@ -16,6 +16,14 @@ import BrainstormScene from '@/components/scenes/BrainstormScene'
 import ComposeScene from '@/components/scenes/ComposeScene'
 import ReviewScene from '@/components/scenes/ReviewScene'
 
+type ChatMessage = {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  referencedRunIds: string
+  createdAt: string
+}
+
 type WorkspaceData = {
   id: string
   title: string
@@ -51,13 +59,7 @@ const MODEL_STATUS_COLORS: Record<string, string> = {
   failed: 'bg-red-400',
 }
 
-const STEPS = [
-  { key: 'models', label: 'AI 回答' },
-  { key: 'scene', label: '场景分析' },
-  { key: 'output', label: '最终稿' },
-] as const
-
-type StepKey = typeof STEPS[number]['key']
+type StepKey = 'models' | 'scene' | 'output'
 
 export default function WorkspacePage() {
   const params = useParams<{ id: string }>()
@@ -79,8 +81,13 @@ export default function WorkspacePage() {
   const [activeScene, setActiveScene] = useState<SceneKey | null>(null)
   const [draftContent, setDraftContent] = useState<string | null>(null)
 
+  // 聊天状态
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [chatInput, setChatInput] = useState('')
   const [chatProcessing, setChatProcessing] = useState(false)
+  const [streamingMessage, setStreamingMessage] = useState('')
+  const [chatLimitReached, setChatLimitReached] = useState(false)
+  
   const [activeRunId, setActiveRunId] = useState<string | null>(null)
 
   // 引用的 AI 卡片
@@ -91,14 +98,27 @@ export default function WorkspacePage() {
     if (!wsId) return
     async function load() {
       try {
-        const res = await fetch('/api/workspaces/' + wsId)
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error)
-        setWorkspace(data.workspace)
-        const latest = data.workspace.sceneSessions
+        const [wsRes, chatRes] = await Promise.all([
+          fetch('/api/workspaces/' + wsId),
+          fetch('/api/workspaces/' + wsId + '/chat/messages')
+        ])
+        
+        const wsData = await wsRes.json()
+        if (!wsRes.ok) throw new Error(wsData.error)
+        setWorkspace(wsData.workspace)
+
+        const latest = wsData.workspace.sceneSessions
           ?.flatMap((s: WorkspaceData['sceneSessions'][0]) => s.finalDrafts)
           ?.sort((a: { version: number }, b: { version: number }) => b.version - a.version)[0]
         if (latest) setDraftContent(latest.content)
+
+        const chatData = await chatRes.json()
+        if (chatRes.ok) {
+          setChatMessages(chatData.messages)
+          if (chatData.messages.filter((m: ChatMessage) => m.role === 'user').length >= 4) {
+            setChatLimitReached(true)
+          }
+        }
       } catch (e) {
         alert(e instanceof Error ? e.message : '加载失败')
       } finally {
@@ -181,25 +201,84 @@ export default function WorkspacePage() {
 
   async function handleChatSubmit() {
     const input = chatInput.trim()
-    if (!input || chatProcessing) return
+    if (!input || chatProcessing || chatLimitReached) return
     setChatProcessing(true)
+    setStreamingMessage('')
+
+    const newUserMsg: ChatMessage = {
+      id: `temp-user-${Date.now()}`,
+      role: 'user',
+      content: input,
+      referencedRunIds: JSON.stringify(referencedRunIds),
+      createdAt: new Date().toISOString()
+    }
+    setChatMessages(prev => [...prev, newUserMsg])
+    setChatInput('')
+
     try {
-      const res = await fetch('/api/workspaces/' + wsId + '/recommend-scene', {
+      const res = await fetch('/api/workspaces/' + wsId + '/chat/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userMessage: input, referencedRunIds }),
+        body: JSON.stringify({ message: input, referencedRunIds }),
       })
-      const data = await res.json()
-      if (data.scene && ['compare', 'brainstorm', 'compose', 'review'].includes(data.scene)) {
-        enterScene(data.scene as SceneKey)
-      } else {
-        alert('暂时无法理解你的指令，请尝试使用场景按钮')
+
+      if (!res.ok || !res.body) {
+        throw new Error('网络请求失败')
+      }
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let assistantMsg = ''
+
+      while (true) {
+        const { value, done } = await reader.read()
+        if (done) break
+        
+        const chunk = decoder.decode(value, { stream: true })
+        const lines = chunk.split('\n\n')
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const dataStr = line.slice(6)
+            if (!dataStr) continue
+            try {
+              const data = JSON.parse(dataStr)
+              if (data.type === 'delta') {
+                assistantMsg += data.text
+                setStreamingMessage(assistantMsg)
+              } else if (data.type === 'done') {
+                setChatMessages(prev => [...prev, {
+                  id: data.messageId || `temp-assistant-${Date.now()}`,
+                  role: 'assistant',
+                  content: assistantMsg,
+                  referencedRunIds: '[]',
+                  createdAt: new Date().toISOString()
+                }])
+                setStreamingMessage('')
+                
+                if (chatMessages.filter(m => m.role === 'user').length + 1 >= 4) {
+                  setChatLimitReached(true)
+                }
+              } else if (data.type === 'limit') {
+                alert(data.message)
+                setChatLimitReached(true)
+              } else if (data.type === 'error') {
+                console.error('SSE Error:', data.message)
+              }
+            } catch (e) {
+              console.error('Parse JSON error:', e, dataStr)
+            }
+          }
+        }
       }
     } catch {
       alert('处理失败，请重试')
     } finally {
       setChatProcessing(false)
-      setChatInput('')
+      setTimeout(() => {
+        const msgsEnd = document.getElementById('messages-end')
+        if (msgsEnd) msgsEnd.scrollIntoView({ behavior: 'smooth' })
+      }, 100)
     }
   }
 
@@ -269,37 +348,106 @@ export default function WorkspacePage() {
           <div className="text-[10px] font-mono text-black/20 mt-1 tracking-wider">GAMBIT WORKSPACE</div>
         </div>
 
-        <div className="p-3 border-b border-gray-100">
+        <div className="p-3 border-b border-gray-100 flex-1 overflow-y-auto">
           <div className="text-[10px] font-mono text-black/20 mb-2 tracking-wider px-2">STEPS</div>
-          {STEPS.map((step, idx) => (
-            <button key={step.key}
-              onClick={() => { setActiveStep(step.key); if (step.key === 'models') setActiveScene(null) }}
-              className={`flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg text-sm transition mb-0.5 ${
-                activeStep === step.key ? 'bg-accent/10 text-accent font-medium' : 'text-inkLight hover:bg-gray-50'
-              }`}>
-              <span className={`w-5 h-5 rounded-full text-xs flex items-center justify-center font-medium ${
-                activeStep === step.key ? 'bg-accent text-white' : 'bg-gray-200 text-inkLight'
-              }`}>{idx + 1}</span>
-              {step.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-3 space-y-1">
-          <div className="text-[10px] font-mono text-black/20 mb-2 tracking-wider px-2">AI SOURCES</div>
-          {runs.map(run => {
-            const status = getStatus(run)
-            const isActive = activeRunId === run.id
-            return (
-              <button key={run.id} onClick={() => scrollToRun(run.id)}
+          
+          <div className="space-y-1">
+            {/* 1. AI 回答 */}
+            <div>
+              <button onClick={() => { setActiveStep('models'); setActiveScene(null) }}
                 className={`flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg text-sm transition ${
-                  isActive ? 'bg-accent/10 text-accent' : 'text-inkLight hover:bg-gray-50'
+                  activeStep === 'models' ? 'bg-accent/10 text-accent font-medium' : 'text-inkLight hover:bg-gray-50'
                 }`}>
-                <span className={`w-2 h-2 rounded-full shrink-0 ${MODEL_STATUS_COLORS[status] || 'bg-gray-300'}`} />
-                <span className="truncate">{run.model}</span>
+                <span className={`w-5 h-5 rounded-full text-xs flex items-center justify-center font-medium shrink-0 ${
+                  activeStep === 'models' ? 'bg-accent text-white' : 'bg-gray-200 text-inkLight'
+                }`}>1</span>
+                AI 回答
               </button>
-            )
-          })}
+              
+              <div className="ml-5 pl-4 border-l-2 border-gray-100 py-1 space-y-1">
+                {runs.map(run => {
+                  const status = getStatus(run)
+                  const isActive = activeRunId === run.id
+                  return (
+                    <button key={run.id} onClick={() => scrollToRun(run.id)}
+                      className={`flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-lg text-xs transition ${
+                        isActive ? 'text-accent bg-accent/5' : 'text-inkLight hover:text-ink hover:bg-gray-50'
+                      }`}>
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${MODEL_STATUS_COLORS[status] || 'bg-gray-300'}`} />
+                      <span className="truncate">{run.model}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* 2. 对话 */}
+            <div>
+              <button onClick={() => { 
+                setActiveStep('models')
+                setActiveScene(null)
+                setTimeout(() => document.getElementById('messages-end')?.scrollIntoView({ behavior: 'smooth' }), 100)
+              }}
+                className={`flex items-center justify-between w-full text-left px-3 py-2 rounded-lg text-sm transition ${
+                  activeStep === 'models' && chatMessages.length > 0 ? 'text-ink font-medium' : 'text-inkLight hover:bg-gray-50'
+                }`}>
+                <div className="flex items-center gap-2">
+                  <span className={`w-5 h-5 rounded-full text-xs flex items-center justify-center font-medium shrink-0 ${
+                    activeStep === 'models' && chatMessages.length > 0 ? 'bg-gray-300 text-ink' : 'bg-gray-200 text-inkLight'
+                  }`}>2</span>
+                  对话
+                </div>
+                {chatMessages.length > 0 && (
+                  <span className="text-[10px] bg-gray-100 text-inkLight px-1.5 py-0.5 rounded">
+                    {Math.ceil(chatMessages.length / 2)} 轮
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* 3. 场景产物 */}
+            {workspace.sceneSessions.length > 0 && (
+              <div>
+                <button onClick={() => { setActiveStep('scene'); if (workspace.sceneSessions[0]) enterScene(workspace.sceneSessions[0].sceneType as SceneKey) }}
+                  className={`flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg text-sm transition ${
+                    activeStep === 'scene' ? 'bg-accent/10 text-accent font-medium' : 'text-inkLight hover:bg-gray-50'
+                  }`}>
+                  <span className={`w-5 h-5 rounded-full text-xs flex items-center justify-center font-medium shrink-0 ${
+                    activeStep === 'scene' ? 'bg-accent text-white' : 'bg-gray-200 text-inkLight'
+                  }`}>3</span>
+                  场景产物
+                </button>
+                <div className="ml-5 pl-4 border-l-2 border-gray-100 py-1 space-y-1">
+                  {workspace.sceneSessions.map(session => {
+                    const sceneDef = SCENE_DEFS.find(s => s.key === session.sceneType)
+                    if (!sceneDef) return null
+                    return (
+                      <button key={session.id} onClick={() => enterScene(session.sceneType as SceneKey)}
+                        className={`flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-lg text-xs transition ${
+                          activeScene === session.sceneType ? 'text-accent bg-accent/5' : 'text-inkLight hover:text-ink hover:bg-gray-50'
+                        }`}>
+                        <div className="w-3.5 h-3.5 shrink-0 opacity-70">{sceneDef.icon}</div>
+                        <span className="truncate">{sceneDef.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* 4. 最终稿 */}
+            <div>
+              <button onClick={() => { setActiveStep('output'); setActiveScene(null) }}
+                className={`flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg text-sm transition ${
+                  activeStep === 'output' ? 'bg-accent/10 text-accent font-medium' : 'text-inkLight hover:bg-gray-50'
+                }`}>
+                <span className={`w-5 h-5 rounded-full text-xs flex items-center justify-center font-medium shrink-0 ${
+                  activeStep === 'output' ? 'bg-accent text-white' : 'bg-gray-200 text-inkLight'
+                }`}>{workspace.sceneSessions.length > 0 ? '4' : '3'}</span>
+                最终稿
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="p-3 border-t border-gray-200 space-y-2">
@@ -447,6 +595,57 @@ export default function WorkspacePage() {
             </div>
           )}
 
+          {/* 消息列表区域 */}
+          {(chatMessages.length > 0 || streamingMessage) && !activeScene && (
+            <div className="flex-1 overflow-y-auto px-6 py-4 bg-gray-50/30">
+              <div className="max-w-3xl mx-auto space-y-6">
+                {chatMessages.map((msg, i) => (
+                  <div key={msg.id || i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${
+                      msg.role === 'user' 
+                        ? 'bg-gray-100 text-ink rounded-tr-sm' 
+                        : 'bg-white border border-gray-200 text-ink shadow-sm rounded-tl-sm'
+                    }`}>
+                      {msg.role === 'assistant' && (
+                        <div className="flex items-center gap-1.5 mb-1.5 text-xs text-accent font-medium">
+                          <Zap className="w-3.5 h-3.5" />
+                          DeepSeek V3.2
+                        </div>
+                      )}
+                      <div className="prose prose-sm max-w-none">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {streamingMessage && (
+                  <div className="flex justify-start">
+                    <div className="max-w-[85%] rounded-2xl px-4 py-3 bg-white border border-gray-200 text-ink shadow-sm rounded-tl-sm">
+                      <div className="flex items-center gap-1.5 mb-1.5 text-xs text-accent font-medium">
+                        <Zap className="w-3.5 h-3.5" />
+                        DeepSeek V3.2
+                      </div>
+                      <div className="prose prose-sm max-w-none streaming-cursor">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{streamingMessage}</ReactMarkdown>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {chatLimitReached && (
+                  <div className="text-center mt-6 mb-2">
+                    <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 text-xs text-inkLight">
+                      已达 4 轮对话上限
+                      <button onClick={() => window.open('/', '_blank')} className="text-accent hover:underline font-medium">
+                        开新窗口继续
+                      </button>
+                    </span>
+                  </div>
+                )}
+                <div id="messages-end" className="h-1" />
+              </div>
+            </div>
+          )}
+
           {activeScene && (
             <div className="flex-1 overflow-hidden">
               {activeScene === 'compare' && <CompareScene workspaceId={wsId} onDraftGenerated={handleDraftGenerated} referencedRunIds={referencedRunIds} />}
@@ -540,9 +739,9 @@ export default function WorkspacePage() {
                       if (e.key === '@') setShowMentionPicker(true)
                       if (e.key === 'Escape') setShowMentionPicker(false)
                     }}
-                    placeholder="输入指令，输入 @ 可引用指定 AI，回车提交..."
-                    className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-accent transition bg-gray-50"
-                    disabled={chatProcessing} />
+                    placeholder={chatLimitReached ? "已达 4 轮对话上限，请开启新对话" : "输入指令，输入 @ 可引用指定 AI，回车提交..."}
+                    className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-accent transition bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
+                    disabled={chatProcessing || chatLimitReached} />
                   <button type="button" onClick={() => setShowMentionPicker(v => !v)}
                     className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-lg text-inkLight hover:text-accent hover:bg-gray-100 transition"
                     title="引用 AI 回答">
