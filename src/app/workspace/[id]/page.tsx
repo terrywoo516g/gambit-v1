@@ -85,14 +85,12 @@ export default function WorkspacePage() {
   const [chatInput, setChatInput] = useState('')
   const [chatProcessing, setChatProcessing] = useState(false)
   const [streamingMessage, setStreamingMessage] = useState('')
-  const [streamingModelName, setStreamingModelName] = useState('DeepSeek V3.2')
   const [chatLimitReached, setChatLimitReached] = useState(false)
   
   const [activeRunId, setActiveRunId] = useState<string | null>(null)
 
   // 引用的 AI 卡片
   const [referencedRunIds, setReferencedRunIds] = useState<string[]>([])
-  const [showMentionPicker, setShowMentionPicker] = useState(false)
 
   useEffect(() => {
     if (!wsId) return
@@ -234,9 +232,7 @@ export default function WorkspacePage() {
             if (!dataStr) continue
             try {
               const data = JSON.parse(dataStr)
-              if (data.type === 'model_info') {
-                setStreamingModelName(data.modelName)
-              } else if (data.type === 'delta') {
+              if (data.type === 'delta') {
                 assistantMsg += data.text
                 setStreamingMessage(assistantMsg)
               } else if (data.type === 'done') {
@@ -245,8 +241,7 @@ export default function WorkspacePage() {
                   role: 'assistant',
                   content: assistantMsg,
                   referencedRunIds: '[]',
-                  createdAt: new Date().toISOString(),
-                  modelName: data.modelName
+                  createdAt: new Date().toISOString()
                 }])
                 setStreamingMessage('')
                 
@@ -322,10 +317,6 @@ export default function WorkspacePage() {
   }
 
   const runs = workspace.modelRuns
-  const completedRuns = runs.filter(r => {
-    const s = getStatus(r)
-    return s === 'done' || s === 'completed'
-  })
   const refRunsMap = new Map(runs.map(r => [r.id, r]))
 
   // ========== JSX 部分在任务 8B 中补充 ==========
@@ -565,16 +556,6 @@ export default function WorkspacePage() {
                         <div className="px-4 py-2 border-t border-gray-100 flex items-center justify-between">
                           <span className="text-xs text-inkLight">{content.length} 字</span>
                           <div className="flex items-center gap-3">
-                            <button
-                              onClick={() => toggleRef(run.id)}
-                              className={`text-xs transition flex items-center gap-1 ${
-                                referencedRunIds.includes(run.id)
-                                  ? 'text-accent font-medium'
-                                  : 'text-inkLight hover:text-accent'
-                              }`}
-                            >
-                              {referencedRunIds.includes(run.id) ? '✓ 已引用' : '@ 引用'}
-                            </button>
                             <button onClick={() => navigator.clipboard.writeText(content)}
                               className="text-xs text-inkLight hover:text-accent transition flex items-center gap-1">
                               <Copy className="w-3 h-3" /> 复制
@@ -600,12 +581,6 @@ export default function WorkspacePage() {
                         ? 'bg-gray-100 text-ink rounded-tr-sm' 
                         : 'bg-white border border-gray-200 text-ink shadow-sm rounded-tl-sm'
                     }`}>
-                      {msg.role === 'assistant' && (
-                        <div className="flex items-center gap-1.5 mb-1.5 text-xs text-accent font-medium">
-                          <Zap className="w-3.5 h-3.5" />
-                          {msg.modelName || 'DeepSeek V3.2'}
-                        </div>
-                      )}
                       <div className="prose prose-sm max-w-none">
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                       </div>
@@ -615,10 +590,6 @@ export default function WorkspacePage() {
                 {streamingMessage && (
                   <div className="flex justify-start">
                     <div className="max-w-[85%] rounded-2xl px-4 py-3 bg-white border border-gray-200 text-ink shadow-sm rounded-tl-sm">
-                      <div className="flex items-center gap-1.5 mb-1.5 text-xs text-accent font-medium">
-                        <Zap className="w-3.5 h-3.5" />
-                        {streamingModelName}
-                      </div>
                       <div className="prose prose-sm max-w-none streaming-cursor">
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>{streamingMessage}</ReactMarkdown>
                       </div>
@@ -713,50 +684,10 @@ export default function WorkspacePage() {
                     onChange={e => setChatInput(e.target.value)}
                     onKeyDown={e => {
                       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSubmit() }
-                      if (e.key === '@') setShowMentionPicker(true)
-                      if (e.key === 'Escape') setShowMentionPicker(false)
                     }}
-                    placeholder={chatLimitReached ? "已达 4 轮对话上限，请开启新对话" : "输入指令，输入 @ 可引用指定 AI，回车提交..."}
-                    className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-accent transition bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
+                    placeholder={chatLimitReached ? "已达 4 轮对话上限，请开启新对话" : "输入指令，回车提交..."}
+                    className="w-full pl-4 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-accent transition bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
                     disabled={chatProcessing || chatLimitReached} />
-                  <button type="button" onClick={() => setShowMentionPicker(v => !v)}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-lg text-inkLight hover:text-accent hover:bg-gray-100 transition"
-                    title="引用 AI 回答">
-                    <span className="text-sm font-semibold">@</span>
-                  </button>
-
-                  {showMentionPicker && completedRuns.length > 0 && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setShowMentionPicker(false)} />
-                      <div className="absolute bottom-full left-0 mb-2 w-64 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
-                        <div className="px-3 py-2 border-b border-gray-100 text-[10px] font-mono text-black/30 tracking-wider">
-                          选择要引用的 AI 回答
-                        </div>
-                        <div className="max-h-56 overflow-y-auto">
-                          {completedRuns.map(r => {
-                            const selected = referencedRunIds.includes(r.id)
-                            return (
-                              <button key={r.id}
-                                onClick={() => {
-                                  toggleRef(r.id)
-                                  if (chatInput.endsWith('@')) setChatInput(chatInput.slice(0, -1))
-                                }}
-                                className={`w-full flex items-center justify-between px-3 py-2 text-sm text-left transition ${
-                                  selected ? 'bg-accent/5 text-accent' : 'text-ink hover:bg-gray-50'
-                                }`}>
-                                <span className="truncate">{r.model}</span>
-                                {selected && <span className="text-accent">✓</span>}
-                              </button>
-                            )
-                          })}
-                        </div>
-                        <div className="px-3 py-2 border-t border-gray-100 flex items-center justify-between">
-                          <span className="text-[10px] text-inkLight">已选 {referencedRunIds.length} 个</span>
-                          <button onClick={() => setShowMentionPicker(false)} className="text-xs text-accent hover:text-accent/70 transition">完成</button>
-                        </div>
-                      </div>
-                    </>
-                  )}
                 </div>
                 <button onClick={handleChatSubmit} disabled={chatProcessing || !chatInput.trim()}
                   className="w-9 h-9 rounded-full bg-accent text-white flex items-center justify-center disabled:opacity-30 hover:bg-accent/85 transition shrink-0">

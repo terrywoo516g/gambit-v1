@@ -73,24 +73,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         userContext += `【用户的新问题】：${message}`
 
         // 3. Call LLM
+        // 这里根据需求写死使用 DeepSeek 进行独立对话
         const targetProvider: 'qiniu' | 'volcano' | 'dmxapi' = 'qiniu'
-        let targetModelId = 'deepseek/deepseek-v3.2-251201'
-        let targetModelName = 'DeepSeek V3.2'
-
-        // 如果用户引用了 1 个指定的 AI，则使用该 AI 对应的模型进行对话
-        if (referencedRunIds.length === 1) {
-          const run = workspace.modelRuns.find(r => r.id === referencedRunIds[0])
-          if (run) {
-            targetModelId = run.modelId
-            targetModelName = run.model
-            // 此处由于 MODEL_REGISTRY 在这不可用，可以临时默认为 qiniu
-            // 如果你的项目中大部分模型都通过 qiniu 路由，这可以工作。
-            // 真实生产环境可能需要查 MODEL_REGISTRY 获取正确的 provider
-          }
-        }
-
-        // 发送一个初始事件，告诉前端当前回答的 AI 名称
-        sendEvent('model_info', { modelName: targetModelName })
+        const targetModelId = 'deepseek/deepseek-v3.2-251201'
 
         let fullResponse = ''
         const chatStream = streamChat({
@@ -125,7 +110,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           },
         })
 
-        sendEvent('done', { messageId: assistantMsgId, modelName: targetModelName })
+        sendEvent('done', { messageId: assistantMsgId })
         controller.close()
       }
     })
