@@ -1,9 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import { ArrowUpDown, Copy, Pin } from 'lucide-react'
+import { ArrowUpDown, Pin } from 'lucide-react'
 
 type TableData = { columns: string[]; rows: Record<string, string>[] }
 
@@ -13,16 +11,13 @@ interface CompareSceneProps {
   referencedRunIds?: string[]
 }
 
-export default function CompareScene({ workspaceId, onDraftGenerated, referencedRunIds = [] }: CompareSceneProps) {
+export default function CompareScene({ workspaceId, referencedRunIds = [] }: CompareSceneProps) {
   const [loading, setLoading] = useState(true)
-  const [sceneId, setSceneId] = useState<string | null>(null)
   const [tableData, setTableData] = useState<TableData | null>(null)
   const [consensus, setConsensus] = useState<any[]>([])
   const [divergenceNote, setDivergenceNote] = useState<string>('')
   const [starred] = useState<string[]>([])
   const [excluded] = useState<string[]>([])
-  const [generating, setGenerating] = useState(false)
-  const [report, setReport] = useState<string | null>(null)
   const [sortCol, setSortCol] = useState<string | null>(null)
   const [sortAsc, setSortAsc] = useState(true)
 
@@ -40,7 +35,6 @@ export default function CompareScene({ workspaceId, onDraftGenerated, referenced
         const data = await res.json()
         if (!res.ok) throw new Error(data.error)
         if (cancelled) return
-        setSceneId(data.sceneSessionId)
         setTableData(data.tableData)
         setConsensus(data.consensus || [])
         setDivergenceNote(data.divergenceNote || '')
@@ -56,12 +50,7 @@ export default function CompareScene({ workspaceId, onDraftGenerated, referenced
   
   function handleSort(col: string) { if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(true) } }
 
-  async function handleGenerate() {
-    if (!sceneId) return
-    try { setGenerating(true); const res = await fetch(`/api/scenes/${sceneId}/generate`, { method: 'POST' }); const data = await res.json(); if (!res.ok) throw new Error(data.error); setReport(data.content); onDraftGenerated?.(data.content) }
-    catch (e) { alert(e instanceof Error ? e.message : '生成失败') }
-    finally { setGenerating(false) }
-  }
+  
 
   const sortedRows = tableData?.rows?.filter(row => { const name = row[tableData.columns[0]]; return !excluded.includes(name) })?.sort((a, b) => { if (!sortCol) return 0; const va = a[sortCol] || ''; const vb = b[sortCol] || ''; return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va) }) ?? []
 
@@ -86,10 +75,10 @@ export default function CompareScene({ workspaceId, onDraftGenerated, referenced
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
         <h3 className="text-sm font-semibold text-ink flex items-center gap-2"><ArrowUpDown className="w-4 h-4 text-accent" />多源对比</h3>
-        <button onClick={handleGenerate} disabled={generating} className="bg-accent text-white px-4 py-1.5 rounded-lg text-sm font-medium disabled:opacity-40 hover:bg-accent/90 transition">{generating ? '生成中...' : '生成推荐报告'}</button>
+        
       </div>
       <div className="flex-1 flex overflow-hidden">
-        <div className={`flex-1 overflow-auto p-4 ${report ? '' : 'w-full'}`}>
+        <div className={`flex-1 overflow-auto p-4 w-full`}>
           {consensus.length > 0 && (
             <div className="mb-6">
               <h4 className="text-sm font-bold text-ink mb-3 flex items-center gap-2">🤝 各AI共识</h4>
@@ -142,7 +131,7 @@ export default function CompareScene({ workspaceId, onDraftGenerated, referenced
             </div>
           )}
         </div>
-        {report && (<div className="w-2/5 border-l border-gray-200 bg-white p-4 overflow-y-auto"><div className="flex items-center justify-between mb-4"><h3 className="font-semibold text-ink text-sm">推荐报告</h3><button onClick={() => navigator.clipboard.writeText(report)} className="text-xs text-inkLight hover:text-accent flex items-center gap-1"><Copy className="w-3 h-3" /> 复制</button></div><div className="prose prose-sm max-w-none"><ReactMarkdown remarkPlugins={[remarkGfm]}>{report}</ReactMarkdown></div></div>)}
+        
       </div>
     </div>
   )
