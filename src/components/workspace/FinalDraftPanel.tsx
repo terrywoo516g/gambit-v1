@@ -453,8 +453,7 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
         <div className="flex-1 p-4 pb-32">
           {/* 金句与段落标题 */}
           <div className="flex items-end justify-between mb-2">
-            <span className="text-[12px] text-gray-500 font-light">金句与段落</span>
-            <span className="text-[10px] text-gray-400 font-light">可粘贴可用段落或金句</span>
+            <span className="text-[12px] text-gray-500 font-light">用于粘贴可用段落或句子</span>
           </div>
           {editor && (
             <div className="flex items-center gap-1 mb-2 border-b border-gray-100 pb-2">
