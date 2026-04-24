@@ -20,8 +20,7 @@ const ALL_MODELS = [
   { id: 'MiniMax M1', provider: 'MiniMax', short: 'MiniMax M1' },
 ]
 
-const DEFAULT_FAVORITES = ['DeepSeek V3.2', 'Doubao Seed 2.0 Pro', 'Kimi K2.6']
-const DEFAULT_SELECTED = ['DeepSeek V3.2', 'MiniMax M2.7']
+const DEFAULT_SELECTED = ['DeepSeek V3.2', 'MiniMax M1', 'Qwen3 Max']
 
 const TOOL_MENU = [
   { key: 'compose', label: '创意合成', desc: '多源创意整合' },
@@ -44,51 +43,36 @@ function getShortName(id: string): string {
 export default function HomePage() {
   const router = useRouter()
   const [text, setText] = useState('')
-  const [attachedDoc, setAttachedDoc] = useState<{ name: string; charCount: number } | null>(null)
+  const [attachedDoc, setAttachedDoc] = useState<{ name: string; content: string; charCount: number } | null>(null)
   const [selectedModels, setSelectedModels] = useState<string[]>(DEFAULT_SELECTED)
-  const [favorites, setFavorites] = useState<string[]>(DEFAULT_FAVORITES)
-  const [selectedTool, setSelectedTool] = useState<string | null>(null)
   const [showModelPicker, setShowModelPicker] = useState(false)
   const [showToolMenu, setShowToolMenu] = useState(false)
-  const [showAgentSearch, setShowAgentSearch] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   function toggleModel(model: string) {
-    setSelectedModels(prev =>
-      prev.includes(model) ? prev.filter(m => m !== model) : [...prev, model]
-    )
-  }
-
-  function selectFromSearch(agent: string) {
-    const currentFavs = [...favorites]
-    // 优先替换未被选中的快捷模型，如果都选中了则替换最后一个
-    const emptyIdx = currentFavs.findIndex(f => !selectedModels.includes(f))
-    const idx = emptyIdx !== -1 ? emptyIdx : 2
-    setFavorites(prev => {
-      const next = [...prev]
-      next[idx] = agent
-      return next
+    setSelectedModels(prev => {
+      if (prev.includes(model)) {
+        return prev.filter(m => m !== model)
+      } else {
+        if (prev.length >= 6) {
+          toast.error('最多只能选择 6 个模型')
+          return prev
+        }
+        return [...prev, model]
+      }
     })
-    if (!selectedModels.includes(agent)) {
-      setSelectedModels(prev => [...prev, agent])
-    }
-    setShowAgentSearch(false)
-    setSearchQuery('')
-  }
-
-  function clickFavorite(agent: string) {
-    toggleModel(agent)
   }
 
   function applyTemplate(tpl: typeof TEMPLATES[0]) {
     setText(tpl.text)
-    setSelectedTool(tpl.tool)
   }
 
   async function handleSubmit(inputText?: string) {
-    const finalText = (inputText ?? text).trim()
+    let finalText = (inputText ?? text).trim()
+    if (attachedDoc) {
+      finalText = `【参考文档：${attachedDoc.name}】\n${attachedDoc.content}\n---\n${finalText}`
+    }
     if (!finalText || loading) return
 
     if (selectedModels.length < 2) {
@@ -147,72 +131,7 @@ export default function HomePage() {
         {/* 对话框式输入区 */}
         <div className="w-full max-w-4xl relative">
           
-          {/* 顶部标题与模型选择栏同一行 */}
-          <div className="flex items-center justify-center mb-3 px-1 relative z-20">
-            {/* 常用模型栏 */}
-            <div className="flex items-center gap-3 relative">
-                {favorites.map((a, idx) => (
-                  <button
-                    key={a + idx}
-                    onClick={() => clickFavorite(a)}
-                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition flex items-center gap-1.5 ${
-                      selectedModels.includes(a)
-                        ? 'bg-gray-100 text-ink shadow-sm'
-                        : 'bg-transparent text-inkLight hover:text-ink'
-                    }`}
-                  >
-                    <div className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold ${selectedModels.includes(a) ? 'bg-ink text-white' : 'bg-gray-200 text-inkLight'}`}>
-                      {getShortName(a)[0]}
-                    </div>
-                    {getShortName(a)}
-                  </button>
-                ))}
-                <button
-                  onClick={() => setShowAgentSearch(!showAgentSearch)}
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-inkLight hover:text-ink transition"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                </button>
-  
-                {/* 模型搜索弹窗 */}
-                {showAgentSearch && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => { setShowAgentSearch(false); setSearchQuery('') }} />
-                    <div className="absolute top-10 left-1/2 -translate-x-1/2 z-50 w-80 bg-white rounded-2xl border border-gray-200 shadow-xl p-5">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-sm font-semibold text-ink">选择模型替换到常用栏</span>
-                      <button onClick={() => { setShowAgentSearch(false); setSearchQuery('') }} className="text-inkLight hover:text-ink text-lg">&times;</button>
-                    </div>
-                    <input
-                      value={searchQuery}
-                      onChange={e => setSearchQuery(e.target.value)}
-                      placeholder="搜索模型..."
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none mb-3 focus:border-accent"
-                    />
-                    <div className="space-y-1 max-h-60 overflow-y-auto">
-                      {ALL_MODELS.filter(m => m.id.toLowerCase().includes(searchQuery.toLowerCase()) || m.provider.toLowerCase().includes(searchQuery.toLowerCase())).map(model => (
-                        <button
-                          key={model.id}
-                          onClick={() => selectFromSearch(model.id)}
-                          className="flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-xl text-sm text-ink hover:bg-gray-50 transition"
-                        >
-                          <span className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-ink text-xs font-bold border border-gray-200">
-                            {model.short[0]}
-                          </span>
-                          <div>
-                            <div className="font-medium">{model.id}</div>
-                            <div className="text-xs text-inkLight">{model.provider}</div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-
-          <div className="w-full bg-white border border-gray-200 rounded-[12px] shadow-sm overflow-visible flex flex-col pl-4 pr-2 py-2">
+          <div className="w-full bg-white border border-gray-200 rounded-[12px] shadow-sm overflow-visible flex flex-col pl-4 pr-2 py-2 mt-6">
             {/* 已选模型和工具标签 */}
             <div className="flex flex-wrap gap-1.5 px-2 pb-1">
               {selectedModels.map(m => (
@@ -221,13 +140,6 @@ export default function HomePage() {
                   <button onClick={() => toggleModel(m)} className="opacity-60 hover:opacity-100 ml-0.5">&times;</button>
                 </span>
               ))}
-              {selectedTool && (
-                <span className="inline-flex items-center gap-1 bg-white text-ink rounded-full px-2.5 py-0.5 text-xs font-medium border border-gray-200">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
-                  {TOOL_MENU.find(t => t.key === selectedTool)?.label}
-                  <button onClick={() => setSelectedTool(null)} className="opacity-60 hover:opacity-100 ml-0.5">&times;</button>
-                </span>
-              )}
             </div>
 
             {attachedDoc && (
@@ -237,10 +149,6 @@ export default function HomePage() {
                   已附加文档：{attachedDoc.name} · {attachedDoc.charCount}字
                   <button
                     onClick={() => {
-                      const sep = '\n---\n'
-                      const idx = text.indexOf(sep)
-                      const next = idx >= 0 ? text.slice(idx + sep.length) : ''
-                      setText(next)
                       setAttachedDoc(null)
                     }}
                     className="ml-1 text-inkLight hover:text-ink transition"
@@ -300,17 +208,14 @@ export default function HomePage() {
                   }
 
                   const content = await file.text()
-                  const header = `【参考文档：${name}】\n${content}`
-                  const nextText = text.trim() ? `${header}\n---\n${text}` : header
-                  setText(nextText)
-                  setAttachedDoc({ name, charCount: content.length })
+                  setAttachedDoc({ name, content, charCount: content.length })
                 }}
               />
 
               {/* @ 选模型按钮 */}
               <div className="relative">
                 <button
-                  onClick={() => { setShowModelPicker(!showModelPicker); setShowToolMenu(false) }}
+                  onClick={() => setShowModelPicker(!showModelPicker)}
                   className="w-8 h-8 rounded-full flex items-center justify-center text-inkLight hover:text-ink hover:bg-gray-200/50 transition text-base font-medium"
                   title="选择模型"
                 >
@@ -341,7 +246,7 @@ export default function HomePage() {
               {/* 工具按钮 */}
               <div className="relative">
                 <button
-                  onClick={() => { setShowToolMenu(!showToolMenu); setShowModelPicker(false) }}
+                  onClick={() => setShowToolMenu(!showToolMenu)}
                   className="w-8 h-8 rounded-full flex items-center justify-center text-inkLight hover:text-ink hover:bg-gray-200/50 transition"
                   title="选择工具"
                 >
@@ -354,14 +259,16 @@ export default function HomePage() {
                       {TOOL_MENU.map(t => (
                         <button
                           key={t.key}
-                          onClick={() => { setSelectedTool(selectedTool === t.key ? null : t.key); setShowToolMenu(false) }}
-                          className={`block w-full text-left px-3 py-2.5 text-sm rounded-lg transition ${
-                            selectedTool === t.key ? 'bg-gray-100 text-ink font-medium' : 'text-ink hover:bg-gray-50'
-                          }`}
+                          onClick={() => { 
+                            const tpl = TEMPLATES.find(x => x.tool === t.key)
+                            if (tpl) applyTemplate(tpl)
+                            setShowToolMenu(false) 
+                          }}
+                          className={`block w-full text-left px-3 py-2.5 text-sm rounded-lg transition text-ink hover:bg-gray-50`}
                         >
                           <div className="flex items-center gap-2">
                             <span>{t.label}</span>
-                            <span className={`text-xs ml-auto ${selectedTool === t.key ? 'text-inkLight' : 'text-gray-400'}`}>{t.desc}</span>
+                            <span className="text-xs ml-auto text-gray-400">{t.desc}</span>
                           </div>
                         </button>
                       ))}
