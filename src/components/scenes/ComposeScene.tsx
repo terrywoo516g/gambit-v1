@@ -111,19 +111,20 @@ export default function ComposeScene({ workspaceId, onDraftGenerated, referenced
             <div key={idx} className="bg-white border border-gray-200 rounded-xl flex flex-col shadow-sm shrink-0">
               <div className="px-3 py-2 border-b border-gray-100 flex items-center justify-between bg-gray-50/50 rounded-t-xl shrink-0">
                 <span className="font-semibold text-sm text-ink">{output.model}</span>
-                <div className="flex items-center gap-3">
-                  <button onClick={() => navigator.clipboard.writeText(output.content)} className="text-xs text-inkLight hover:text-accent flex items-center gap-1"><Copy className="w-3 h-3" />复制全文</button>
-                  <button onClick={() => window.dispatchEvent(new CustomEvent('gambit:pin-to-draft', { detail: { sourceType: 'compose', sourceId: `compose-${output.model}`, sourceLabel: output.model, content: output.content } }))} className="text-xs text-inkLight hover:text-accent flex items-center gap-1"><Pin className="w-3 h-3" />加入素材库</button>
-                </div>
+                
               </div>
-              <div className="p-4 overflow-y-auto max-h-[300px] text-sm text-ink">
+              <div className="p-4 overflow-y-auto max-h-[300px] text-xs text-ink">
                 <div className="prose prose-sm max-w-none"><ReactMarkdown remarkPlugins={[remarkGfm]}>{output.content}</ReactMarkdown></div>
+              </div>
+              <div className="px-4 py-2 border-t border-gray-100 bg-gray-50/50 flex items-center justify-end gap-3 shrink-0 rounded-b-xl">
+                <button onClick={() => navigator.clipboard.writeText(output.content)} className="text-xs text-inkLight hover:text-accent flex items-center gap-1"><Copy className="w-3 h-3" />复制全文</button>
+                <button onClick={() => window.dispatchEvent(new CustomEvent('gambit:pin-to-draft', { detail: { sourceType: 'compose', sourceId: `compose-${output.model}`, sourceLabel: output.model, content: output.content } }))} className="text-xs text-inkLight hover:text-accent flex items-center gap-1"><Pin className="w-3 h-3" />加入素材库</button>
               </div>
             </div>
           ))}
         </div>
         {rightNode && createPortal(
-          <div className="flex flex-col h-full bg-gray-50/30 w-full">
+          <div className="absolute inset-0 z-50 flex flex-col h-full bg-white w-full">
             <div className="px-4 pt-3 pb-2 border-b border-gray-100"><h3 className="text-sm font-semibold text-ink">合成模板</h3><p className="text-xs text-inkLight mt-0.5">把你喜欢的内容粘贴到对应栏位</p></div>
             <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
               <div><label className="flex items-center gap-2 text-xs font-medium text-ink mb-1.5"><span className="w-5 h-5 rounded bg-accent text-white flex items-center justify-center text-xs">1</span>标题</label><input value={templateTitle} onChange={e => setTemplateTitle(e.target.value)} placeholder="粘贴或输入你喜欢的标题..." className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition bg-white" /></div>
