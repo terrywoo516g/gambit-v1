@@ -332,18 +332,62 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
 
   return (
     <div className="flex flex-col h-full bg-gray-50">
-      {/* 顶栏: 标题 */}
-      <div className="p-3 bg-white border-b border-gray-200 shrink-0">
-        <input
-          type="text"
-          value={title}
-          onChange={e => setTitle(e.target.value)}
-          placeholder="无标题文稿"
-          className="w-full text-lg font-bold text-ink placeholder:text-gray-300 outline-none"
-        />
+      {/* 顶栏: 标题与操作 */}
+      <div className="p-3 bg-white border-b border-gray-200 shrink-0 flex items-center justify-between">
+        <div className="flex items-center gap-2 flex-1">
+          <Sparkles className="w-4 h-4 text-ink" />
+          <span className="text-sm font-bold text-ink whitespace-nowrap">最终稿</span>
+          <div className="w-[1px] h-3 bg-gray-300 mx-1" />
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="无标题文稿"
+            className="flex-1 text-sm font-medium outline-none bg-transparent placeholder-gray-400 min-w-0"
+          />
+        </div>
+        <button 
+          onClick={() => setShowSpark(!showSpark)} 
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition whitespace-nowrap shrink-0 ${
+            showSpark ? 'bg-purple-100 text-purple-700' : 'text-purple-600 hover:bg-purple-50'
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          灵光一闪
+        </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto flex flex-col">
+        {/* 灵光一闪 (移动到顶部) */}
+        {showSpark && (
+          <div className="p-3 bg-white border-b border-gray-200 shadow-sm z-10 relative">
+            <button onClick={() => setShowSpark(false)} className="absolute top-3 right-3 text-inkLight hover:text-ink">
+              <X className="w-4 h-4" />
+            </button>
+            <div className="flex items-center gap-2 mb-3 bg-gray-100 p-1 rounded-lg w-fit">
+              <button onClick={() => setSparkType('angle')} className={`px-3 text-xs py-1 rounded-md transition ${sparkType === 'angle' ? 'bg-white shadow-sm font-medium text-ink' : 'text-inkLight hover:text-ink'}`}>新角度</button>
+              <button onClick={() => setSparkType('rewrite')} className={`px-3 text-xs py-1 rounded-md transition ${sparkType === 'rewrite' ? 'bg-white shadow-sm font-medium text-ink' : 'text-inkLight hover:text-ink'}`}>换画风</button>
+              <button onClick={() => setSparkType('counter')} className={`px-3 text-xs py-1 rounded-md transition ${sparkType === 'counter' ? 'bg-white shadow-sm font-medium text-ink' : 'text-inkLight hover:text-ink'}`}>反方观点</button>
+            </div>
+            <button onClick={runSpark} disabled={sparking} className="w-full py-2 bg-purple-50 text-purple-600 rounded-lg text-sm hover:bg-purple-100 transition disabled:opacity-50 flex items-center justify-center gap-2">
+              {sparking ? <><Loader2 className="w-4 h-4 animate-spin" /> 启发中...</> : <><Sparkles className="w-4 h-4" /> 给我灵感</>}
+            </button>
+
+            {sparks.length > 0 && (
+              <div className="mt-3 space-y-2 max-h-[300px] overflow-y-auto">
+                {sparks.map(s => (
+                  <div key={s.id} className="p-3 border border-purple-100 bg-purple-50/30 rounded-lg text-sm relative group">
+                    <div className="flex justify-between items-start mb-1">
+                      <span className="text-xs font-semibold text-purple-700 bg-purple-100 px-1.5 rounded">{s.angle}</span>
+                      <button onClick={() => window.dispatchEvent(new CustomEvent('gambit:pin-to-draft', { detail: { sourceType: 'spark', sourceId: s.id, sourceLabel: '灵光一闪', content: `【${s.angle}】\n${s.content}` } }))} className="text-purple-300 hover:text-purple-600 transition opacity-0 group-hover:opacity-100" title="加入素材库"><Pin className="w-3.5 h-3.5" /></button>
+                    </div>
+                    <div className="text-xs text-ink/80 leading-relaxed">{s.content}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         {/* 素材库 */}
         <div className="border-b border-gray-200 bg-white">
           <button onClick={() => setShowBlocks(!showBlocks)} className="w-full flex items-center justify-between p-3 hover:bg-gray-50 transition">
@@ -430,44 +474,6 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
             <div className="p-4 bg-blue-50/50 border-t border-blue-100">
               <div className="text-xs text-blue-500 font-medium mb-2 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> 正在合成中...</div>
               <div className="prose prose-sm max-w-none text-ink/80">{composePreview}</div>
-            </div>
-          )}
-        </div>
-
-        {/* 灵光一闪 */}
-        <div className="border-t border-gray-200 bg-white">
-          <button onClick={() => setShowSpark(!showSpark)} className="w-full flex items-center justify-between p-3 hover:bg-gray-50 transition">
-            <div className="flex items-center gap-2 font-medium text-sm text-ink">
-              <Sparkles className="w-4 h-4 text-purple-500" />
-              灵光一闪
-            </div>
-            {showSpark ? <ChevronDown className="w-4 h-4 text-inkLight" /> : <ChevronRight className="w-4 h-4 text-inkLight" />}
-          </button>
-          
-          {showSpark && (
-            <div className="p-3 pt-0 border-t border-gray-50">
-              <div className="flex items-center gap-2 mb-3 bg-gray-100 p-1 rounded-lg">
-                <button onClick={() => setSparkType('angle')} className={`flex-1 text-xs py-1 rounded-md transition ${sparkType === 'angle' ? 'bg-white shadow-sm font-medium' : 'text-inkLight hover:text-ink'}`}>新角度</button>
-                <button onClick={() => setSparkType('rewrite')} className={`flex-1 text-xs py-1 rounded-md transition ${sparkType === 'rewrite' ? 'bg-white shadow-sm font-medium' : 'text-inkLight hover:text-ink'}`}>换画风</button>
-                <button onClick={() => setSparkType('counter')} className={`flex-1 text-xs py-1 rounded-md transition ${sparkType === 'counter' ? 'bg-white shadow-sm font-medium' : 'text-inkLight hover:text-ink'}`}>反方观点</button>
-              </div>
-              <button onClick={runSpark} disabled={sparking} className="w-full py-2 bg-purple-50 text-purple-600 rounded-lg text-sm hover:bg-purple-100 transition disabled:opacity-50 flex items-center justify-center gap-2">
-                {sparking ? <><Loader2 className="w-4 h-4 animate-spin" /> 启发中...</> : <><Sparkles className="w-4 h-4" /> 给我灵感</>}
-              </button>
-              
-              {sparks.length > 0 && (
-                <div className="mt-3 space-y-2">
-                  {sparks.map(s => (
-                    <div key={s.id} className="p-3 border border-purple-100 bg-purple-50/30 rounded-lg text-sm relative group">
-                      <div className="flex justify-between items-start mb-1">
-                        <span className="text-xs font-semibold text-purple-700 bg-purple-100 px-1.5 rounded">{s.angle}</span>
-                        <button onClick={() => window.dispatchEvent(new CustomEvent('gambit:pin-to-draft', { detail: { sourceType: 'spark', sourceId: s.id, sourceLabel: '灵光一闪', content: `【${s.angle}】\n${s.content}` } }))} className="text-purple-300 hover:text-purple-600 transition opacity-0 group-hover:opacity-100" title="加入素材库"><Pin className="w-3.5 h-3.5" /></button>
-                      </div>
-                      <div className="text-xs text-ink/80 leading-relaxed">{s.content}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           )}
         </div>
