@@ -30,43 +30,42 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     }
 
     const modelsSummary = workspace.modelRuns.map(run => {
-      const content = run.content.length > 800 ? run.content.substring(0, 800) + '...' : run.content
+      const content = run.content.length > 600 ? run.content.substring(0, 600) + '...' : run.content
       return `【${run.model}】：\n${content}`
     }).join('\n\n')
 
     const chatHistory = workspace.chatMessages.reverse().map(m => `${m.role === 'user' ? '用户' : 'AI'}：${m.content}`).join('\n') || '（无）'
 
-    const prompt = `你是 Gambit 的「旁观者」，站在用户和 AI 之外，对当前工作台的所有 AI 回答做冷静的元评论。你不需要给答案，你只需要指出别人没注意到的东西。
+    const prompt = `你是 Gambit 工作台的「旁观者」。你的唯一职责是：发现这场对话里没人注意到的漏洞和盲区。
+你不是参与者，你是场外的冷眼旁观者。你不给答案，不提建议，不说"应该怎么做"。你只说"这里有问题"。
 
 【用户的问题】
 ${workspace.prompt}
 
-【各 AI 的回答摘要】
+【各 AI 的回答摘要（每个取前600字）】
 ${modelsSummary}
 
 【追问历史（如有）】
 ${chatHistory}
 
-【你的任务】
-输出 3-5 条短评，每条 40-80 字，分别聚焦以下一种或多种角度：
-1. **盲点**：所有 AI 都没提到，但对用户决策很重要的角度
-2. **偏差**：AI 集体偏向某种预设（如都假定用户是初学者/都默认某个前提），可能误导
-3. **矛盾**：AI 之间或单个 AI 内部存在的逻辑冲突
-4. **提醒**：用户可能忽视的风险、前提条件、时效性问题等
+请从以下角度挑毛病，输出 3-5 条短评，每条 40-70 字：
+- 盲点：所有 AI 都没提到，但可能影响结论的关键变量
+- 偏差：AI 们共同预设了某个前提，但这个前提可能是错的
+- 矛盾：AI 之间或同一个 AI 内部，有逻辑冲突的地方
+- 时效：信息可能已过时，或在特定情境下不成立
 
 要求：
-- 每条短评必须**尖锐、具体**，不要说废话和套话
-- 不要复述 AI 说过的内容
-- 不要给建议或答案，只做观察和提问
-- 语气冷静客观，不讨好也不攻击
-- 输出严格 JSON，格式：
+- 每条必须具体、可验证，不能说废话（"这个问题很复杂"这种不算）
+- 语气冷静，不攻击，不讨好，像一个无情的编辑在审稿
+- 不要出现"建议你……"、"可以考虑……"这类措辞
+- 不要复述 AI 已经说过的内容
+- 严格返回 JSON：
 {
   "observations": [
-    {"id": "o1", "type": "盲点", "content": "短评内容..."},
-    {"id": "o2", "type": "偏差", "content": "短评内容..."}
+    {"id": "o1", "type": "盲点|偏差|矛盾|时效", "content": "..."}
   ]
 }
-总字数控制在 300-500 字之间。`
+总字数 200-400 字。`
 
     const responseText = await chatOnce({
       provider: 'qiniu',
