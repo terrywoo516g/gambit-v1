@@ -22,9 +22,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     if (referencedRunIds.length > 0) {
       workspace.modelRuns = workspace.modelRuns.filter((r: { id: string }) => referencedRunIds.includes(r.id))
-    }
-
-    if (workspace.modelRuns.length < 2) {
+      if (workspace.modelRuns.length < 1) {
+        return NextResponse.json({ error: '引用的 AI 未完成或不存在' }, { status: 400 })
+      }
+    } else if (workspace.modelRuns.length < 2) {
       return NextResponse.json({ error: 'Need at least 2 completed model runs' }, { status: 400 })
     }
 
