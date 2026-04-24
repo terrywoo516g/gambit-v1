@@ -70,6 +70,8 @@ const MODEL_STATUS_COLORS: Record<string, string> = {
 
 type StepKey = 'models' | 'scene' | 'output'
 
+const SHOW_SUMMARY = true
+
 export default function WorkspacePage() {
   const params = useParams<{ id: string }>()
   const router = useRouter()
@@ -77,6 +79,10 @@ export default function WorkspacePage() {
 
   const [workspace, setWorkspace] = useState<WorkspaceData | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // 全局总结卡状态
+  const [summaryData, setSummaryData] = useState<{ consensus: string[], divergence: string, takeaway: string } | null>(null)
+  const [summaryLoading, setSummaryLoading] = useState(false)
 
   const [observerObservations, setObserverObservations] = useState<Observation[]>([])
   const [observerLoading, setObserverLoading] = useState(false)
@@ -102,6 +108,29 @@ export default function WorkspacePage() {
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set())
   const [expandedRounds, setExpandedRounds] = useState<Set<number>>(new Set())
 
+  // Monitor modelRuns completion for Summary Card
+  useEffect(() => {
+    if (!SHOW_SUMMARY || !workspace || summaryData || summaryLoading) return
+    const runs = workspace.modelRuns
+    if (runs.length > 0 && runs.every(r => r.status === 'completed')) {
+      const fetchSummary = async () => {
+        setSummaryLoading(true)
+        try {
+          const res = await fetch(`/api/workspaces/${wsId}/summary`, { method: 'POST' })
+          if (res.ok) {
+            const data = await res.json()
+            setSummaryData(data)
+          }
+        } catch (e) {
+          console.error('Failed to fetch summary', e)
+        } finally {
+          setSummaryLoading(false)
+        }
+      }
+      fetchSummary()
+    }
+  }, [workspace, summaryData, summaryLoading, wsId])
+
   useEffect(() => {
     if (!wsId) return
     async function load() {
@@ -112,8 +141,14 @@ export default function WorkspacePage() {
         ])
         
         const wsData = await wsRes.json()
-        if (!wsRes.ok) throw new Error(wsData.error)
+        if (wsRes.ok) {
         setWorkspace(wsData.workspace)
+        if (wsData.workspace.summaryCache) {
+          try {
+            setSummaryData(JSON.parse(wsData.workspace.summaryCache))
+          } catch {}
+        }
+      }
 
         const latest = wsData.workspace.sceneSessions
           ?.flatMap((s: WorkspaceData['sceneSessions'][0]) => s.finalDrafts)
@@ -577,6 +612,41 @@ export default function WorkspacePage() {
         <div className="flex-1 overflow-hidden flex flex-col">
           {activeStep === 'models' && !activeScene && (
             <div className="flex-1 overflow-y-auto px-6 py-4">
+              {/* 全局总结卡 */}
+              {SHOW_SUMMARY && (summaryLoading || summaryData) && (
+                <div className="mb-4 bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative overflow-hidden">
+                  <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-green-500" />
+                  <div className="text-xs font-semibold text-gray-400 mb-3 tracking-wider">AI 共识</div>
+                  
+                  {summaryLoading && !summaryData ? (
+                    <div className="space-y-2 animate-pulse">
+                      <div className="h-4 bg-gray-100 rounded w-3/4"></div>
+                      <div className="h-4 bg-gray-100 rounded w-5/6"></div>
+                      <div className="h-4 bg-gray-100 rounded w-2/3"></div>
+                    </div>
+                  ) : summaryData ? (
+                    <div className="space-y-3">
+                      <ul className="space-y-2">
+                        {summaryData.consensus?.map((c, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-ink/90 leading-relaxed">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0 mt-1.5" />
+                            {c}
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="text-sm">
+                        <span className="font-semibold text-orange-600 mr-2">主要分歧：</span>
+                        <span className="text-ink/90">{summaryData.divergence}</span>
+                      </div>
+                      <div className="text-sm">
+                        <span className="font-bold text-ink mr-2">结论：</span>
+                        <span className="text-ink font-semibold">{summaryData.takeaway}</span>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+
               {isCardsCollapsed ? (
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-2">
