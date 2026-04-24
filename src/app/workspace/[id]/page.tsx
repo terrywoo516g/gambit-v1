@@ -671,9 +671,9 @@ export default function WorkspacePage() {
           </span>
         </div>
 
-        <div className="px-6 py-3 border-b border-gray-100 bg-gray-50/50">
-          <div className="text-[10px] font-mono text-black/20 mb-1">QUERY</div>
-          <div className="text-sm text-ink">{workspace.prompt}</div>
+        <div className="px-6 py-2.5 border-b border-gray-100 bg-gray-50/50 flex items-start gap-3">
+          <div className="text-[10px] font-mono text-black/20 mt-1 shrink-0">QUERY</div>
+          <div className="text-sm text-ink leading-relaxed">{workspace.prompt}</div>
         </div>
 
         <div className="flex-1 overflow-hidden flex flex-col">
