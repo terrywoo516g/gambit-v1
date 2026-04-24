@@ -83,6 +83,10 @@ export default function WorkspacePage() {
   const [chatProcessing, setChatProcessing] = useState(false)
   const [activeRunId, setActiveRunId] = useState<string | null>(null)
 
+  // 引用的 AI 卡片
+  const [referencedRunIds, setReferencedRunIds] = useState<string[]>([])
+  const [showMentionPicker, setShowMentionPicker] = useState(false)
+
   useEffect(() => {
     if (!wsId) return
     async function load() {
@@ -183,7 +187,7 @@ export default function WorkspacePage() {
       const res = await fetch('/api/workspaces/' + wsId + '/recommend-scene', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userMessage: input }),
+        body: JSON.stringify({ userMessage: input, referencedRunIds }),
       })
       const data = await res.json()
       if (data.scene && ['compare', 'brainstorm', 'compose', 'review'].includes(data.scene)) {
@@ -206,6 +210,12 @@ export default function WorkspacePage() {
     setTimeout(() => {
       document.getElementById('run-' + runId)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }, 100)
+  }
+
+  function toggleRef(runId: string) {
+    setReferencedRunIds(prev =>
+      prev.includes(runId) ? prev.filter(id => id !== runId) : [...prev, runId]
+    )
   }
 
   async function retryRun(runId: string) {
@@ -239,6 +249,11 @@ export default function WorkspacePage() {
   }
 
   const runs = workspace.modelRuns
+  const completedRuns = runs.filter(r => {
+    const s = getStatus(r)
+    return s === 'done' || s === 'completed'
+  })
+  const refRunsMap = new Map(runs.map(r => [r.id, r]))
 
   // ========== JSX 部分在任务 8B 中补充 ==========
   return (
@@ -407,10 +422,22 @@ export default function WorkspacePage() {
                       {(status === 'done' || status === 'completed') && content && (
                         <div className="px-4 py-2 border-t border-gray-100 flex items-center justify-between">
                           <span className="text-xs text-inkLight">{content.length} 字</span>
-                          <button onClick={() => navigator.clipboard.writeText(content)}
-                            className="text-xs text-inkLight hover:text-accent transition flex items-center gap-1">
-                            <Copy className="w-3 h-3" /> 复制
-                          </button>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => toggleRef(run.id)}
+                              className={`text-xs transition flex items-center gap-1 ${
+                                referencedRunIds.includes(run.id)
+                                  ? 'text-accent font-medium'
+                                  : 'text-inkLight hover:text-accent'
+                              }`}
+                            >
+                              {referencedRunIds.includes(run.id) ? '✓ 已引用' : '@ 引用'}
+                            </button>
+                            <button onClick={() => navigator.clipboard.writeText(content)}
+                              className="text-xs text-inkLight hover:text-accent transition flex items-center gap-1">
+                              <Copy className="w-3 h-3" /> 复制
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -422,10 +449,10 @@ export default function WorkspacePage() {
 
           {activeScene && (
             <div className="flex-1 overflow-hidden">
-              {activeScene === 'compare' && <CompareScene workspaceId={wsId} onDraftGenerated={handleDraftGenerated} />}
-              {activeScene === 'brainstorm' && <BrainstormScene workspaceId={wsId} onDraftGenerated={handleDraftGenerated} />}
-              {activeScene === 'compose' && <ComposeScene workspaceId={wsId} onDraftGenerated={handleDraftGenerated} />}
-              {activeScene === 'review' && <ReviewScene workspaceId={wsId} onDraftGenerated={handleDraftGenerated} />}
+              {activeScene === 'compare' && <CompareScene workspaceId={wsId} onDraftGenerated={handleDraftGenerated} referencedRunIds={referencedRunIds} />}
+              {activeScene === 'brainstorm' && <BrainstormScene workspaceId={wsId} onDraftGenerated={handleDraftGenerated} referencedRunIds={referencedRunIds} />}
+              {activeScene === 'compose' && <ComposeScene workspaceId={wsId} onDraftGenerated={handleDraftGenerated} referencedRunIds={referencedRunIds} />}
+              {activeScene === 'review' && <ReviewScene workspaceId={wsId} onDraftGenerated={handleDraftGenerated} referencedRunIds={referencedRunIds} />}
             </div>
           )}
 
@@ -488,14 +515,73 @@ export default function WorkspacePage() {
                 ))}
               </div>
 
+              {referencedRunIds.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                  <span className="text-[10px] font-mono text-black/30 tracking-wider mr-1">REFS:</span>
+                  {referencedRunIds.map(rid => {
+                    const r = refRunsMap.get(rid)
+                    if (!r) return null
+                    return (
+                      <span key={rid}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/10 text-accent text-xs border border-accent/30">
+                        @{r.model}
+                        <button onClick={() => toggleRef(rid)} className="hover:text-accent/70 transition" aria-label="移除引用">×</button>
+                      </span>
+                    )
+                  })}
+                </div>
+              )}
+
               <div className="flex items-center gap-2">
                 <div className="flex-1 relative">
                   <input type="text" value={chatInput}
                     onChange={e => setChatInput(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSubmit() } }}
-                    placeholder="输入指令，如「帮我对比一下价格」「分析各方观点」..."
-                    className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-accent transition bg-gray-50"
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSubmit() }
+                      if (e.key === '@') setShowMentionPicker(true)
+                      if (e.key === 'Escape') setShowMentionPicker(false)
+                    }}
+                    placeholder="输入指令，输入 @ 可引用指定 AI，回车提交..."
+                    className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-accent transition bg-gray-50"
                     disabled={chatProcessing} />
+                  <button type="button" onClick={() => setShowMentionPicker(v => !v)}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-lg text-inkLight hover:text-accent hover:bg-gray-100 transition"
+                    title="引用 AI 回答">
+                    <span className="text-sm font-semibold">@</span>
+                  </button>
+
+                  {showMentionPicker && completedRuns.length > 0 && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowMentionPicker(false)} />
+                      <div className="absolute bottom-full left-0 mb-2 w-64 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
+                        <div className="px-3 py-2 border-b border-gray-100 text-[10px] font-mono text-black/30 tracking-wider">
+                          选择要引用的 AI 回答
+                        </div>
+                        <div className="max-h-56 overflow-y-auto">
+                          {completedRuns.map(r => {
+                            const selected = referencedRunIds.includes(r.id)
+                            return (
+                              <button key={r.id}
+                                onClick={() => {
+                                  toggleRef(r.id)
+                                  if (chatInput.endsWith('@')) setChatInput(chatInput.slice(0, -1))
+                                }}
+                                className={`w-full flex items-center justify-between px-3 py-2 text-sm text-left transition ${
+                                  selected ? 'bg-accent/5 text-accent' : 'text-ink hover:bg-gray-50'
+                                }`}>
+                                <span className="truncate">{r.model}</span>
+                                {selected && <span className="text-accent">✓</span>}
+                              </button>
+                            )
+                          })}
+                        </div>
+                        <div className="px-3 py-2 border-t border-gray-100 flex items-center justify-between">
+                          <span className="text-[10px] text-inkLight">已选 {referencedRunIds.length} 个</span>
+                          <button onClick={() => setShowMentionPicker(false)} className="text-xs text-accent hover:text-accent/70 transition">完成</button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
                 <button onClick={handleChatSubmit} disabled={chatProcessing || !chatInput.trim()}
                   className="w-9 h-9 rounded-full bg-accent text-white flex items-center justify-center disabled:opacity-30 hover:bg-accent/85 transition shrink-0">

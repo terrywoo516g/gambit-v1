@@ -5,9 +5,11 @@ import { chatOnce } from '@/lib/llm-client'
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     let userMessage = ''
+    let referencedRunIds: string[] = []
     try {
       const body = await req.json()
       userMessage = body.userMessage || ''
+      if (Array.isArray(body.referencedRunIds)) referencedRunIds = body.referencedRunIds
     } catch {
       // 没有 body 也可以，兼容原来无 body 的调用
     }
@@ -21,8 +23,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ error: 'Workspace not found' }, { status: 404 })
     }
 
+    const filteredRuns = referencedRunIds.length > 0
+      ? workspace.modelRuns.filter((r: { id: string }) => referencedRunIds.includes(r.id))
+      : workspace.modelRuns
+
     const prompt = workspace.prompt
-    const summaries = workspace.modelRuns
+    const summaries = filteredRuns
       .map((r: { model: string; content: string }) => `【${r.model}】：${r.content.slice(0, 500)}`)
       .join('\n\n')
 

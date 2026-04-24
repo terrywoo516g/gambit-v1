@@ -19,9 +19,10 @@ const MODEL_COLORS: Record<string, string> = {
 interface ComposeSceneProps {
   workspaceId: string
   onDraftGenerated?: (content: string) => void
+  referencedRunIds?: string[]
 }
 
-export default function ComposeScene({ workspaceId, onDraftGenerated }: ComposeSceneProps) {
+export default function ComposeScene({ workspaceId, onDraftGenerated, referencedRunIds = [] }: ComposeSceneProps) {
   const [loading, setLoading] = useState(true)
   const [sceneId, setSceneId] = useState<string | null>(null)
   const [modelOutputs, setModelOutputs] = useState<ModelOutput[]>([])
@@ -39,7 +40,11 @@ export default function ComposeScene({ workspaceId, onDraftGenerated }: ComposeS
     async function init() {
       try {
         setLoading(true)
-        const res = await fetch(`/api/workspaces/${workspaceId}/scenes/compose/init`, { method: 'POST' })
+        const res = await fetch(`/api/workspaces/${workspaceId}/scenes/compose/init`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ referencedRunIds }),
+        })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error)
         if (cancelled) return

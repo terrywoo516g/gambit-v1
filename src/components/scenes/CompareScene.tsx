@@ -10,9 +10,10 @@ type TableData = { columns: string[]; rows: Record<string, string>[] }
 interface CompareSceneProps {
   workspaceId: string
   onDraftGenerated?: (content: string) => void
+  referencedRunIds?: string[]
 }
 
-export default function CompareScene({ workspaceId, onDraftGenerated }: CompareSceneProps) {
+export default function CompareScene({ workspaceId, onDraftGenerated, referencedRunIds = [] }: CompareSceneProps) {
   const [loading, setLoading] = useState(true)
   const [sceneId, setSceneId] = useState<string | null>(null)
   const [tableData, setTableData] = useState<TableData | null>(null)
@@ -29,7 +30,11 @@ export default function CompareScene({ workspaceId, onDraftGenerated }: CompareS
     async function init() {
       try {
         setLoading(true)
-        const res = await fetch(`/api/workspaces/${workspaceId}/scenes/compare/init`, { method: 'POST' })
+        const res = await fetch(`/api/workspaces/${workspaceId}/scenes/compare/init`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ referencedRunIds }),
+        })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error)
         if (cancelled) return

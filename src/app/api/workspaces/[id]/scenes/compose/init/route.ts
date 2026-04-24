@@ -4,6 +4,12 @@ import { v4 as uuidv4 } from 'uuid'
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
+    let referencedRunIds: string[] = []
+    try {
+      const body = await req.json()
+      if (Array.isArray(body.referencedRunIds)) referencedRunIds = body.referencedRunIds
+    } catch {}
+
     const workspace = await prisma.workspace.findUnique({
       where: { id: params.id },
       include: { modelRuns: { where: { status: 'completed' } } },
@@ -11,6 +17,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     if (!workspace) {
       return NextResponse.json({ error: 'Workspace not found' }, { status: 404 })
+    }
+
+    if (referencedRunIds.length > 0) {
+      workspace.modelRuns = workspace.modelRuns.filter((r: { id: string }) => referencedRunIds.includes(r.id))
     }
 
     // 按段落切分每个 AI 的输出
