@@ -7,7 +7,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { 
   ArrowLeft, Eye, Copy, Send, Loader2,
-  LayoutGrid, MessageSquare, Pencil, FileCheck, 
+  LayoutGrid, MessageSquare, Pencil,
   FileText, Pin, RefreshCw, X, Maximize2, Minimize2, 
 } from 'lucide-react'
 
@@ -49,7 +49,6 @@ const SCENE_DEFS = [
   { id: 'compare', icon: LayoutGrid, label: '多源对比', desc: '生成推荐报告' },
   { id: 'brainstorm', icon: MessageSquare, label: '头脑风暴', desc: '共识分歧盲点' },
   { id: 'compose', icon: Pencil, label: '创意合成', desc: '多源整合成稿' },
-  { id: 'review', icon: FileCheck, label: '多AI审稿', desc: '汇总修改建议' },
 ]
 
 const MODEL_STATUS_COLORS: Record<string, string> = {

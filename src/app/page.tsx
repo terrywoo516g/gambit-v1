@@ -25,7 +25,6 @@ const DEFAULT_SELECTED = ['DeepSeek V3.2', 'MiniMax M1', 'Qwen3 Max']
 const TEMPLATES = [
   { tool: 'compose', label: '创意合成', text: '帮我写一篇小红书种草文案，主题是露营装备' },
   { tool: 'brainstorm', label: '头脑风暴', text: '我该不该从大厂跳槽去创业公司，帮我分析共识和分歧' },
-  { tool: 'review', label: '多AI审稿', text: '帮我审阅这份合同，找出潜在风险条款' },
   { tool: 'compare', label: '多源对比', text: '推荐几款3000元以内的降噪耳机，帮我整理成对比表格' },
 ]
 
@@ -268,7 +267,7 @@ export default function HomePage() {
         </div>
 
         {/* 模板卡片 */}
-        <div className="w-full max-w-4xl mt-5 grid grid-cols-2 gap-2">
+        <div className="w-full max-w-4xl mt-5 grid grid-cols-3 gap-3">
           {TEMPLATES.map(tpl => (
             <div
               key={tpl.tool}
