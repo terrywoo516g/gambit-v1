@@ -120,17 +120,35 @@ export default function WorkspacePage() {
   // Monitor modelRuns completion for Summary Card
   useEffect(() => {
     if (!SHOW_SUMMARY || !workspace || summaryData || summaryLoading) return
-    // Wait until all runs are actually complete (total runs > 0 and streams are finished)
-    // Actually we can check if there are no pending runs and at least one completed run.
-    const hasCompleted = workspace.modelRuns.some(r => r.status === 'completed')
-    const allAreCompleted = workspace.modelRuns.length > 0 && workspace.modelRuns.every(r => r.status === 'completed' || r.status === 'failed')
-    const shouldFetch = allAreCompleted && hasCompleted
+    
+    const runs = workspace.modelRuns || []
+    if (runs.length === 0) return
+
+    const hasInitialPending = runs.some(r => r.status === 'queued' || r.status === 'running')
+    const isStreamingDone = hasInitialPending ? allDone : true
+    const hasAnyCompleted = runs.some(r => r.status === 'completed') || completedCount > 0
+
+    const shouldFetch = isStreamingDone && hasAnyCompleted
 
     if (shouldFetch) {
       const fetchSummary = async () => {
         setSummaryLoading(true)
         try {
-          const res = await fetch(`/api/workspaces/${wsId}/summary`, { method: 'POST' })
+          const payload = {
+            runs: runs.map(r => {
+              const stream = Object.values(streams).find(s => s.runId === r.id)
+              return {
+                model: r.model,
+                content: stream ? stream.content : r.content
+              }
+            }).filter(r => r.content)
+          }
+
+          const res = await fetch(`/api/workspaces/${wsId}/summary`, { 
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          })
           if (res.ok) {
             const data = await res.json()
             setSummaryData(data)
@@ -143,7 +161,7 @@ export default function WorkspacePage() {
       }
       fetchSummary()
     }
-  }, [workspace, summaryData, summaryLoading, wsId, allDone])
+  }, [workspace, summaryData, summaryLoading, wsId, allDone, completedCount, streams])
 
   useEffect(() => {
     if (!wsId) return

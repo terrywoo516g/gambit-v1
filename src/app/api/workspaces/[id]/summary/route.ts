@@ -5,6 +5,12 @@ import { chatOnce } from '@/lib/llm-client'
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   try {
     const workspaceId = params.id
+    let bodyData: any = null
+    try {
+      bodyData = await req.json()
+    } catch {
+      // ignore parsing error
+    }
 
     const workspace = await prisma.workspace.findUnique({
       where: { id: workspaceId },
@@ -17,7 +23,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       return NextResponse.json({ error: 'Workspace not found' }, { status: 404 })
     }
 
-    if (workspace.summaryCache) {
+    if (workspace.summaryCache && !bodyData?.force) {
       try {
         const parsed = JSON.parse(workspace.summaryCache)
         return NextResponse.json(parsed)
@@ -26,14 +32,22 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       }
     }
 
-    const completedRuns = workspace.modelRuns.filter(r => r.status === 'completed')
-    if (completedRuns.length === 0) {
-      return NextResponse.json({ error: 'No completed runs to summarize' }, { status: 400 })
-    }
+    let summariesText = ''
 
-    const summariesText = completedRuns
-      .map(r => `【${r.model}】：\n${(r.content || '').substring(0, 600)}`)
-      .join('\n\n')
+    // If frontend provides the runs data, use it directly to avoid DB race conditions
+    if (bodyData && bodyData.runs && bodyData.runs.length > 0) {
+      summariesText = bodyData.runs
+        .map((r: any) => `【${r.model}】：\n${(r.content || '').substring(0, 600)}`)
+        .join('\n\n')
+    } else {
+      const completedRuns = workspace.modelRuns.filter(r => r.status === 'completed')
+      if (completedRuns.length === 0) {
+        return NextResponse.json({ error: 'No completed runs to summarize' }, { status: 400 })
+      }
+      summariesText = completedRuns
+        .map(r => `【${r.model}】：\n${(r.content || '').substring(0, 600)}`)
+        .join('\n\n')
+    }
 
     const prompt = `你是一个信息提炼专家。以下是多个 AI 对同一问题的回答摘要。
 用户问题：${workspace.prompt}
