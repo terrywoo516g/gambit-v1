@@ -15,6 +15,7 @@ import CompareScene from '@/components/scenes/CompareScene'
 import BrainstormScene from '@/components/scenes/BrainstormScene'
 import ComposeScene from '@/components/scenes/ComposeScene'
 import ReviewScene from '@/components/scenes/ReviewScene'
+import ChatTurnCard from '@/components/workspace/ChatTurnCard'
 
 type ChatMessage = {
   id: string
@@ -92,6 +93,9 @@ export default function WorkspacePage() {
   // 引用的 AI 卡片
   const [referencedRunIds, setReferencedRunIds] = useState<string[]>([])
   const [showMentionPicker, setShowMentionPicker] = useState(false)
+
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set())
+  const [expandedRounds, setExpandedRounds] = useState<Set<number>>(new Set())
 
   useEffect(() => {
     if (!wsId) return
@@ -325,6 +329,19 @@ export default function WorkspacePage() {
   const refRunsMap = new Map(runs.map(r => [r.id, r]))
   const refChatMap = new Map(chatMessages.filter(m => m.role === 'assistant').map(m => [m.id, m]))
 
+  // 计算对话轮次
+  const userMessages = chatMessages.filter(m => m.role === 'user')
+  const hasUserMessages = userMessages.length > 0
+  const latestRoundIndex = userMessages.length
+  const chatRounds = userMessages.map((userMsg, index) => {
+    const roundIndex = index + 1
+    const assistantMsg = chatMessages.find(m => m.role === 'assistant' && m.createdAt > userMsg.createdAt && 
+      (index === userMessages.length - 1 || m.createdAt < userMessages[index + 1].createdAt))
+    return { roundIndex, userMsg, assistantMsg }
+  })
+
+  const isCardsCollapsed = hasUserMessages && expandedCards.size === 0
+
   // ========== JSX 部分在任务 8B 中补充 ==========
   return (
     <main className="flex h-screen bg-[radial-gradient(circle,_rgba(0,0,0,0.03)_1px,_transparent_1px)] bg-[length:24px_24px] text-ink">
@@ -489,167 +506,308 @@ export default function WorkspacePage() {
         <div className="flex-1 overflow-hidden flex flex-col">
           {activeStep === 'models' && !activeScene && (
             <div className="flex-1 overflow-y-auto px-6 py-4">
-              <div className={`grid gap-4 ${runs.length <= 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-                {runs.map(run => {
-                  const content = getContent(run)
-                  const status = getStatus(run)
-                  return (
-                    <div key={run.id} id={'run-' + run.id}
-                      className={`bg-white border rounded-2xl overflow-hidden flex flex-col shadow-sm transition ${
-                        activeRunId === run.id ? 'border-accent ring-1 ring-accent/20' : 'border-gray-200'
-                      }`}>
-                      <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full ${MODEL_STATUS_COLORS[status] || 'bg-gray-300'}`} />
-                          <span className="font-medium text-sm text-ink">{run.model}</span>
-                        </div>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${
-                          status === 'done' || status === 'completed' ? 'bg-green-50 text-green-600' :
-                          status === 'error' || status === 'failed' ? 'bg-red-50 text-red-600' :
-                          status === 'retrying' ? 'bg-yellow-50 text-yellow-600' :
-                          status === 'streaming' || status === 'running' ? 'bg-blue-50 text-blue-600' :
-                          'bg-gray-50 text-gray-400'
-                        }`}>
-                          {status === 'done' || status === 'completed' ? '已完成' :
-                           status === 'error' || status === 'failed' ? '失败' :
-                           status === 'retrying' ? '重试中...' :
-                           status === 'streaming' || status === 'running' ? '生成中...' : '等待中'}
-                        </span>
-                      </div>
-                      <div className="px-4 py-3 flex-1 overflow-y-auto max-h-[400px] text-sm">
-                        {!content && (status === 'queued' || status === 'streaming' || status === 'running') && (
-                          <div className="space-y-2">
-                            <div className="h-3 w-48 animate-pulse rounded bg-gray-100" />
-                            <div className="h-3 w-36 animate-pulse rounded bg-gray-100" />
-                            <div className="h-3 w-52 animate-pulse rounded bg-gray-100" />
-                          </div>
-                        )}
-                        {status === 'retrying' && !content && (
-                          <div className="flex items-center gap-2 text-yellow-600 text-sm">
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            <span>请求超时，正在自动重试...</span>
-                          </div>
-                        )}
-                        {content && (
-                          <div className={status === 'streaming' || status === 'running' ? 'streaming-cursor' : ''}>
-                            <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
-                              p: ({children}) => <p className="my-1 leading-relaxed">{children}</p>,
-                              h1: ({children}) => <h1 className="text-lg font-bold my-2">{children}</h1>,
-                              h2: ({children}) => <h2 className="text-base font-bold my-2">{children}</h2>,
-                              h3: ({children}) => <h3 className="text-sm font-semibold my-1">{children}</h3>,
-                              ul: ({children}) => <ul className="list-disc pl-4 my-1">{children}</ul>,
-                              ol: ({children}) => <ol className="list-decimal pl-4 my-1">{children}</ol>,
-                              li: ({children}) => <li className="leading-relaxed">{children}</li>,
-                              strong: ({children}) => <strong className="font-semibold">{children}</strong>,
-                              code: ({children}) => <code className="bg-gray-100 px-1 rounded text-xs font-mono">{children}</code>,
-                            }}>{content}</ReactMarkdown>
-                          </div>
-                        )}
-                        {(status === 'error' || status === 'failed') && !content && (
-                          <div className="text-center py-4">
-                            <div className="text-red-500 text-sm mb-3">生成失败</div>
-                            <button
-                              onClick={() => retryRun(run.id)}
-                              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm bg-accent text-white rounded-lg hover:bg-accent/90 transition"
-                            >
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
-                              重新生成
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                      {(status === 'done' || status === 'completed') && content && (
-                        <div className="px-4 py-2 border-t border-gray-100 flex items-center justify-between">
-                          <span className="text-xs text-inkLight">{content.length} 字</span>
-                          <div className="flex items-center gap-3">
-                            <button
-                              onClick={() => toggleRef(run.id)}
-                              className={`text-xs transition flex items-center gap-1 ${
-                                referencedRunIds.includes(run.id)
-                                  ? 'text-accent font-medium'
-                                  : 'text-inkLight hover:text-accent'
-                              }`}
-                            >
-                              {referencedRunIds.includes(run.id) ? '✓ 已引用' : '@ 引用'}
-                            </button>
-                            <button onClick={() => navigator.clipboard.writeText(content)}
-                              className="text-xs text-inkLight hover:text-accent transition flex items-center gap-1">
-                              <Copy className="w-3 h-3" /> 复制
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* 消息列表区域 */}
-          {(chatMessages.length > 0 || streamingMessage) && !activeScene && (
-            <div className="flex-1 overflow-y-auto px-6 py-4 bg-gray-50/30">
-              <div className="max-w-3xl mx-auto space-y-6">
-                {chatMessages.map((msg, i) => {
-                  const isUser = msg.role === 'user'
-                  const isAssistant = msg.role === 'assistant'
-
-                  return (
-                  <div key={msg.id || i} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] rounded-2xl px-4 py-3 flex flex-col ${
-                      isUser 
-                        ? 'bg-gray-100 text-ink rounded-tr-sm' 
-                        : 'bg-white border border-gray-200 text-ink shadow-sm rounded-tl-sm'
-                    }`}>
-                      <div className="prose prose-sm max-w-none mb-2">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
-                      </div>
+              {isCardsCollapsed ? (
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-[10px] font-mono text-black/30 tracking-wider">AI 回答</div>
+                    <button 
+                      onClick={() => {
+                        const newSet = new Set<string>()
+                        runs.forEach(r => newSet.add(r.id))
+                        setExpandedCards(newSet)
+                      }}
+                      className="text-[10px] text-accent hover:underline">
+                      全部展开
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {runs.map(run => {
+                      const content = getContent(run)
+                      const status = getStatus(run)
+                      const isExpanded = expandedCards.has(run.id)
                       
-                      {isAssistant && (
-                        <div className="border-t border-gray-100 pt-2 mt-1 flex items-center justify-between">
-                          <span className="text-[10px] text-inkLight">{msg.content.length} 字</span>
-                          <div className="flex items-center gap-3">
-                            <button
-                              onClick={() => toggleRef(msg.id)}
-                              className={`text-xs transition flex items-center gap-1 ${
-                                referencedRunIds.includes(msg.id)
-                                  ? 'text-accent font-medium'
-                                  : 'text-inkLight hover:text-accent'
-                              }`}
-                            >
-                              {referencedRunIds.includes(msg.id) ? '✓ 已引用' : '@ 引用'}
-                            </button>
-                            <button onClick={() => navigator.clipboard.writeText(msg.content)}
-                              className="text-xs text-inkLight hover:text-accent transition flex items-center gap-1">
-                              <Copy className="w-3 h-3" /> 复制
-                            </button>
+                      return isExpanded ? (
+                        <div key={run.id} id={'run-' + run.id} className="w-full mt-2 mb-2">
+                          <div className="flex justify-end mb-1">
+                            <button onClick={() => {
+                              const newSet = new Set(expandedCards)
+                              newSet.delete(run.id)
+                              setExpandedCards(newSet)
+                            }} className="text-xs text-inkLight hover:text-ink">收起</button>
+                          </div>
+                          {/* 渲染完整的展开卡片 */}
+                          <div className="bg-white border border-gray-200 rounded-2xl flex flex-col shadow-sm" style={{ minHeight: '180px', maxHeight: '320px' }}>
+                            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between shrink-0">
+                              <div className="flex items-center gap-2">
+                                <span className={`w-2 h-2 rounded-full ${MODEL_STATUS_COLORS[status] || 'bg-gray-300'}`} />
+                                <span className="font-medium text-sm text-ink">{run.model}</span>
+                              </div>
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                status === 'done' || status === 'completed' ? 'bg-green-50 text-green-600' :
+                                status === 'error' || status === 'failed' ? 'bg-red-50 text-red-600' :
+                                status === 'retrying' ? 'bg-yellow-50 text-yellow-600' :
+                                status === 'streaming' || status === 'running' ? 'bg-blue-50 text-blue-600' :
+                                'bg-gray-50 text-gray-400'
+                              }`}>
+                                {status === 'done' || status === 'completed' ? '已完成' :
+                                status === 'error' || status === 'failed' ? '失败' :
+                                status === 'retrying' ? '重试中...' :
+                                status === 'streaming' || status === 'running' ? '生成中...' : '等待中'}
+                              </span>
+                            </div>
+                            <div className="px-4 py-3 flex-1 overflow-y-auto text-sm">
+                              {!content && (status === 'queued' || status === 'streaming' || status === 'running') && (
+                                <div className="space-y-2">
+                                  <div className="h-3 w-48 animate-pulse rounded bg-gray-100" />
+                                  <div className="h-3 w-36 animate-pulse rounded bg-gray-100" />
+                                  <div className="h-3 w-52 animate-pulse rounded bg-gray-100" />
+                                </div>
+                              )}
+                              {content && (
+                                <div className={status === 'streaming' || status === 'running' ? 'streaming-cursor' : ''}>
+                                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
+                                    p: ({children}) => <p className="my-1 leading-relaxed">{children}</p>,
+                                    h1: ({children}) => <h1 className="text-lg font-bold my-2">{children}</h1>,
+                                    h2: ({children}) => <h2 className="text-base font-bold my-2">{children}</h2>,
+                                    h3: ({children}) => <h3 className="text-sm font-semibold my-1">{children}</h3>,
+                                    ul: ({children}) => <ul className="list-disc pl-4 my-1">{children}</ul>,
+                                    ol: ({children}) => <ol className="list-decimal pl-4 my-1">{children}</ol>,
+                                    li: ({children}) => <li className="leading-relaxed">{children}</li>,
+                                    strong: ({children}) => <strong className="font-semibold">{children}</strong>,
+                                    code: ({children}) => <code className="bg-gray-100 px-1 rounded text-xs font-mono">{children}</code>,
+                                  }}>{content}</ReactMarkdown>
+                                </div>
+                              )}
+                            </div>
+                            {(status === 'done' || status === 'completed') && content && (
+                              <div className="px-4 py-2 border-t border-gray-100 flex items-center justify-between shrink-0">
+                                <span className="text-xs text-inkLight">{content.length} 字</span>
+                                <div className="flex items-center gap-3">
+                                  <button
+                                    onClick={() => toggleRef(run.id)}
+                                    className={`text-xs transition flex items-center gap-1 ${
+                                      referencedRunIds.includes(run.id)
+                                        ? 'text-accent font-medium'
+                                        : 'text-inkLight hover:text-accent'
+                                    }`}
+                                  >
+                                    {referencedRunIds.includes(run.id) ? '✓ 已引用' : '@ 引用'}
+                                  </button>
+                                  <button onClick={() => navigator.clipboard.writeText(content)}
+                                    className="text-xs text-inkLight hover:text-accent transition flex items-center gap-1">
+                                    <Copy className="w-3 h-3" /> 复制
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
-                      )}
-                    </div>
+                      ) : (
+                        <button key={run.id} onClick={() => {
+                          const newSet = new Set(expandedCards)
+                          newSet.add(run.id)
+                          setExpandedCards(newSet)
+                        }} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-xs shadow-sm hover:border-accent hover:text-accent transition">
+                          <span className={`w-1.5 h-1.5 rounded-full ${MODEL_STATUS_COLORS[status] || 'bg-gray-300'}`} />
+                          <span className="font-medium">{run.model}</span>
+                          <span className="text-inkLight ml-1">· {content?.length || 0} 字</span>
+                        </button>
+                      )
+                    })}
                   </div>
-                )})}
-                {streamingMessage && (
-                  <div className="flex justify-start">
-                    <div className="max-w-[85%] rounded-2xl px-4 py-3 bg-white border border-gray-200 text-ink shadow-sm rounded-tl-sm">
-                      <div className="prose prose-sm max-w-none streaming-cursor">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{streamingMessage}</ReactMarkdown>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {chatLimitReached && (
-                  <div className="text-center mt-6 mb-2">
-                    <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 text-xs text-inkLight">
-                      已达 4 轮对话上限
-                      <button onClick={() => window.open('/', '_blank')} className="text-accent hover:underline font-medium">
-                        开新窗口继续
+                </div>
+              ) : (
+                <div className="mb-4">
+                  {hasUserMessages && (
+                    <div className="flex justify-end mb-2">
+                      <button 
+                        onClick={() => setExpandedCards(new Set())}
+                        className="text-[10px] text-inkLight hover:text-ink">
+                        全部折叠
                       </button>
-                    </span>
+                    </div>
+                  )}
+                  <div className={`grid gap-4 ${runs.length <= 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                    {runs.map(run => {
+                      const content = getContent(run)
+                      const status = getStatus(run)
+                      return (
+                        <div key={run.id} id={'run-' + run.id}
+                          className={`bg-white border rounded-2xl flex flex-col shadow-sm transition ${
+                            activeRunId === run.id ? 'border-accent ring-1 ring-accent/20' : 'border-gray-200'
+                          }`} style={{ minHeight: '180px', maxHeight: '320px' }}>
+                          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between shrink-0">
+                            <div className="flex items-center gap-2">
+                              <span className={`w-2 h-2 rounded-full ${MODEL_STATUS_COLORS[status] || 'bg-gray-300'}`} />
+                              <span className="font-medium text-sm text-ink">{run.model}</span>
+                            </div>
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${
+                              status === 'done' || status === 'completed' ? 'bg-green-50 text-green-600' :
+                              status === 'error' || status === 'failed' ? 'bg-red-50 text-red-600' :
+                              status === 'retrying' ? 'bg-yellow-50 text-yellow-600' :
+                              status === 'streaming' || status === 'running' ? 'bg-blue-50 text-blue-600' :
+                              'bg-gray-50 text-gray-400'
+                            }`}>
+                              {status === 'done' || status === 'completed' ? '已完成' :
+                              status === 'error' || status === 'failed' ? '失败' :
+                              status === 'retrying' ? '重试中...' :
+                              status === 'streaming' || status === 'running' ? '生成中...' : '等待中'}
+                            </span>
+                          </div>
+                          <div className="px-4 py-3 flex-1 overflow-y-auto text-sm">
+                            {!content && (status === 'queued' || status === 'streaming' || status === 'running') && (
+                              <div className="space-y-2">
+                                <div className="h-3 w-48 animate-pulse rounded bg-gray-100" />
+                                <div className="h-3 w-36 animate-pulse rounded bg-gray-100" />
+                                <div className="h-3 w-52 animate-pulse rounded bg-gray-100" />
+                              </div>
+                            )}
+                            {status === 'retrying' && !content && (
+                              <div className="flex items-center gap-2 text-yellow-600 text-sm">
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span>请求超时，正在自动重试...</span>
+                              </div>
+                            )}
+                            {content && (
+                              <div className={status === 'streaming' || status === 'running' ? 'streaming-cursor' : ''}>
+                                <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
+                                  p: ({children}) => <p className="my-1 leading-relaxed">{children}</p>,
+                                  h1: ({children}) => <h1 className="text-lg font-bold my-2">{children}</h1>,
+                                  h2: ({children}) => <h2 className="text-base font-bold my-2">{children}</h2>,
+                                  h3: ({children}) => <h3 className="text-sm font-semibold my-1">{children}</h3>,
+                                  ul: ({children}) => <ul className="list-disc pl-4 my-1">{children}</ul>,
+                                  ol: ({children}) => <ol className="list-decimal pl-4 my-1">{children}</ol>,
+                                  li: ({children}) => <li className="leading-relaxed">{children}</li>,
+                                  strong: ({children}) => <strong className="font-semibold">{children}</strong>,
+                                  code: ({children}) => <code className="bg-gray-100 px-1 rounded text-xs font-mono">{children}</code>,
+                                }}>{content}</ReactMarkdown>
+                              </div>
+                            )}
+                            {(status === 'error' || status === 'failed') && !content && (
+                              <div className="text-center py-4">
+                                <div className="text-red-500 text-sm mb-3">生成失败</div>
+                                <button
+                                  onClick={() => retryRun(run.id)}
+                                  className="inline-flex items-center gap-1.5 px-4 py-2 text-sm bg-accent text-white rounded-lg hover:bg-accent/90 transition"
+                                >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                                  重新生成
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                          {(status === 'done' || status === 'completed') && content && (
+                            <div className="px-4 py-2 border-t border-gray-100 flex items-center justify-between shrink-0">
+                              <span className="text-xs text-inkLight">{content.length} 字</span>
+                              <div className="flex items-center gap-3">
+                                <button
+                                  onClick={() => toggleRef(run.id)}
+                                  className={`text-xs transition flex items-center gap-1 ${
+                                    referencedRunIds.includes(run.id)
+                                      ? 'text-accent font-medium'
+                                      : 'text-inkLight hover:text-accent'
+                                  }`}
+                                >
+                                  {referencedRunIds.includes(run.id) ? '✓ 已引用' : '@ 引用'}
+                                </button>
+                                <button onClick={() => navigator.clipboard.writeText(content)}
+                                  className="text-xs text-inkLight hover:text-accent transition flex items-center gap-1">
+                                  <Copy className="w-3 h-3" /> 复制
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
-                )}
-                <div id="messages-end" className="h-1" />
-              </div>
+                </div>
+              )}
+
+              {/* 对话历史区域（按轮次分组） */}
+              {chatRounds.length > 0 && (
+                <div className="max-w-3xl mx-auto space-y-4 mt-6 pb-6">
+                  {chatRounds.map((round) => {
+                    const isLatest = round.roundIndex === latestRoundIndex
+                    const isExpanded = expandedRounds.has(round.roundIndex) || isLatest
+
+                    if (!isExpanded) {
+                      // 折叠状态单行 summary
+                      return (
+                        <div key={round.userMsg.id} className="flex justify-center">
+                          <button onClick={() => {
+                            const newSet = new Set(expandedRounds)
+                            newSet.add(round.roundIndex)
+                            setExpandedRounds(newSet)
+                          }} className="w-full flex items-center justify-between px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm hover:bg-gray-100 transition text-inkLight">
+                            <span className="truncate">第 {round.roundIndex} 轮：{round.userMsg.content.substring(0, 40)}{round.userMsg.content.length > 40 ? '...' : ''}</span>
+                            <span className="text-[10px]">▼</span>
+                          </button>
+                        </div>
+                      )
+                    }
+
+                    // 展开状态
+                    return (
+                      <div key={round.userMsg.id} className="space-y-4">
+                        {/* User Msg */}
+                        <div className="flex justify-end">
+                          <div className="max-w-[70%] bg-gray-100 text-ink px-4 py-3 rounded-2xl rounded-tr-sm text-sm">
+                            {round.userMsg.content}
+                          </div>
+                        </div>
+                        {/* Assistant Msg */}
+                        {round.assistantMsg && (
+                          <div className="flex justify-start">
+                            <ChatTurnCard
+                              content={round.assistantMsg.content}
+                              status="completed"
+                              isReferenced={referencedRunIds.includes(round.assistantMsg.id)}
+                              onToggleRef={() => toggleRef(round.assistantMsg!.id)}
+                              onCopy={() => navigator.clipboard.writeText(round.assistantMsg!.content)}
+                              onPin={() => {}}
+                            />
+                          </div>
+                        )}
+                        {/* Streaming Msg for the latest round */}
+                        {isLatest && !round.assistantMsg && streamingMessage && (
+                          <div className="flex justify-start">
+                            <ChatTurnCard
+                              content={streamingMessage}
+                              status="streaming"
+                              isReferenced={false}
+                              onToggleRef={() => {}}
+                              onCopy={() => {}}
+                              onPin={() => {}}
+                            />
+                          </div>
+                        )}
+                        
+                        {!isLatest && (
+                          <div className="flex justify-end">
+                            <button onClick={() => {
+                              const newSet = new Set(expandedRounds)
+                              newSet.delete(round.roundIndex)
+                              setExpandedRounds(newSet)
+                            }} className="text-[10px] text-inkLight hover:text-ink">收起第 {round.roundIndex} 轮 ▲</button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                  <div id="messages-end" className="h-1" />
+                </div>
+              )}
+              {chatLimitReached && (
+                <div className="text-center mt-6 mb-2">
+                  <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 text-xs text-inkLight">
+                    已达 4 轮对话上限
+                    <button onClick={() => window.open('/', '_blank')} className="text-accent hover:underline font-medium">
+                      开新窗口继续
+                    </button>
+                  </span>
+                </div>
+              )}
             </div>
           )}
 
