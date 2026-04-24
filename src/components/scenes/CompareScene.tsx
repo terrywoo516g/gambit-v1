@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Star, X, ArrowUpDown, Copy, Loader2 } from 'lucide-react'
+import { Star, X, ArrowUpDown, Copy, Loader2, Pin } from 'lucide-react'
 
 type TableData = { columns: string[]; rows: Record<string, string>[] }
 
@@ -77,8 +77,24 @@ export default function CompareScene({ workspaceId, onDraftGenerated, referenced
           {tableData && (
             <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
               <table className="w-full text-sm">
-                <thead><tr className="bg-gray-50 border-b border-gray-200"><th className="px-3 py-2 text-left text-xs text-inkLight w-10">操作</th>{tableData.columns.map(col => (<th key={col} onClick={() => handleSort(col)} className="px-3 py-2 text-left text-xs text-inkLight cursor-pointer hover:text-accent">{col} {sortCol === col ? (sortAsc ? '↑' : '↓') : ''}</th>))}</tr></thead>
-                <tbody>{sortedRows.map((row, idx) => { const name = row[tableData.columns[0]]; const isStarred = starred.includes(name); return (<tr key={idx} className={`border-b border-gray-100 hover:bg-gray-50 ${isStarred ? 'bg-yellow-50' : ''}`}><td className="px-3 py-2"><div className="flex items-center gap-1"><button onClick={() => toggleStar(name)} className={isStarred ? 'text-yellow-500' : 'text-gray-300 hover:text-yellow-400'}><Star className="w-4 h-4" fill={isStarred ? 'currentColor' : 'none'} /></button><button onClick={() => toggleExclude(name)} className="text-gray-300 hover:text-red-400"><X className="w-3.5 h-3.5" /></button></div></td>{tableData.columns.map(col => (<td key={col} className="px-3 py-2 text-ink">{row[col] || '-'}</td>))}</tr>) })}</tbody>
+                <thead><tr className="bg-gray-50 border-b border-gray-200"><th className="px-3 py-2 text-left text-xs text-inkLight w-16">操作</th>{tableData.columns.map(col => (<th key={col} onClick={() => handleSort(col)} className="px-3 py-2 text-left text-xs text-inkLight cursor-pointer hover:text-accent">{col} {sortCol === col ? (sortAsc ? '↑' : '↓') : ''}</th>))}</tr></thead>
+                <tbody>{sortedRows.map((row, idx) => { 
+                  const name = row[tableData.columns[0]]; 
+                  const isStarred = starred.includes(name); 
+                  const rowContent = Object.entries(row).map(([k,v]) => `${k}: ${v}`).join('\n');
+                  return (
+                    <tr key={idx} className={`border-b border-gray-100 hover:bg-gray-50 ${isStarred ? 'bg-yellow-50' : ''}`}>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-1.5">
+                          <button onClick={() => window.dispatchEvent(new CustomEvent('gambit:pin-to-draft', { detail: { sourceType: 'compare', sourceId: `compare-${name}`, sourceLabel: `对比表-${name}`, content: rowContent } }))} className="text-gray-400 hover:text-accent transition" title="加入最终稿"><Pin className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => toggleStar(name)} className={isStarred ? 'text-yellow-500' : 'text-gray-300 hover:text-yellow-400'}><Star className="w-4 h-4" fill={isStarred ? 'currentColor' : 'none'} /></button>
+                          <button onClick={() => toggleExclude(name)} className="text-gray-300 hover:text-red-400"><X className="w-3.5 h-3.5" /></button>
+                        </div>
+                      </td>
+                      {tableData.columns.map(col => (<td key={col} className="px-3 py-2 text-ink">{row[col] || '-'}</td>))}
+                    </tr>
+                  ) 
+                })}</tbody>
               </table>
               {excluded.length > 0 && <div className="px-4 py-2 bg-gray-50 border-t border-gray-200 text-xs text-inkLight">已排除 {excluded.length} 项 <button onClick={() => { setExcluded([]); void saveSelections(starred, []) }} className="ml-2 text-accent hover:underline">恢复全部</button></div>}
             </div>

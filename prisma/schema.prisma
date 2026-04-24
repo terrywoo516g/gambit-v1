@@ -19,8 +19,9 @@ model Workspace {
   updatedAt      DateTime       @updatedAt
   modelRuns      ModelRun[]
   sceneSessions  SceneSession[]
-  artifacts      Artifact[]
-  chatMessages   ChatMessage[]
+  artifacts        Artifact[]
+  chatMessages     ChatMessage[]
+  finalDraftBlocks FinalDraftBlock[]
 }
 
 model ModelRun {
@@ -65,10 +66,26 @@ model FinalDraft {
   id             String       @id @default(uuid())
   sceneSessionId String
   sceneSession   SceneSession @relation(fields: [sceneSessionId], references: [id], onDelete: Cascade)
+  title          String       @default("")
   content        String
   format         String       @default("markdown") // markdown / html / json
   version        Int          @default(1)
   createdAt      DateTime     @default(now())
+}
+
+model FinalDraftBlock {
+  id           String   @id @default(uuid())
+  workspaceId  String
+  sourceType   String   // "card" | "chat" | "compare" | "brainstorm" | "spark"
+  sourceId     String
+  sourceLabel  String   // 展示用，如 "DeepSeek V3.2" / "第2轮追问" / "对比表-小米汽车" / "灵光一闪"
+  content      String
+  order        Int      @default(0)
+  inDraft      Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, order])
 }
 
 model LlmCall {

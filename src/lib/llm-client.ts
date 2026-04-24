@@ -112,6 +112,8 @@ export const MODEL_REGISTRY: Record<string, { modelId: string; provider: Provide
   'MiniMax M1':           { modelId: 'MiniMax-M1',                     provider: 'qiniu' },
 }
 
+export const ADVANCED_MODEL = 'deepseek/deepseek-v3.2-251201' // TODO: 接入 Opus/更高级模型
+
 // ─── Internal Helpers ─────────────────────────────────────────────────────────
 
 function buildClient(provider: Provider): OpenAI {

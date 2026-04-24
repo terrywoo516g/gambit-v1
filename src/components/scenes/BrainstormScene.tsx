@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Loader2, Copy, ThumbsUp, ThumbsDown, Eye, HelpCircle, MessageSquare } from 'lucide-react'
+import { Loader2, Copy, ThumbsUp, ThumbsDown, Eye, HelpCircle, MessageSquare, Pin } from 'lucide-react'
 
 type ReflectionData = {
   strongConsensus: { point: string; supporters: string[] }[]
@@ -80,9 +80,12 @@ export default function BrainstormScene({ workspaceId, onDraftGenerated, referen
     const isAdopted = adopted.includes(point)
     const isRejected = rejected.includes(point)
     return (
-      <div className={`border rounded-xl p-4 transition ${isAdopted ? 'border-green-300 bg-green-50' : isRejected ? 'border-red-200 bg-red-50 opacity-60' : 'border-gray-200 bg-white'}`}>
+      <div className={`border rounded-xl p-4 transition relative group ${isAdopted ? 'border-green-300 bg-green-50' : isRejected ? 'border-red-200 bg-red-50 opacity-60' : 'border-gray-200 bg-white'}`}>
         {tag && <span className="text-xs font-mono text-inkLight mb-1 block">{tag}</span>}
-        <p className="text-sm text-ink mb-2">{point}</p>
+        <div className="flex items-start justify-between mb-2 gap-4">
+          <p className="text-sm text-ink">{point}</p>
+          <button onClick={() => window.dispatchEvent(new CustomEvent('gambit:pin-to-draft', { detail: { sourceType: 'brainstorm', sourceId: `brainstorm-${point?.substring(0, 20)}`, sourceLabel: `头脑风暴`, content: `${point}\n${detail || ''}` } }))} className="text-gray-300 hover:text-accent transition opacity-0 group-hover:opacity-100 shrink-0" title="加入最终稿"><Pin className="w-3.5 h-3.5" /></button>
+        </div>
         {detail && <p className="text-xs text-inkLight mb-3">{detail}</p>}
         <div className="flex gap-2">
           <button onClick={() => toggleAdopt(point)} className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${isAdopted ? 'bg-green-500 text-white' : 'bg-gray-100 text-inkLight hover:bg-green-100'}`}>
@@ -129,7 +132,7 @@ export default function BrainstormScene({ workspaceId, onDraftGenerated, referen
           {activeTab === 'blind' && reflection && (
             <div className="space-y-6">
               {reflection.blindSpots.length > 0 && (<div><h3 className="text-sm font-semibold text-red-700 mb-3 flex items-center gap-1"><Eye className="w-4 h-4" /> 盲点提醒</h3><div className="space-y-3">{reflection.blindSpots.map((item, i) => (<PointCard key={i} point={item.point} detail={item.reasoning} />))}</div></div>)}
-              {reflection.keyQuestions.length > 0 && (<div><h3 className="text-sm font-semibold text-purple-700 mb-3 flex items-center gap-1"><HelpCircle className="w-4 h-4" /> 关键问题</h3><div className="space-y-3">{reflection.keyQuestions.map((item, i) => (<div key={i} className="border border-gray-200 bg-white rounded-xl p-4"><p className="text-sm font-medium text-ink mb-1">{item.question}</p><p className="text-xs text-inkLight">{item.context}</p></div>))}</div></div>)}
+              {reflection.keyQuestions.length > 0 && (<div><h3 className="text-sm font-semibold text-purple-700 mb-3 flex items-center gap-1"><HelpCircle className="w-4 h-4" /> 关键问题</h3><div className="space-y-3">{reflection.keyQuestions.map((item, i) => (<div key={i} className="border border-gray-200 bg-white rounded-xl p-4 relative group"><div className="flex items-start justify-between mb-1 gap-4"><p className="text-sm font-medium text-ink">{item.question}</p><button onClick={() => window.dispatchEvent(new CustomEvent('gambit:pin-to-draft', { detail: { sourceType: 'brainstorm', sourceId: `brainstorm-question-${i}`, sourceLabel: `头脑风暴-关键问题`, content: `${item.question}\n${item.context || ''}` } }))} className="text-gray-300 hover:text-accent transition opacity-0 group-hover:opacity-100 shrink-0" title="加入最终稿"><Pin className="w-3.5 h-3.5" /></button></div><p className="text-xs text-inkLight">{item.context}</p></div>))}</div></div>)}
               <div><h3 className="text-sm font-semibold text-ink mb-2 flex items-center gap-1"><MessageSquare className="w-4 h-4" /> 我的思考</h3><textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="写下你的想法、约束条件、个人偏好..." className="w-full min-h-[100px] p-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-accent" /></div>
             </div>
           )}

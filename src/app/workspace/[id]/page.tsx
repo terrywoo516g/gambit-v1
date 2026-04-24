@@ -6,9 +6,9 @@ import { useMultiStream } from '@/hooks/useMultiStream'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import {
-  ArrowLeft, Plus, Eye, Zap, Copy, Send, Loader2,
+  ArrowLeft, Plus, Eye, Copy, Send, Loader2,
   LayoutGrid, MessageSquare, Pencil, FileCheck,
-  FileText, Home
+  FileText, Home, Pin
 } from 'lucide-react'
 
 import CompareScene from '@/components/scenes/CompareScene'
@@ -16,6 +16,7 @@ import BrainstormScene from '@/components/scenes/BrainstormScene'
 import ComposeScene from '@/components/scenes/ComposeScene'
 import ReviewScene from '@/components/scenes/ReviewScene'
 import ChatTurnCard from '@/components/workspace/ChatTurnCard'
+import FinalDraftPanel from '@/components/workspace/FinalDraftPanel'
 
 type ChatMessage = {
   id: string
@@ -72,10 +73,8 @@ export default function WorkspacePage() {
   const [loading, setLoading] = useState(true)
 
   const [observerContent, setObserverContent] = useState<string | null>(null)
-  const [sparkContent, setSparkContent] = useState<string | null>(null)
   const [observerLoading, setObserverLoading] = useState(false)
-  const [sparkLoading, setSparkLoading] = useState(false)
-  const [showDrawer, setShowDrawer] = useState<'observer' | 'spark' | null>(null)
+  const [showDrawer, setShowDrawer] = useState<'observer' | null>(null)
 
   const [activeStep, setActiveStep] = useState<StepKey>('models')
   const [activeScene, setActiveScene] = useState<SceneKey | null>(null)
@@ -156,6 +155,10 @@ export default function WorkspacePage() {
   }, [])
 
   function enterScene(key: SceneKey) {
+    if (key === 'review') {
+      window.dispatchEvent(new CustomEvent('gambit:open-review-mode'))
+      return
+    }
     setActiveScene(key)
     setActiveStep('scene')
   }
@@ -172,21 +175,6 @@ export default function WorkspacePage() {
       alert(e instanceof Error ? e.message : '旁观者调用失败')
     } finally {
       setObserverLoading(false)
-    }
-  }
-
-  async function handleSpark() {
-    try {
-      setSparkLoading(true)
-      setShowDrawer('spark')
-      const res = await fetch('/api/workspaces/' + wsId + '/spark', { method: 'POST' })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      setSparkContent(data.content)
-    } catch (e) {
-      alert(e instanceof Error ? e.message : '灵光一闪调用失败')
-    } finally {
-      setSparkLoading(false)
     }
   }
 
@@ -459,15 +447,9 @@ export default function WorkspacePage() {
         </div>
 
         <div className="p-3 border-t border-gray-200 space-y-2">
-          <button onClick={handleObserver} disabled={observerLoading || completedCount < 2}
-            className="w-full flex items-center gap-2 text-xs text-inkLight hover:text-accent py-2 px-3 rounded-lg border border-gray-200 hover:border-accent transition disabled:opacity-40">
-            <Eye className="w-3.5 h-3.5" />
-            {observerLoading ? '分析中...' : '旁观者视角'}
-          </button>
-          <button onClick={handleSpark} disabled={sparkLoading || completedCount < 2}
-            className="w-full flex items-center gap-2 text-xs text-inkLight hover:text-accent py-2 px-3 rounded-lg border border-gray-200 hover:border-accent transition disabled:opacity-40">
-            <Zap className="w-3.5 h-3.5" />
-            {sparkLoading ? '思考中...' : '灵光一闪'}
+          <button onClick={handleObserver} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-gray-200 bg-white text-ink text-sm hover:border-accent hover:text-accent transition shadow-sm">
+            {observerLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
+            旁观者视角
           </button>
         </div>
       </aside>
@@ -583,21 +565,25 @@ export default function WorkspacePage() {
                               <div className="px-4 py-2 border-t border-gray-100 flex items-center justify-between shrink-0">
                                 <span className="text-xs text-inkLight">{content.length} 字</span>
                                 <div className="flex items-center gap-3">
-                                  <button
-                                    onClick={() => toggleRef(run.id)}
-                                    className={`text-xs transition flex items-center gap-1 ${
-                                      referencedRunIds.includes(run.id)
-                                        ? 'text-accent font-medium'
-                                        : 'text-inkLight hover:text-accent'
-                                    }`}
-                                  >
-                                    {referencedRunIds.includes(run.id) ? '✓ 已引用' : '@ 引用'}
-                                  </button>
-                                  <button onClick={() => navigator.clipboard.writeText(content)}
-                                    className="text-xs text-inkLight hover:text-accent transition flex items-center gap-1">
-                                    <Copy className="w-3 h-3" /> 复制
-                                  </button>
-                                </div>
+                                <button
+                                  onClick={() => toggleRef(run.id)}
+                                  className={`text-xs transition flex items-center gap-1 ${
+                                    referencedRunIds.includes(run.id)
+                                      ? 'text-accent font-medium'
+                                      : 'text-inkLight hover:text-accent'
+                                  }`}
+                                >
+                                  {referencedRunIds.includes(run.id) ? '✓ 已引用' : '@ 引用'}
+                                </button>
+                                <button onClick={() => navigator.clipboard.writeText(content)}
+                                  className="text-xs text-inkLight hover:text-accent transition flex items-center gap-1">
+                                  <Copy className="w-3 h-3" /> 复制
+                                </button>
+                                <button onClick={() => window.dispatchEvent(new CustomEvent('gambit:pin-to-draft', { detail: { sourceType: 'card', sourceId: run.id, sourceLabel: run.model, content } }))}
+                                  className="text-xs text-inkLight hover:text-accent transition flex items-center gap-1">
+                                  <Pin className="w-3 h-3" /> 加入最终稿
+                                </button>
+                              </div>
                               </div>
                             )}
                           </div>
@@ -714,6 +700,10 @@ export default function WorkspacePage() {
                                   className="text-xs text-inkLight hover:text-accent transition flex items-center gap-1">
                                   <Copy className="w-3 h-3" /> 复制
                                 </button>
+                                <button onClick={() => window.dispatchEvent(new CustomEvent('gambit:pin-to-draft', { detail: { sourceType: 'card', sourceId: run.id, sourceLabel: run.model, content } }))}
+                                  className="text-xs text-inkLight hover:text-accent transition flex items-center gap-1">
+                                  <Pin className="w-3 h-3" /> 加入最终稿
+                                </button>
                               </div>
                             </div>
                           )}
@@ -766,7 +756,7 @@ export default function WorkspacePage() {
                               isReferenced={referencedRunIds.includes(round.assistantMsg.id)}
                               onToggleRef={() => toggleRef(round.assistantMsg!.id)}
                               onCopy={() => navigator.clipboard.writeText(round.assistantMsg!.content)}
-                              onPin={() => {}}
+                              onPin={() => window.dispatchEvent(new CustomEvent('gambit:pin-to-draft', { detail: { sourceType: 'chat', sourceId: round.assistantMsg!.id, sourceLabel: `第${round.roundIndex}轮追问`, content: round.assistantMsg!.content } }))}
                             />
                           </div>
                         )}
@@ -971,82 +961,37 @@ export default function WorkspacePage() {
       </section>
 
       {/* ===== 右栏：最终稿预览 ===== */}
-      <aside className="hidden lg:flex w-72 border-l border-gray-200 bg-white/80 backdrop-blur-sm flex-col shrink-0">
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold text-ink flex items-center gap-1">
-              <FileText className="w-4 h-4 text-accent" /> 最终稿
-            </span>
-            <span className="text-[10px] font-mono text-black/20 tracking-wider">OUTPUT</span>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4">
-          {draftContent ? (
-            <div className="rounded-xl border border-gray-200 bg-white p-4">
-              <div className="prose prose-sm max-w-none">
-                <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
-                  h1: ({children}) => <h1 className="text-lg font-bold my-2">{children}</h1>,
-                  h2: ({children}) => <h2 className="text-base font-bold my-2">{children}</h2>,
-                  h3: ({children}) => <h3 className="text-sm font-semibold my-1">{children}</h3>,
-                  p: ({children}) => <p className="my-1 text-sm leading-relaxed">{children}</p>,
-                  ul: ({children}) => <ul className="list-disc pl-4 my-1 text-sm">{children}</ul>,
-                  ol: ({children}) => <ol className="list-decimal pl-4 my-1 text-sm">{children}</ol>,
-                  li: ({children}) => <li className="leading-relaxed">{children}</li>,
-                  code: ({children}) => <code className="bg-gray-100 px-1 rounded text-xs font-mono">{children}</code>,
-                }}>{draftContent}</ReactMarkdown>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full text-center px-4">
-              <FileText className="w-10 h-10 text-gray-200 mb-3" />
-              <div className="text-sm text-inkLight">暂无最终稿</div>
-              <div className="text-xs text-inkLight/60 mt-1">使用下方场景工具后<br/>这里将显示生成结果</div>
-            </div>
-          )}
-        </div>
-
-        {draftContent && (
-          <div className="p-3 border-t border-gray-200">
-            <button onClick={() => draftContent && navigator.clipboard.writeText(draftContent)}
-              className="w-full rounded-lg border border-gray-200 bg-white py-2 text-sm text-inkLight hover:bg-gray-50 hover:border-accent transition flex items-center justify-center gap-1">
-              <Copy className="w-3.5 h-3.5" /> 复制全文
-            </button>
-          </div>
-        )}
+      <aside className="hidden lg:flex w-96 border-l border-gray-200 bg-white flex flex-col relative z-10 shrink-0 shadow-[-4px_0_24px_-8px_rgba(0,0,0,0.05)]">
+        <FinalDraftPanel workspaceId={wsId} />
       </aside>
 
       {/* ===== 抽屉 ===== */}
-      {showDrawer && (
+      {showDrawer === 'observer' && (
         <>
           <div className="fixed inset-0 bg-black/10 z-40" onClick={() => setShowDrawer(null)} />
           <div className="fixed right-0 top-0 h-full w-80 bg-white border-l border-gray-200 shadow-xl z-50 flex flex-col">
             <div className="h-12 border-b border-gray-200 flex items-center justify-between px-4 shrink-0">
               <span className="font-semibold text-sm flex items-center gap-2">
-                {showDrawer === 'observer'
-                  ? <><Eye className="w-4 h-4" /> 旁观者视角</>
-                  : <><Zap className="w-4 h-4" /> 灵光一闪</>
-                }
+                <Eye className="w-4 h-4" /> 旁观者视角
               </span>
               <button onClick={() => setShowDrawer(null)} className="text-inkLight hover:text-ink transition text-lg">&times;</button>
             </div>
             <div className="flex-1 overflow-y-auto p-4">
-              {(showDrawer === 'observer' && observerLoading) || (showDrawer === 'spark' && sparkLoading) ? (
+              {observerLoading ? (
                 <div className="flex items-center justify-center h-32">
                   <Loader2 className="w-6 h-6 animate-spin text-accent" />
                 </div>
               ) : (
                 <div className="prose prose-sm max-w-none">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {(showDrawer === 'observer' ? observerContent : sparkContent) || ''}
+                    {observerContent || ''}
                   </ReactMarkdown>
                 </div>
               )}
             </div>
             <div className="border-t border-gray-200 p-3 shrink-0">
               <button onClick={() => {
-                const content = showDrawer === 'observer' ? observerContent : sparkContent
-                if (content) navigator.clipboard.writeText(content)
+                if (observerContent) navigator.clipboard.writeText(observerContent)
               }}
                 className="w-full text-sm text-inkLight hover:text-accent py-2 border border-gray-200 rounded-lg transition flex items-center justify-center gap-1">
                 <Copy className="w-3.5 h-3.5" /> 复制内容
