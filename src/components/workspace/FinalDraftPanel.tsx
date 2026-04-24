@@ -28,7 +28,7 @@ type Suggestion = {
 
 type Spark = {
   id: string
-  angle: string
+  type: string
   content: string
 }
 
@@ -52,7 +52,6 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
   const abortControllerRef = React.useRef<AbortController | null>(null)
 
   // Spark State
-  const [sparkType, setSparkType] = useState<'angle' | 'rewrite' | 'counter'>('angle')
   const [sparks, setSparks] = useState<Spark[]>([])
   const [sparking, setSparking] = useState(false)
 
@@ -318,7 +317,7 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
       const res = await fetch(`/api/workspaces/${workspaceId}/final-draft/spark`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ context: text, type: sparkType })
+        body: JSON.stringify({ context: text })
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -419,32 +418,38 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
         {/* 灵光一闪 (移动到顶部) */}
         {showSpark && (
           <div className="p-3 bg-white border-b border-gray-200 shadow-sm z-10 relative shrink-0">
-            <button onClick={() => setShowSpark(false)} className="absolute top-3 right-3 text-inkLight hover:text-ink">
+            <button onClick={() => setShowSpark(false)} className="absolute top-3 right-3 text-inkLight hover:text-ink z-20">
               <X className="w-4 h-4" />
             </button>
-            <div className="flex items-center gap-2 mb-3 bg-gray-100 p-1 rounded-lg w-fit">
-              <button onClick={() => setSparkType('angle')} className={`px-3 text-xs py-1 rounded-md transition ${sparkType === 'angle' ? 'bg-white shadow-sm font-medium text-ink' : 'text-inkLight hover:text-ink'}`}>新角度</button>
-              <button onClick={() => setSparkType('rewrite')} className={`px-3 text-xs py-1 rounded-md transition ${sparkType === 'rewrite' ? 'bg-white shadow-sm font-medium text-ink' : 'text-inkLight hover:text-ink'}`}>换画风</button>
-              <button onClick={() => setSparkType('counter')} className={`px-3 text-xs py-1 rounded-md transition ${sparkType === 'counter' ? 'bg-white shadow-sm font-medium text-ink' : 'text-inkLight hover:text-ink'}`}>反方观点</button>
-            </div>
-            <button onClick={runSpark} disabled={sparking} className="w-full py-2 bg-purple-50 text-purple-600 rounded-lg text-sm hover:bg-purple-100 transition disabled:opacity-50 flex items-center justify-center gap-2">
+            <button onClick={runSpark} disabled={sparking} className="w-full py-2 bg-purple-50 text-purple-600 rounded-lg text-sm font-medium hover:bg-purple-100 transition disabled:opacity-50 flex items-center justify-center gap-2 relative">
               {sparking ? <><Loader2 className="w-4 h-4 animate-spin" /> 启发中...</> : <><Sparkles className="w-4 h-4" /> 给我灵感</>}
             </button>
 
             {sparks.length > 0 && (
-              <div className="mt-3 space-y-2 max-h-[300px] overflow-y-auto">
-                {sparks.map(s => (
-                  <div key={s.id} className="p-3 border border-purple-100 bg-purple-50/30 rounded-lg text-sm relative group">
-                    <div className="flex justify-between items-start mb-1">
-                      <span className="text-xs font-semibold text-purple-700 bg-purple-100 px-1.5 rounded">{s.angle}</span>
-                      <button onClick={() => window.dispatchEvent(new CustomEvent('gambit:pin-to-draft', { detail: { sourceType: 'spark', sourceId: s.id, sourceLabel: '灵光一闪', content: `【${s.angle}】\n${s.content}` } }))} className="text-purple-300 hover:text-purple-600 transition opacity-0 group-hover:opacity-100" title="加入素材库"><Pin className="w-3.5 h-3.5" /></button>
+              <div className="mt-3 space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                {sparks.map(s => {
+                  const colorClass = 
+                    s.type === '新角度' ? 'text-blue-700 bg-blue-100 border-blue-200' :
+                    s.type === '反常识' ? 'text-orange-700 bg-orange-100 border-orange-200' :
+                    s.type === '换个说法' ? 'text-purple-700 bg-purple-100 border-purple-200' : 
+                    'text-gray-700 bg-gray-100 border-gray-200'
+
+                  return (
+                    <div key={s.id} className="p-3 border border-gray-100 bg-gray-50/50 rounded-lg text-sm relative group flex flex-col gap-1.5">
+                      <div className="flex justify-between items-start">
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${colorClass}`}>
+                          [{s.type}]
+                        </span>
+                        <button onClick={() => window.dispatchEvent(new CustomEvent('gambit:pin-to-draft', { detail: { sourceType: 'spark', sourceId: s.id, sourceLabel: '灵光一闪', content: `【${s.type}】\n${s.content}` } }))} className="text-gray-400 hover:text-accent transition opacity-0 group-hover:opacity-100" title="加入素材库">
+                          <Pin className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <div className="text-xs text-ink/80 leading-relaxed">{s.content}</div>
                     </div>
-                    <div className="text-xs text-ink/80 leading-relaxed">{s.content}</div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
-            )}
-          </div>
+            )}          </div>
         )}
         {/* 素材库 */}
         {draftMode === 'prepare' && (
