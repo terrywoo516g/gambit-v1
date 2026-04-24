@@ -1,5 +1,6 @@
 'use client'
 
+import * as React from 'react'
 import { useState, useEffect, useCallback } from 'react'
 import { Copy, Download, Loader2, Sparkles, FileCheck, ChevronDown, ChevronRight, X, Pin, LayoutGrid, Plus } from 'lucide-react'
 import { useEditor, EditorContent } from '@tiptap/react'
@@ -43,11 +44,12 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
 
   // Compose State
   const [selectedBlockIds, setSelectedBlockIds] = useState<Set<string>>(new Set())
-  const [showComposeOptions, setShowComposeOptions] = useState(false)
+  // Old compose state removed
   const [composeInstruction, setComposeInstruction] = useState('')
-  const [composeMode, setComposeMode] = useState<'append' | 'replace'>('append')
+  const [composeMode, setComposeMode] = useState<'append' | 'replace' | 'preview'>('replace')
   const [composing, setComposing] = useState(false)
   const [composePreview, setComposePreview] = useState('')
+  const abortControllerRef = React.useRef<AbortController | null>(null)
 
   // Spark State
   const [sparkType, setSparkType] = useState<'angle' | 'rewrite' | 'counter'>('angle')
@@ -69,7 +71,7 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
   const editor = useEditor({
     extensions: [
       StarterKit,
-      Placeholder.configure({ placeholder: '在此输入或生成最终稿...' })
+      Placeholder.configure({ placeholder: '从左侧 📌 收藏素材，点击下方"✨ 生成最终稿"自动合成；也可直接在此编辑' })
     ],
     content: '',
     editorProps: {
@@ -109,7 +111,15 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
     loadData()
   }, [loadData])
 
-  // Save Draft (debounced)
+  useEffect(() => {
+    const handleAbort = () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+    }
+    window.addEventListener('gambit:abort-compose', handleAbort)
+    return () => window.removeEventListener('gambit:abort-compose', handleAbort)
+  }, [])
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!loading) saveDraft(title, editor?.getHTML() || '')
@@ -146,15 +156,16 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
   // Review
   const runReview = useCallback(async () => {
     if (!editor) return
+    const text = editor.getText()
+    if (!text.trim()) {
+      alert('请先在编辑器中输入或合成内容后再进行审阅')
+      return
+    }
+    
+    setShowReview(true)
     setReviewing(true)
     setSuggestions([])
     try {
-      const text = editor.getText()
-      if (!text.trim()) {
-        alert('正文为空，请先添加内容')
-        setReviewing(false)
-        return
-      }
       const res = await fetch(`/api/workspaces/${workspaceId}/final-draft/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -173,15 +184,11 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
   // Handle Open Review Mode Event
   useEffect(() => {
     const handleOpenReview = () => {
-      setShowReview(true)
-      // auto run review if no suggestions
-      if (suggestions.length === 0) {
-        runReview()
-      }
+      runReview()
     }
     window.addEventListener('gambit:open-review-mode', handleOpenReview)
     return () => window.removeEventListener('gambit:open-review-mode', handleOpenReview)
-  }, [suggestions.length, runReview])
+  }, [runReview])
 
   // Blocks Actions
   async function removeBlock(blockId: string) {
@@ -212,65 +219,77 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
   }
 
   // Compose
-  async function handleCompose() {
-    if (!editor || selectedBlockIds.size === 0) return
+  async function runCompose() {
+    if (!editor) return
     setComposing(true)
     setComposePreview('')
-    setShowComposeOptions(false)
+
+    abortControllerRef.current = new AbortController()
+
     try {
-      const res = await fetch(`/api/workspaces/${workspaceId}/final-draft/compose`, {
+      const res = await fetch(`/api/workspaces/${workspaceId}/final-draft/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          blockIds: Array.from(selectedBlockIds),
           instruction: composeInstruction,
-          mode: composeMode
-        })
+          mode: composeMode,
+          selectedBlockIds: Array.from(selectedBlockIds)
+        }),
+        signal: abortControllerRef.current.signal
       })
+
+      if (!res.ok) throw new Error('Generate failed')
       if (!res.body) throw new Error('No body')
+
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
       let fullText = ''
 
+      if (composeMode === 'replace') {
+        editor.commands.clearContent()
+      }
+
       while (true) {
-        const { value, done } = await reader.read()
+        const { done, value } = await reader.read()
         if (done) break
-        const chunk = decoder.decode(value, { stream: true })
-        const lines = chunk.split('\n\n')
+        const chunk = decoder.decode(value)
+        const lines = chunk.split('\n')
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             const dataStr = line.slice(6)
-            if (!dataStr) continue
-            const data = JSON.parse(dataStr)
-            if (data.type === 'delta') {
-              fullText += data.text
-              setComposePreview(fullText)
-            } else if (data.type === 'done') {
-              if (composeMode === 'replace') {
-                editor.commands.setContent(fullText.replace(/\n/g, '<br/>'))
-              } else {
-                editor.commands.insertContent(`<p>${fullText.replace(/\n/g, '<br/>')}</p>`)
+            if (!dataStr.trim()) continue
+            try {
+              const data = JSON.parse(dataStr)
+              if (data.type === 'delta') {
+                fullText += data.text
+                if (composeMode === 'preview') {
+                  setComposePreview(fullText)
+                } else {
+                  editor.commands.insertContent(data.text.replace(/\n/g, '<br/>'))
+                }
+              } else if (data.type === 'done') {
+                // Done
+                if (composeMode !== 'preview') {
+                  // Save handled by backend, but we can clear selections
+                  setSelectedBlockIds(new Set())
+                  setComposeInstruction('')
+                }
               }
-              setComposePreview('')
-              // Mark blocks as inDraft
-              selectedBlockIds.forEach(id => {
-                fetch(`/api/workspaces/${workspaceId}/final-draft/blocks/${id}`, {
-                  method: 'PATCH',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ inDraft: true })
-                })
-              })
-              setBlocks(prev => prev.map(b => selectedBlockIds.has(b.id) ? { ...b, inDraft: true } : b))
-              setSelectedBlockIds(new Set())
-              setComposeInstruction('')
+            } catch (e) {
+              console.error(e)
             }
           }
         }
       }
-    } catch {
-      alert('合成失败')
+    } catch (e: any) {
+      if (e.name === 'AbortError') {
+        console.log('Generation aborted')
+      } else {
+        alert('合成失败')
+      }
     } finally {
       setComposing(false)
+      abortControllerRef.current = null
     }
   }
 
@@ -299,15 +318,19 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
   function applySuggestion(s: Suggestion) {
     if (!editor) return
     const text = editor.getText()
-    if (text.includes(s.quote)) {
-      // Replace in Tiptap
+    const pos = text.indexOf(s.quote)
+    if (pos >= 0) {
+      // Find position in Tiptap is tricky, simple fallback:
       const html = editor.getHTML()
-      // This is a naive replace, might break HTML tags if quote crosses boundaries, but works for simple text
-      const newHtml = html.replace(s.quote, s.content)
-      editor.commands.setContent(newHtml)
+      if (html.includes(s.quote)) {
+        editor.commands.setContent(html.replace(s.quote, s.content))
+      } else {
+        // try text replace and keep newlines
+        editor.commands.setContent(text.replace(s.quote, s.content).replace(/\n/g, '<br/>'))
+      }
     } else {
-      editor.commands.insertContent(`<p>${s.content}</p>`)
-      alert('原文未完全匹配，已附加到末尾')
+      editor.commands.insertContent(`<br/><br/><p><strong>[附加建议]</strong> ${s.content}</p>`)
+      alert('原文未匹配，已附加到末尾')
     }
     setSuggestions(prev => prev.filter(x => x.id !== s.id))
   }
@@ -424,77 +447,100 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
           )}
         </div>
 
-        {/* 组合操作区 */}
-        {selectedBlockIds.size > 0 && (
-          <div className="bg-accent/5 border-b border-accent/20 p-3">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-accent font-medium">已选 {selectedBlockIds.size} 项素材</span>
-              <button onClick={() => setShowComposeOptions(!showComposeOptions)} className="text-xs bg-accent text-white px-3 py-1 rounded hover:bg-accent/90 transition">
-                一键合成 {showComposeOptions ? '▲' : '▼'}
-              </button>
-            </div>
-            {showComposeOptions && (
-              <div className="space-y-2 mt-2">
-                <textarea
-                  value={composeInstruction}
-                  onChange={e => setComposeInstruction(e.target.value)}
-                  placeholder="附加合成指令（如：合并成一段小红书风格的文案）..."
-                  className="w-full text-xs p-2 border border-accent/20 rounded-md outline-none focus:border-accent bg-white min-h-[60px]"
-                />
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 text-xs text-ink">
-                    <label className="flex items-center gap-1 cursor-pointer"><input type="radio" checked={composeMode === 'append'} onChange={() => setComposeMode('append')} /> 追加到底部</label>
-                    <label className="flex items-center gap-1 cursor-pointer"><input type="radio" checked={composeMode === 'replace'} onChange={() => setComposeMode('replace')} /> 替换全文</label>
-                  </div>
-                  <button onClick={handleCompose} disabled={composing} className="text-xs bg-accent text-white px-3 py-1 rounded hover:bg-accent/90 transition disabled:opacity-50">
-                    {composing ? '合成中...' : '开始合成'}
-                  </button>
-                </div>
-              </div>
-            )}
+      {/* 合成区 */}
+      <div className="bg-white border-t border-gray-200 p-4 shrink-0">
+        <div className="mb-3 space-y-3">
+          <input
+            type="text"
+            value={composeInstruction}
+            onChange={e => setComposeInstruction(e.target.value)}
+            placeholder="指令（可选）：如：改成小红书风格..."
+            className="w-full text-sm p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-accent transition"
+          />
+          <div className="flex items-center gap-4 text-xs text-inkLight">
+            <span className="font-medium text-ink">模式：</span>
+            <label className="flex items-center gap-1.5 cursor-pointer hover:text-ink transition">
+              <input type="radio" name="mode" value="replace" checked={composeMode === 'replace'} onChange={() => setComposeMode('replace')} className="accent-accent" />
+              替换编辑器
+            </label>
+            <label className="flex items-center gap-1.5 cursor-pointer hover:text-ink transition">
+              <input type="radio" name="mode" value="append" checked={composeMode === 'append'} onChange={() => setComposeMode('append')} className="accent-accent" />
+              追加到末尾
+            </label>
+            <label className="flex items-center gap-1.5 cursor-pointer hover:text-ink transition">
+              <input type="radio" name="mode" value="preview" checked={composeMode === 'preview'} onChange={() => setComposeMode('preview')} className="accent-accent" />
+              纯生成（不改编辑器）
+            </label>
           </div>
-        )}
-
-        {/* 编辑器 */}
-        <div className="bg-white min-h-[300px]">
-          {/* Toolbar */}
-          {editor && (
-            <div className="flex items-center gap-1 p-2 border-b border-gray-100 bg-gray-50/50 sticky top-0 z-10">
-              <button onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded hover:bg-gray-200 text-ink ${editor.isActive('bold') ? 'bg-gray-200' : ''}`}><strong className="font-serif px-1">B</strong></button>
-              <button onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-1.5 rounded hover:bg-gray-200 text-ink ${editor.isActive('italic') ? 'bg-gray-200' : ''}`}><em className="font-serif px-1">I</em></button>
-              <div className="w-px h-4 bg-gray-300 mx-1" />
-              <button onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={`p-1.5 rounded hover:bg-gray-200 text-ink text-xs font-bold ${editor.isActive('heading', { level: 2 }) ? 'bg-gray-200' : ''}`}>H2</button>
-              <button onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} className={`p-1.5 rounded hover:bg-gray-200 text-ink text-xs font-bold ${editor.isActive('heading', { level: 3 }) ? 'bg-gray-200' : ''}`}>H3</button>
-              <div className="w-px h-4 bg-gray-300 mx-1" />
-              <button onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1.5 rounded hover:bg-gray-200 text-ink text-xs ${editor.isActive('bulletList') ? 'bg-gray-200' : ''}`}>• List</button>
-            </div>
-          )}
-          <EditorContent editor={editor} />
-          {composePreview && (
-            <div className="p-4 bg-blue-50/50 border-t border-blue-100">
-              <div className="text-xs text-blue-500 font-medium mb-2 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> 正在合成中...</div>
-              <div className="prose prose-sm max-w-none text-ink/80">{composePreview}</div>
-            </div>
-          )}
         </div>
 
-        {/* 审阅模式 */}
-        <div className="border-t border-gray-200 bg-white">
-          <button onClick={() => setShowReview(!showReview)} className="w-full flex items-center justify-between p-3 hover:bg-gray-50 transition">
-            <div className="flex items-center gap-2 font-medium text-sm text-ink">
-              <FileCheck className="w-4 h-4 text-blue-500" />
-              审阅模式 {suggestions.length > 0 && <span className="bg-red-500 text-white text-[10px] px-1.5 rounded-full">{suggestions.filter(s => !s.rejected).length}</span>}
-            </div>
-            {showReview ? <ChevronDown className="w-4 h-4 text-inkLight" /> : <ChevronRight className="w-4 h-4 text-inkLight" />}
+        {composing ? (
+          <button 
+            onClick={() => {
+              if (window.confirm('确定停止生成吗？')) {
+                window.dispatchEvent(new CustomEvent('gambit:abort-compose'))
+              }
+            }}
+            className="w-full py-2.5 bg-red-50 text-red-600 rounded-xl text-sm font-bold hover:bg-red-100 transition flex items-center justify-center gap-2 border border-red-100"
+          >
+            <Loader2 className="w-4 h-4 animate-spin" />
+            停止生成
           </button>
-          
-          {showReview && (
-            <div className="p-3 pt-0 border-t border-gray-50">
-              <button onClick={runReview} disabled={reviewing} className="w-full py-2 bg-blue-50 text-blue-600 rounded-lg text-sm hover:bg-blue-100 transition disabled:opacity-50 flex items-center justify-center gap-2 mb-3">
-                {reviewing ? <><Loader2 className="w-4 h-4 animate-spin" /> 多AI交叉审阅中...</> : <><FileCheck className="w-4 h-4" /> 运行全文审阅</>}
-              </button>
+        ) : (
+          <button 
+            onClick={runCompose} 
+            disabled={blocks.length === 0}
+            title={blocks.length === 0 ? "请先从 AI 卡片或场景中添加素材" : ""}
+            className="w-full py-2.5 bg-accent text-white rounded-xl text-sm font-bold hover:bg-accent/90 transition disabled:opacity-50 disabled:hover:bg-accent flex items-center justify-center gap-2 shadow-sm"
+          >
+            <Sparkles className="w-4 h-4" />
+            ✨ 生成最终稿
+          </button>
+        )}
 
-              <div className="space-y-3">
+        {/* 纯生成预览 */}
+        {composePreview && composeMode === 'preview' && !composing && (
+          <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-xl relative group">
+            <button onClick={() => setComposePreview('')} className="absolute top-2 right-2 text-inkLight hover:text-ink"><X className="w-3.5 h-3.5" /></button>
+            <div className="prose prose-sm max-w-none text-ink/80 max-h-40 overflow-y-auto">{composePreview}</div>
+            <div className="mt-2 pt-2 border-t border-gray-200 flex justify-end">
+              <button onClick={() => {
+                if (editor) {
+                  editor.commands.setContent(composePreview.replace(/\n/g, '<br/>'))
+                  setComposePreview('')
+                }
+              }} className="text-xs text-accent hover:text-accent/80 font-medium">复制到编辑器</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 编辑器与生成控制台 */}
+      <div className="flex-1 overflow-y-auto flex flex-col relative">
+        <div className="flex-1 p-4 pb-32">
+          <EditorContent editor={editor} />
+        </div>
+
+        {/* 审阅模式结果面板 (悬浮) */}
+        {showReview && (
+          <div className="absolute bottom-full left-0 w-full bg-white border-t border-b border-gray-200 shadow-[0_-10px_20px_rgba(0,0,0,0.05)] z-20 max-h-[50vh] flex flex-col">
+            <div className="p-3 border-b border-gray-100 flex items-center justify-between bg-blue-50/50">
+              <span className="font-semibold text-sm text-ink flex items-center gap-1.5">
+                <FileCheck className="w-4 h-4 text-blue-500" />
+                {reviewing ? '多 AI 交叉审阅中...' : `审阅建议（${suggestions.filter(s => !s.rejected).length} 条）`}
+              </span>
+              <button onClick={() => setShowReview(false)} className="text-inkLight hover:text-ink"><X className="w-4 h-4" /></button>
+            </div>
+            
+            {reviewing ? (
+              <div className="p-6 flex flex-col items-center justify-center text-blue-500 gap-3">
+                <Loader2 className="w-6 h-6 animate-spin" />
+                <span className="text-sm">正在深度分析正文...</span>
+              </div>
+            ) : suggestions.length === 0 ? (
+              <div className="p-6 text-center text-sm text-inkLight">没有找到需要修改的建议</div>
+            ) : (
+              <div className="flex-1 overflow-y-auto p-3 space-y-3">
                 {suggestions.map(s => (
                   <div key={s.id} className={`p-3 border rounded-lg text-sm transition ${s.rejected ? 'bg-gray-50 border-gray-100 opacity-50' : 'bg-white border-blue-100 shadow-sm'}`}>
                     <div className="flex items-center gap-2 mb-2">
@@ -516,20 +562,28 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
                     )}
                   </div>
                 ))}
+                {suggestions.every(s => s.rejected || false /* if we keep rejected ones in list */) && (
+                  <div className="text-center text-xs text-inkLight py-2">全部处理完毕</div>
+                )}
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
+      </div>
 
       </div>
 
-      {/* 底栏: 导出 */}
+      {/* 底栏: 操作 */}
       <div className="p-3 border-t border-gray-200 bg-white shrink-0 flex items-center gap-2">
-        <button onClick={() => { if(editor) { navigator.clipboard.writeText(editor.getText()); alert('已复制') } }} className="flex-1 flex items-center justify-center gap-1.5 py-2 border border-gray-200 rounded-lg text-sm text-ink hover:border-accent hover:text-accent transition">
-          <Copy className="w-4 h-4" /> 复制
+        <button onClick={runReview} disabled={reviewing || !editor?.getText().trim()} className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm hover:bg-blue-100 transition disabled:opacity-50 font-medium">
+          {reviewing ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileCheck className="w-4 h-4" />} 
+          {reviewing ? '审阅中...' : '🔍 审阅'}
         </button>
-        <button onClick={exportMarkdown} className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-ink text-white rounded-lg text-sm hover:bg-ink/80 transition">
-          <Download className="w-4 h-4" /> 导出 MD
+        <button onClick={() => { if(editor) { navigator.clipboard.writeText(editor.getText()); alert('已复制全文到剪贴板') } }} className="flex-1 flex items-center justify-center gap-1.5 py-2 border border-gray-200 rounded-lg text-sm text-ink hover:border-accent hover:text-accent transition font-medium">
+          <Copy className="w-4 h-4" /> 📋 复制全文
+        </button>
+        <button onClick={exportMarkdown} className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-ink text-white rounded-lg text-sm hover:bg-ink/80 transition font-medium">
+          <Download className="w-4 h-4" /> ⬇ 导出 MD
         </button>
       </div>
     </div>
