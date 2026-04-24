@@ -685,24 +685,7 @@ export default function WorkspacePage() {
                     return (
                       <span key={rid}
                         className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/10 text-accent text-xs border border-accent/30">
-                        @{r.model}
-                        <button onClick={() => toggleRef(rid)} className="hover:text-accent/70 transition" aria-label="移除引用">×</button>
-                      </span>
-                    )
-                  })}
-                </div>
-              )}
-
-              {referencedRunIds.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                  <span className="text-[10px] font-mono text-black/30 tracking-wider mr-1">REFS:</span>
-                  {referencedRunIds.map(rid => {
-                    const r = refRunsMap.get(rid)
-                    if (!r) return null
-                    return (
-                      <span key={rid}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/10 text-accent text-xs border border-accent/30">
-                        @{r.model}
+                        @{r.model}的回答
                         <button onClick={() => toggleRef(rid)} className="hover:text-accent/70 transition" aria-label="移除引用">×</button>
                       </span>
                     )
