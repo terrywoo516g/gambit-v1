@@ -272,10 +272,6 @@ export default function WorkspacePage() {
   }, [])
 
   function enterScene(key: SceneKey) {
-    if (key === 'review') {
-      window.dispatchEvent(new CustomEvent('gambit:open-review-mode'))
-      return
-    }
     setActiveScene(key)
     setActiveStep('scene')
   }

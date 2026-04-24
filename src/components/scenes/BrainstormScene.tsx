@@ -1,9 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import { Loader2, Copy, ThumbsUp, ThumbsDown, Eye, HelpCircle, MessageSquare, Pin } from 'lucide-react'
+import { ThumbsUp, ThumbsDown, Eye, HelpCircle, MessageSquare, Pin } from 'lucide-react'
 
 type ReflectionData = {
   strongConsensus: { point: string; supporters: string[] }[]
@@ -19,15 +17,15 @@ interface BrainstormSceneProps {
   referencedRunIds?: string[]
 }
 
-export default function BrainstormScene({ workspaceId, onDraftGenerated, referencedRunIds = [] }: BrainstormSceneProps) {
+export default function BrainstormScene({ workspaceId, referencedRunIds = [] }: BrainstormSceneProps) {
   const [loading, setLoading] = useState(true)
   const [sceneId, setSceneId] = useState<string | null>(null)
   const [reflection, setReflection] = useState<ReflectionData | null>(null)
   const [adopted, setAdopted] = useState<string[]>([])
   const [rejected, setRejected] = useState<string[]>([])
   const [notes, setNotes] = useState('')
-  const [generating, setGenerating] = useState(false)
-  const [report, setReport] = useState<string | null>(null)
+  
+  
   const [activeTab, setActiveTab] = useState<'consensus' | 'divergent' | 'blind'>('consensus')
 
   useEffect(() => {
@@ -62,18 +60,23 @@ export default function BrainstormScene({ workspaceId, onDraftGenerated, referen
     setAdopted(prev => prev.filter(p => p !== point))
   }
 
-  async function handleGenerate() {
+    async function handleGenerate() {
     if (!sceneId) return
-    await fetch(`/api/scenes/${sceneId}/selections`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ starred: adopted, excluded: rejected, editedRows: { notes } }) })
-    try {
-      setGenerating(true)
-      const res = await fetch(`/api/scenes/${sceneId}/generate`, { method: 'POST' })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      setReport(data.content)
-      onDraftGenerated?.(data.content)
-    } catch (e) { alert(e instanceof Error ? e.message : '生成失败') }
-    finally { setGenerating(false) }
+    const promptText = `你是一个决策顾问。以下是用户关于某个问题（头脑风暴）的标记情况：
+
+用户认同的观点：${adopted.length > 0 ? adopted.join('；') : '未标记'}
+用户否定的观点：${rejected.length > 0 ? rejected.join('；') : '未标记'}
+用户补充的想法：${notes || '无'}
+
+以下是用户认同的观点，请基于这些观点生成决策建议，不要纳入用户否定的内容。
+
+要求：
+- 不要使用 Markdown 标题（如 ###），直接用自然段落。
+- 输出 2-4 个段落，每段 100-150 字。
+- 语气是"基于各方观点，我的判断是……"而非报告格式。
+- 请直接输出建议内容，不要有多余的废话。`
+
+    window.dispatchEvent(new CustomEvent('gambit:stream-to-draft', { detail: { promptText } }))
   }
 
   function PointCard({ point, tag, detail }: { point: string; tag?: string; detail?: string }) {
@@ -99,16 +102,28 @@ export default function BrainstormScene({ workspaceId, onDraftGenerated, referen
     )
   }
 
-  if (loading) return <div className="flex items-center justify-center h-full"><div className="text-center"><Loader2 className="w-8 h-8 animate-spin text-accent mx-auto mb-3" /><p className="text-inkLight text-sm">正在分析各 AI 的共识与分歧...</p></div></div>
+  if (loading) return (
+    <div className="flex flex-col h-full p-6 gap-6">
+      <div className="flex gap-2">
+        <div className="h-8 w-24 bg-gray-100 rounded-lg animate-pulse" />
+        <div className="h-8 w-32 bg-gray-100 rounded-lg animate-pulse" />
+        <div className="h-8 w-40 bg-gray-100 rounded-lg animate-pulse" />
+      </div>
+      <div className="space-y-4">
+        <div className="h-32 bg-gray-50 rounded-xl animate-pulse" />
+        <div className="h-32 bg-gray-50 rounded-xl animate-pulse" />
+      </div>
+    </div>
+  )
 
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
         <h3 className="text-sm font-semibold text-ink flex items-center gap-2"><MessageSquare className="w-4 h-4 text-accent" />头脑风暴</h3>
-        <button onClick={handleGenerate} disabled={generating} className="bg-accent text-white px-4 py-1.5 rounded-lg text-sm font-medium disabled:opacity-40 hover:bg-accent/90 transition">{generating ? '生成中...' : '生成决策建议'}</button>
+        <button onClick={handleGenerate}  className="bg-accent text-white px-4 py-1.5 rounded-lg text-sm font-medium disabled:opacity-40 hover:bg-accent/90 transition">生成决策建议</button>
       </div>
       <div className="flex-1 flex overflow-hidden">
-        <div className={`overflow-y-auto p-4 ${report ? 'w-3/5' : 'w-full'}`}>
+        <div className={`overflow-y-auto p-4 $'w-full'`}>
           <div className="flex gap-2 mb-4">
             <button onClick={() => setActiveTab('consensus')} className={`px-3 py-1.5 rounded-lg text-sm ${activeTab === 'consensus' ? 'bg-accent text-white' : 'bg-white border border-gray-200 text-inkLight'}`}>共识 ({(reflection?.strongConsensus?.length || 0) + (reflection?.weakConsensus?.length || 0)})</button>
             <button onClick={() => setActiveTab('divergent')} className={`px-3 py-1.5 rounded-lg text-sm ${activeTab === 'divergent' ? 'bg-accent text-white' : 'bg-white border border-gray-200 text-inkLight'}`}>差异化观点 ({reflection?.divergent?.length || 0})</button>
@@ -139,7 +154,7 @@ export default function BrainstormScene({ workspaceId, onDraftGenerated, referen
           <div className="mt-4 text-xs text-inkLight">已认同 {adopted.length} 个观点 · 已否定 {rejected.length} 个观点</div>
         </div>
 
-        {report && (<div className="w-2/5 border-l border-gray-200 bg-white p-4 overflow-y-auto"><div className="flex items-center justify-between mb-4"><h3 className="font-semibold text-ink text-sm">决策建议</h3><button onClick={() => navigator.clipboard.writeText(report)} className="text-xs text-inkLight hover:text-accent flex items-center gap-1"><Copy className="w-3 h-3" /> 复制</button></div><div className="prose prose-sm max-w-none"><ReactMarkdown remarkPlugins={[remarkGfm]}>{report}</ReactMarkdown></div></div>)}
+        
       </div>
     </div>
   )

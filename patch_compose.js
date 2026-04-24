@@ -1,75 +1,9 @@
-'use client'
+const fs = require('fs');
+let code = fs.readFileSync('src/components/scenes/ComposeScene.tsx', 'utf8');
 
-import { useEffect, useState } from 'react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import { Copy, Pencil, RotateCcw, Pin } from 'lucide-react'
-
-type ModelOutput = { model: string; content: string }
-
-
-interface ComposeSceneProps {
-  workspaceId: string
-  onDraftGenerated?: (content: string) => void
-  referencedRunIds?: string[]
-}
-
-export default function ComposeScene({ workspaceId, onDraftGenerated, referencedRunIds = [] }: ComposeSceneProps) {
-  const [loading, setLoading] = useState(true)
-  const [sceneId, setSceneId] = useState<string | null>(null)
-  const [modelOutputs, setModelOutputs] = useState<ModelOutput[]>([])
-    const [templateTitle, setTemplateTitle] = useState('')
-  const [templateStructure, setTemplateStructure] = useState('')
-  const [templateBody, setTemplateBody] = useState('')
-  const [templateExtra, setTemplateExtra] = useState('')
-  const [generating, setGenerating] = useState(false)
-  const [finalDraft, setFinalDraft] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!workspaceId) return
-    let cancelled = false
-    async function init() {
-      try {
-        setLoading(true)
-        const res = await fetch(`/api/workspaces/${workspaceId}/scenes/compose/init`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ referencedRunIds }),
-        })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error)
-        if (cancelled) return
-        setSceneId(data.sceneSessionId)
-        const outputMap = new Map<string, string[]>()
-        for (const p of data.paragraphs) { if (!outputMap.has(p.model)) outputMap.set(p.model, []); outputMap.get(p.model)!.push(p.text) }
-        const outputs: ModelOutput[] = []
-        for (const name of data.modelNames) { const parts = outputMap.get(name); if (parts) outputs.push({ model: name, content: parts.join('\n\n') }) }
-        setModelOutputs(outputs)
-      } catch (e) { if (!cancelled) alert(e instanceof Error ? e.message : '初始化失败') }
-      finally { if (!cancelled) setLoading(false) }
-    }
-    void init()
-    return () => { cancelled = true }
-  }, [workspaceId])
-
-  
-  async function handleGenerate() {
-    if (!sceneId) return
-    const hasContent = templateTitle.trim() || templateStructure.trim() || templateBody.trim()
-    if (!hasContent) { alert('请至少在一个栏位中粘贴内容'); return }
-    await fetch(`/api/scenes/${sceneId}/selections`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ starred: [], editedRows: { title: templateTitle, structure: templateStructure, body: templateBody, extra: templateExtra } }) })
-    try {
-      setGenerating(true)
-      const res = await fetch(`/api/scenes/${sceneId}/generate`, { method: 'POST' })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      setFinalDraft(data.content)
-      onDraftGenerated?.(data.content)
-    } catch (e) { alert(e instanceof Error ? e.message : '生成失败') }
-    finally { setGenerating(false) }
-  }
-
-  if (loading) return (
+// Replace loading UI
+code = code.replace(/if \(loading\) return <div className="flex items-center justify-center h-full"><div className="text-center"><Loader2 className="w-8 h-8 animate-spin text-accent mx-auto mb-3" \/><p className="text-inkLight text-sm">正在加载素材\.\.\.<\/p><\/div><\/div>/, 
+`if (loading) return (
     <div className="flex h-full">
       <div className="w-1/2 p-6 border-r border-gray-200 space-y-6">
         <div className="h-64 bg-gray-100 rounded-xl animate-pulse" />
@@ -81,29 +15,11 @@ export default function ComposeScene({ workspaceId, onDraftGenerated, referenced
         <div className="h-48 bg-gray-100 rounded-lg animate-pulse" />
       </div>
     </div>
-  )
+  )`);
 
-  if (finalDraft) {
-    return (
-      <div className="flex flex-col h-full">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
-          <h3 className="text-sm font-semibold text-ink flex items-center gap-2"><Pencil className="w-4 h-4 text-accent" />创意合成 — 最终稿</h3>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setFinalDraft(null)} className="text-sm text-inkLight hover:text-accent border border-gray-200 px-3 py-1 rounded-lg flex items-center gap-1"><RotateCcw className="w-3 h-3" /> 返回编辑</button>
-            <button onClick={() => handleGenerate()} className="text-sm text-inkLight hover:text-accent border border-gray-200 px-3 py-1 rounded-lg flex items-center gap-1"><RotateCcw className="w-3 h-3" /> 重新生成</button>
-            <button onClick={() => navigator.clipboard.writeText(finalDraft)} className="text-sm bg-accent text-white px-4 py-1 rounded-lg hover:bg-accent/90 flex items-center gap-1"><Copy className="w-3 h-3" /> 复制全文</button>
-          </div>
-        </div>
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-3xl mx-auto bg-white border border-gray-200 rounded-2xl p-8">
-            <div className="prose prose-sm max-w-none"><ReactMarkdown remarkPlugins={[remarkGfm]}>{finalDraft}</ReactMarkdown></div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  return (
+// Replace the main UI return structure
+const oldUIRegex = /return \(\n    <div className="flex flex-col h-full">[\s\S]*?<\/div>\n  \)\n\}/;
+const newUI = `return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
         <h3 className="text-sm font-semibold text-ink flex items-center gap-2"><Pencil className="w-4 h-4 text-accent" />创意合成</h3>
@@ -117,7 +33,7 @@ export default function ComposeScene({ workspaceId, onDraftGenerated, referenced
                 <span className="font-semibold text-sm text-ink">{output.model}</span>
                 <div className="flex items-center gap-3">
                   <button onClick={() => navigator.clipboard.writeText(output.content)} className="text-xs text-inkLight hover:text-accent flex items-center gap-1"><Copy className="w-3 h-3" />复制全文</button>
-                  <button onClick={() => window.dispatchEvent(new CustomEvent('gambit:pin-to-draft', { detail: { sourceType: 'compose', sourceId: `compose-${output.model}`, sourceLabel: output.model, content: output.content } }))} className="text-xs text-inkLight hover:text-accent flex items-center gap-1"><Pin className="w-3 h-3" />加入素材库</button>
+                  <button onClick={() => window.dispatchEvent(new CustomEvent('gambit:pin-to-draft', { detail: { sourceType: 'compose', sourceId: \`compose-\${output.model}\`, sourceLabel: output.model, content: output.content } }))} className="text-xs text-inkLight hover:text-accent flex items-center gap-1"><Pin className="w-3 h-3" />加入素材库</button>
                 </div>
               </div>
               <div className="p-4 overflow-y-auto max-h-[300px] text-sm text-ink">
@@ -142,4 +58,14 @@ export default function ComposeScene({ workspaceId, onDraftGenerated, referenced
       </div>
     </div>
   )
-}
+}`;
+
+code = code.replace(oldUIRegex, newUI);
+
+// We should also remove activeTab, applyAsBase from code
+code = code.replace(/const \[activeTab, setActiveTab\] = useState\(0\)\n/, '');
+code = code.replace(/function applyAsBase[\s\S]*?\}\n/, '');
+// Remove MODEL_COLORS
+code = code.replace(/const MODEL_COLORS[\s\S]*?\}\n/, '');
+
+fs.writeFileSync('src/components/scenes/ComposeScene.tsx', code);
