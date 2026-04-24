@@ -616,8 +616,11 @@ export default function WorkspacePage() {
                     <div className="space-y-3">
                       {observerObservations.map((obs, i) => (
                         <div key={i}>
-                          <div className="text-sm text-ink/80 leading-relaxed py-1">
-                            {obs}
+                          <div className="text-sm text-ink/80 leading-relaxed py-1 whitespace-pre-wrap">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
+                              p: ({children}) => <p className="my-1 leading-relaxed">{children}</p>,
+                              strong: ({children}) => <strong className="font-semibold text-ink">{children}</strong>,
+                            }}>{obs}</ReactMarkdown>
                           </div>
                           {i < observerObservations.length - 1 && <div className="h-px bg-gray-100 my-2" />}
                         </div>
