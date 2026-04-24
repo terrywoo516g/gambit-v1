@@ -22,6 +22,7 @@ type ChatMessage = {
   content: string
   referencedRunIds: string
   createdAt: string
+  modelName?: string // 扩展展示字段，可能前端组装时没有保存进 DB，但在内存中需要
 }
 
 type WorkspaceData = {
@@ -84,6 +85,7 @@ export default function WorkspacePage() {
   const [chatInput, setChatInput] = useState('')
   const [chatProcessing, setChatProcessing] = useState(false)
   const [streamingMessage, setStreamingMessage] = useState('')
+  const [streamingModelName, setStreamingModelName] = useState('DeepSeek V3.2')
   const [chatLimitReached, setChatLimitReached] = useState(false)
   
   const [activeRunId, setActiveRunId] = useState<string | null>(null)
@@ -232,7 +234,9 @@ export default function WorkspacePage() {
             if (!dataStr) continue
             try {
               const data = JSON.parse(dataStr)
-              if (data.type === 'delta') {
+              if (data.type === 'model_info') {
+                setStreamingModelName(data.modelName)
+              } else if (data.type === 'delta') {
                 assistantMsg += data.text
                 setStreamingMessage(assistantMsg)
               } else if (data.type === 'done') {
@@ -241,7 +245,8 @@ export default function WorkspacePage() {
                   role: 'assistant',
                   content: assistantMsg,
                   referencedRunIds: '[]',
-                  createdAt: new Date().toISOString()
+                  createdAt: new Date().toISOString(),
+                  modelName: data.modelName
                 }])
                 setStreamingMessage('')
                 
@@ -598,7 +603,7 @@ export default function WorkspacePage() {
                       {msg.role === 'assistant' && (
                         <div className="flex items-center gap-1.5 mb-1.5 text-xs text-accent font-medium">
                           <Zap className="w-3.5 h-3.5" />
-                          DeepSeek V3.2
+                          {msg.modelName || 'DeepSeek V3.2'}
                         </div>
                       )}
                       <div className="prose prose-sm max-w-none">
@@ -612,7 +617,7 @@ export default function WorkspacePage() {
                     <div className="max-w-[85%] rounded-2xl px-4 py-3 bg-white border border-gray-200 text-ink shadow-sm rounded-tl-sm">
                       <div className="flex items-center gap-1.5 mb-1.5 text-xs text-accent font-medium">
                         <Zap className="w-3.5 h-3.5" />
-                        DeepSeek V3.2
+                        {streamingModelName}
                       </div>
                       <div className="prose prose-sm max-w-none streaming-cursor">
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>{streamingMessage}</ReactMarkdown>
