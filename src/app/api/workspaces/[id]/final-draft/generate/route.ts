@@ -83,7 +83,9 @@ ${instruction || '（无）'}
           })
 
           for await (const chunk of aiStream) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'delta', text: chunk })}\n\n`))
+            if (chunk.type === 'token') {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'delta', text: chunk.data })}\n\n`))
+            }
           }
 
           if (mode === 'replace' || mode === 'append') {
