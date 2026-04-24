@@ -278,7 +278,8 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
               if (composeMode === 'preview') {
                 setComposePreview(fullText)
               } else {
-                editor.commands.setContent(fullText.replace(/\n/g, '<br/>'))
+                editor.commands.clearContent()
+                editor.commands.insertContent(fullText.replace(/\n/g, '<br/>'))
               }
             } else if (data.type === 'done') {
               // Done
