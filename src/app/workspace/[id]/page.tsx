@@ -761,6 +761,7 @@ export default function WorkspacePage() {
                           <div className="flex justify-start">
                             <ChatTurnCard
                               content={round.assistantMsg.content}
+                              roundIndex={round.roundIndex}
                               status="completed"
                               isReferenced={referencedRunIds.includes(round.assistantMsg.id)}
                               onToggleRef={() => toggleRef(round.assistantMsg!.id)}
@@ -774,6 +775,7 @@ export default function WorkspacePage() {
                           <div className="flex justify-start">
                             <ChatTurnCard
                               content={streamingMessage}
+                              roundIndex={round.roundIndex}
                               status="streaming"
                               isReferenced={false}
                               onToggleRef={() => {}}

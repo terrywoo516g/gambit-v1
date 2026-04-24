@@ -5,7 +5,7 @@ import { Copy, Pin } from 'lucide-react'
 
 type ChatTurnCardProps = {
   content: string
-  modelName?: string
+  roundIndex: number
   status: 'streaming' | 'completed' | 'error'
   isReferenced: boolean
   onToggleRef: () => void
@@ -15,7 +15,7 @@ type ChatTurnCardProps = {
 
 export default function ChatTurnCard({
   content,
-  modelName = 'DeepSeek V3.2',
+  roundIndex,
   status,
   isReferenced,
   onToggleRef,
@@ -28,7 +28,7 @@ export default function ChatTurnCard({
       <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
           <span className={`w-2 h-2 rounded-full ${status === 'streaming' ? 'bg-blue-400 animate-pulse' : status === 'error' ? 'bg-red-400' : 'bg-green-400'}`} />
-          <span className="font-medium text-sm text-ink">{modelName}</span>
+          <span className="font-medium text-sm text-ink">第 {roundIndex} 轮追问</span>
         </div>
         <span className={`text-xs px-2 py-0.5 rounded-full ${
           status === 'completed' ? 'bg-green-50 text-green-600' :
