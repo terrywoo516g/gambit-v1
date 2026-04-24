@@ -22,13 +22,6 @@ const ALL_MODELS = [
 
 const DEFAULT_SELECTED = ['DeepSeek V3.2', 'MiniMax M1', 'Qwen3 Max']
 
-const TOOL_MENU = [
-  { key: 'compose', label: '创意合成', desc: '多源创意整合' },
-  { key: 'brainstorm', label: '头脑风暴', desc: '共识/分歧/盲点' },
-  { key: 'review', label: '多AI审稿', desc: '多AI审阅文档' },
-  { key: 'compare', label: '多源对比', desc: '生成推荐报告' },
-]
-
 const TEMPLATES = [
   { tool: 'compose', label: '创意合成', text: '帮我写一篇小红书种草文案，主题是露营装备' },
   { tool: 'brainstorm', label: '头脑风暴', text: '我该不该从大厂跳槽去创业公司，帮我分析共识和分歧' },
@@ -46,7 +39,6 @@ export default function HomePage() {
   const [attachedDoc, setAttachedDoc] = useState<{ name: string; content: string; charCount: number } | null>(null)
   const [selectedModels, setSelectedModels] = useState<string[]>(DEFAULT_SELECTED)
   const [showModelPicker, setShowModelPicker] = useState(false)
-  const [showToolMenu, setShowToolMenu] = useState(false)
   const [loading, setLoading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -242,42 +234,8 @@ export default function HomePage() {
                   </>
                 )}
               </div>
-
-              {/* 工具按钮 */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowToolMenu(!showToolMenu)}
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-inkLight hover:text-ink hover:bg-gray-200/50 transition"
-                  title="选择工具"
-                >
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
-                </button>
-                {showToolMenu && (
-                  <>
-                    <div className="fixed inset-0 z-30" onClick={() => setShowToolMenu(false)} />
-                    <div className="absolute bottom-10 left-0 bg-white border border-gray-200 rounded-xl p-2 shadow-lg z-[100] w-60">
-                      {TOOL_MENU.map(t => (
-                        <button
-                          key={t.key}
-                          onClick={() => { 
-                            const tpl = TEMPLATES.find(x => x.tool === t.key)
-                            if (tpl) applyTemplate(tpl)
-                            setShowToolMenu(false) 
-                          }}
-                          className={`block w-full text-left px-3 py-2.5 text-sm rounded-lg transition text-ink hover:bg-gray-50`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span>{t.label}</span>
-                            <span className="text-xs ml-auto text-gray-400">{t.desc}</span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
             </div>
-            
+
             {/* 麦克风容器 */}
             <div className="absolute right-3 bottom-3 flex items-center">
               <button
