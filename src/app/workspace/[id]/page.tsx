@@ -108,11 +108,25 @@ export default function WorkspacePage() {
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set())
   const [expandedRounds, setExpandedRounds] = useState<Set<number>>(new Set())
 
+  const runsToStream = workspace?.modelRuns
+    ?.filter(r => r.status === 'queued' || r.status === 'running')
+    ?.map(r => ({ id: r.id, model: r.model })) ?? []
+
+  const { streams, allDone, completedCount, total } = useMultiStream(
+    runsToStream.length > 0 ? wsId : null,
+    runsToStream
+  )
+
   // Monitor modelRuns completion for Summary Card
   useEffect(() => {
     if (!SHOW_SUMMARY || !workspace || summaryData || summaryLoading) return
-    const runs = workspace.modelRuns
-    if (runs.length > 0 && runs.every(r => r.status === 'completed')) {
+    // Wait until all runs are actually complete (total runs > 0 and streams are finished)
+    // Actually we can check if there are no pending runs and at least one completed run.
+    const hasCompleted = workspace.modelRuns.some(r => r.status === 'completed')
+    const allAreCompleted = workspace.modelRuns.length > 0 && workspace.modelRuns.every(r => r.status === 'completed' || r.status === 'failed')
+    const shouldFetch = allAreCompleted && hasCompleted
+
+    if (shouldFetch) {
       const fetchSummary = async () => {
         setSummaryLoading(true)
         try {
@@ -129,7 +143,7 @@ export default function WorkspacePage() {
       }
       fetchSummary()
     }
-  }, [workspace, summaryData, summaryLoading, wsId])
+  }, [workspace, summaryData, summaryLoading, wsId, allDone])
 
   useEffect(() => {
     if (!wsId) return
@@ -170,15 +184,6 @@ export default function WorkspacePage() {
     }
     void load()
   }, [wsId])
-
-  const runsToStream = workspace?.modelRuns
-    ?.filter(r => r.status === 'queued' || r.status === 'running')
-    ?.map(r => ({ id: r.id, model: r.model })) ?? []
-
-  const { streams, allDone, completedCount, total } = useMultiStream(
-    runsToStream.length > 0 ? wsId : null,
-    runsToStream
-  )
 
   function getContent(run: { id: string; content: string }): string {
     if (streams[run.id]?.content) return streams[run.id].content
