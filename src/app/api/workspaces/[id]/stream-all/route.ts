@@ -110,7 +110,7 @@ export async function GET(
                 const stream = streamChat({
                   model: modelInfo.apiId,
                   messages: [{ role: 'user', content: workspace.prompt }],
-                  provider: CLIENT_REGISTRY[run.model]?.provider || 'qiniu',
+                  provider: (CLIENT_REGISTRY[run.model]?.provider || modelInfo.provider?.toLowerCase() === 'volcano' ? 'volcano' : 'qiniu') as any,
                 })
 
                 for await (const chunk of stream) {
@@ -124,7 +124,7 @@ export async function GET(
                     tokensIn = chunk.data.tokensIn ?? 0
                     tokensOut = chunk.data.tokensOut ?? 0
                   } else if (chunk.type === 'error') {
-                    throw new Error(chunk.data || 'Stream error from LLM')
+                    throw new Error(String(chunk.data) || 'Stream error from LLM')
                   }
                 }
 
