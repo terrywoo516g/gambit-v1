@@ -8,7 +8,7 @@ import remarkGfm from 'remark-gfm'
 import { 
   ArrowLeft, Eye, Copy, Send, Loader2,
   LayoutGrid, MessageSquare, Pencil, FileCheck, 
-  FileText, Pin, RefreshCw, X, 
+  FileText, Pin, RefreshCw, X, Maximize2, Minimize2, 
 } from 'lucide-react'
 
 import CompareScene from '@/components/scenes/CompareScene'
@@ -66,39 +66,48 @@ const MODEL_STATUS_COLORS: Record<string, string> = {
 type StepKey = 'models' | 'scene' | 'output'
 
 
-function AICard({ run, status, content, activeRunId, referencedRunIds, retryRun, toggleRef }: any) {
+function AICard({ run, status, content, activeRunId, referencedRunIds, retryRun, toggleRef, isMaximized, onToggleMaximize }: any) {
   const [expanded, setExpanded] = useState(false)
   const totalLength = content ? content.length : 0
 
-  const displayContent = (!expanded && content && content.length > 68)
-    ? content.substring(0, 68) + '...'
-    : content
+  const displayContent = (isMaximized || expanded) ? content : (!expanded && content && content.length > 68 ? content.substring(0, 68) + '...' : content)
 
   return (
-    <div id={'run-' + run.id}
+    <div id={isMaximized ? 'run-max-' + run.id : 'run-' + run.id}
       className={`bg-white border rounded-2xl flex flex-col shadow-sm transition ${
-        activeRunId === run.id ? 'border-accent ring-1 ring-accent/20' : 'border-gray-200'
-      }`} style={{ minHeight: '130px' }}>
+        isMaximized ? 'h-full shadow-2xl ring-1 ring-black/5 border-none' : (activeRunId === run.id ? 'border-accent ring-1 ring-accent/20' : 'border-gray-200')
+      }`} style={isMaximized ? undefined : { minHeight: '130px' }}>
       <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
           <span className={`w-2 h-2 rounded-full ${MODEL_STATUS_COLORS[status] || 'bg-gray-300'}`} />
           <span className="font-medium text-sm text-ink">{run.model}</span>
         </div>
-        <span className={`text-xs px-2 py-0.5 rounded-full ${
-          status === 'done' || status === 'completed' ? 'bg-green-50 text-green-600' :
-          status === 'error' || status === 'failed' ? 'bg-red-50 text-red-600' :
-          status === 'retrying' ? 'bg-yellow-50 text-yellow-600' :
-          status === 'streaming' || status === 'running' ? 'bg-blue-50 text-blue-600' :
-          'bg-gray-50 text-gray-400'
-        }`}>
-          {status === 'done' || status === 'completed' ? '已完成' :
-          status === 'error' || status === 'failed' ? '失败' :
-          status === 'retrying' ? '重试中...' :
-          status === 'streaming' || status === 'running' ? '生成中...' : '等待中'}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={`text-xs px-2 py-0.5 rounded-full ${
+            status === 'done' || status === 'completed' ? 'bg-green-50 text-green-600' :
+            status === 'error' || status === 'failed' ? 'bg-red-50 text-red-600' :
+            status === 'retrying' ? 'bg-yellow-50 text-yellow-600' :
+            status === 'streaming' || status === 'running' ? 'bg-blue-50 text-blue-600' :
+            'bg-gray-50 text-gray-400'
+          }`}>
+            {status === 'done' || status === 'completed' ? '已完成' :
+            status === 'error' || status === 'failed' ? '失败' :
+            status === 'retrying' ? '重试中...' :
+            status === 'streaming' || status === 'running' ? '生成中...' : '等待中'}
+          </span>
+          {(status === 'done' || status === 'completed') && (
+            <button 
+              onClick={onToggleMaximize}
+              className="text-gray-400 hover:text-ink transition p-0.5 rounded hover:bg-gray-100"
+              title={isMaximized ? "恢复" : "全屏放大"}
+            >
+              {isMaximized ? <Minimize2 className="w-[14px] h-[14px]" /> : <Maximize2 className="w-[14px] h-[14px]" />}
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="px-4 py-3 flex-1 text-sm flex flex-col">
+      <div className="px-4 py-3 flex-1 text-sm flex flex-col overflow-hidden">
         {!content && (status === 'queued' || status === 'streaming' || status === 'running') && (
           <div className="space-y-2">
             <div className="h-3 w-48 animate-pulse rounded bg-gray-100" />
@@ -115,7 +124,7 @@ function AICard({ run, status, content, activeRunId, referencedRunIds, retryRun,
         
         {content && (
           <>
-            <div className={`overflow-y-auto ${status === 'streaming' || status === 'running' ? 'streaming-cursor' : ''}`} style={expanded ? { maxHeight: '280px' } : undefined}>
+            <div className={`overflow-y-auto ${status === 'streaming' || status === 'running' ? 'streaming-cursor' : ''}`} style={isMaximized ? { height: '100%' } : (expanded ? { maxHeight: '280px' } : undefined)}>
               <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
                 p: ({children}) => <p className="my-1 leading-relaxed">{children}</p>,
                 h1: ({children}) => <h1 className="text-lg font-bold my-2">{children}</h1>,
@@ -129,7 +138,7 @@ function AICard({ run, status, content, activeRunId, referencedRunIds, retryRun,
               }}>{displayContent}</ReactMarkdown>
             </div>
 
-            {content.length > 68 && (
+            {content.length > 68 && !isMaximized && (
               <button onClick={() => setExpanded(!expanded)} className="mt-3 w-full py-1.5 text-xs text-inkLight hover:text-ink bg-gray-50 hover:bg-gray-100 rounded-lg transition flex items-center justify-center shrink-0">
                 {expanded ? '收起 ↑' : '展开全文 ↓'}
               </button>
@@ -206,6 +215,7 @@ export default function WorkspacePage() {
   const [streamingMessage, setStreamingMessage] = useState('')
   const [chatLimitReached, setChatLimitReached] = useState(false)
   
+  const [maximizedRunId, setMaximizedRunId] = useState<string | null>(null)
   const [activeRunId, setActiveRunId] = useState<string | null>(null)
 
 
@@ -667,7 +677,7 @@ export default function WorkspacePage() {
       </aside>
 
       {/* ===== 中栏 ===== */}
-      <section className="flex min-w-0 flex-1 flex-col">
+      <section className="flex min-w-0 flex-1 flex-col relative">
         <div className="h-11 shrink-0 border-b border-gray-200 bg-white/90 backdrop-blur-sm px-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
@@ -726,7 +736,7 @@ export default function WorkspacePage() {
                             }} className="text-xs text-inkLight hover:text-ink">收起</button>
                           </div>
                           {/* 渲染完整的展开卡片 */}
-                          <AICard run={run} status={status} content={content} activeRunId={activeRunId} referencedRunIds={referencedRunIds} retryRun={retryRun} toggleRef={toggleRef} />
+                          <AICard run={run} status={status} content={content} activeRunId={activeRunId} referencedRunIds={referencedRunIds} retryRun={retryRun} toggleRef={toggleRef} onToggleMaximize={() => setMaximizedRunId(run.id)} />
                         </div>
                       ) : (
                         <button key={run.id} onClick={() => {
@@ -758,7 +768,7 @@ export default function WorkspacePage() {
                       const content = getContent(run)
                       const status = getStatus(run)
                       return (
-                        <AICard key={run.id} run={run} status={status} content={content} activeRunId={activeRunId} referencedRunIds={referencedRunIds} retryRun={retryRun} toggleRef={toggleRef} />
+                        <AICard key={run.id} run={run} status={status} content={content} activeRunId={activeRunId} referencedRunIds={referencedRunIds} retryRun={retryRun} toggleRef={toggleRef} onToggleMaximize={() => setMaximizedRunId(run.id)} />
                       )
                     })}
                   </div>
@@ -1028,6 +1038,28 @@ export default function WorkspacePage() {
               </div>
             </div>
         </div>
+      
+        {maximizedRunId && runs.find(r => r.id === maximizedRunId) && (() => {
+          const run = runs.find(r => r.id === maximizedRunId)!
+          const content = getContent(run)
+          const status = getStatus(run)
+          return (
+            <div className="absolute inset-0 z-50 bg-gray-50/90 backdrop-blur-sm p-6 flex flex-col animate-in fade-in zoom-in-95 duration-200">
+              <AICard 
+                key={`max-${run.id}`} 
+                run={run} 
+                status={status} 
+                content={content} 
+                activeRunId={activeRunId} 
+                referencedRunIds={referencedRunIds} 
+                retryRun={retryRun} 
+                toggleRef={toggleRef} 
+                isMaximized={true}
+                onToggleMaximize={() => setMaximizedRunId(null)}
+              />
+            </div>
+          )
+        })()}
       </section>
 
       {/* ===== 右栏：最终稿预览 ===== */}
