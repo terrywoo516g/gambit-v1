@@ -1,7 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { AlertTriangle, Paperclip, X } from 'lucide-react'
+import { toast } from '@/components/Toast'
 
 const ALL_MODELS = [
   { id: 'DeepSeek V3.2', provider: 'DeepSeek', short: 'DeepSeek V3.2' },
@@ -42,6 +44,7 @@ function getShortName(id: string): string {
 export default function HomePage() {
   const router = useRouter()
   const [text, setText] = useState('')
+  const [attachedDoc, setAttachedDoc] = useState<{ name: string; charCount: number } | null>(null)
   const [selectedModels, setSelectedModels] = useState<string[]>(DEFAULT_SELECTED)
   const [favorites, setFavorites] = useState<string[]>(DEFAULT_FAVORITES)
   const [selectedTool, setSelectedTool] = useState<string | null>(null)
@@ -50,6 +53,7 @@ export default function HomePage() {
   const [showAgentSearch, setShowAgentSearch] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   function toggleModel(model: string) {
     setSelectedModels(prev =>
@@ -226,6 +230,28 @@ export default function HomePage() {
               )}
             </div>
 
+            {attachedDoc && (
+              <div className="px-2 pb-2">
+                <span className="inline-flex items-center gap-1.5 bg-gray-50 text-inkLight rounded-full px-2.5 py-1 text-xs font-medium border border-gray-200">
+                  <Paperclip className="w-3.5 h-3.5 text-inkLight" />
+                  已附加文档：{attachedDoc.name} · {attachedDoc.charCount}字
+                  <button
+                    onClick={() => {
+                      const sep = '\n---\n'
+                      const idx = text.indexOf(sep)
+                      const next = idx >= 0 ? text.slice(idx + sep.length) : ''
+                      setText(next)
+                      setAttachedDoc(null)
+                    }}
+                    className="ml-1 text-inkLight hover:text-ink transition"
+                    aria-label="移除文档"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </span>
+              </div>
+            )}
+
             {/* 文本输入 */}
             <textarea
               value={text}
@@ -245,11 +271,41 @@ export default function HomePage() {
               {/* 附件按钮 */}
               <button
                 className="w-8 h-8 rounded-full flex items-center justify-center text-inkLight hover:text-ink hover:bg-gray-200/50 transition"
-                title="添加文件（即将支持）"
-                onClick={() => alert('文件上传功能即将支持')}
+                title="添加 txt/md 文件"
+                onClick={() => fileInputRef.current?.click()}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 5v14M5 12h14" /></svg>
               </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".txt,.md"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0]
+                  e.target.value = ''
+                  if (!file) return
+
+                  const name = file.name || ''
+                  const lower = name.toLowerCase()
+                  const isTxt = lower.endsWith('.txt')
+                  const isMd = lower.endsWith('.md')
+                  if (!isTxt && !isMd) {
+                    toast.info('暂仅支持 txt/md 文件，pdf/docx 支持即将上线')
+                    return
+                  }
+                  if (file.size > 500 * 1024) {
+                    toast.error('文件过大，请上传 500KB 以内的 txt/md 文件')
+                    return
+                  }
+
+                  const content = await file.text()
+                  const header = `【参考文档：${name}】\n${content}`
+                  const nextText = text.trim() ? `${header}\n---\n${text}` : header
+                  setText(nextText)
+                  setAttachedDoc({ name, charCount: content.length })
+                }}
+              />
 
               {/* @ 选模型按钮 */}
               <div className="relative">
@@ -329,14 +385,22 @@ export default function HomePage() {
         </div>
 
         {/* 开始生成按钮 */}
-        <button
-          onClick={() => handleSubmit()}
-          disabled={loading || !text.trim() || selectedModels.length < 2}
-          className="mt-4 bg-ink text-white px-8 py-2.5 rounded-full text-sm font-medium disabled:opacity-30 hover:bg-ink/85 transition flex items-center gap-2 shadow-sm"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-          {loading ? '正在创建...' : '开始生成分歧'}
-        </button>
+        <div className="mt-4 flex items-center gap-3">
+          <button
+            onClick={() => handleSubmit()}
+            disabled={loading || !text.trim() || selectedModels.length < 2}
+            className="bg-ink text-white px-8 py-2.5 rounded-full text-sm font-medium disabled:opacity-30 hover:bg-ink/85 transition flex items-center gap-2 shadow-sm"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            {loading ? '正在创建...' : '开始生成分歧'}
+          </button>
+          {text.length > 50000 && (
+            <span className="text-xs text-orange-600 bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-full flex items-center gap-1.5">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              内容较长，可能影响 AI 响应速度
+            </span>
+          )}
+        </div>
 
         {/* 模板卡片 */}
         <div className="w-full max-w-4xl mt-5 grid grid-cols-2 gap-2">
