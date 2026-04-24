@@ -15,7 +15,6 @@ model Workspace {
   status         String         @default("pending") // pending / running / completed / archived
   title          String         @default("新工作台")
   recommendScene String?        // compare / brainstorm / compose / review
-  summaryCache   String?        // 全局总结卡缓存 JSON
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   modelRuns      ModelRun[]

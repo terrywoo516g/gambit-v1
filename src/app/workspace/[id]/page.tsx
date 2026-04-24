@@ -70,7 +70,152 @@ const MODEL_STATUS_COLORS: Record<string, string> = {
 
 type StepKey = 'models' | 'scene' | 'output'
 
-const SHOW_SUMMARY = true
+
+function AICard({ run, status, content, activeRunId, referencedRunIds, retryRun, toggleRef }: any) {
+  let summary = ''
+  let body = ''
+  let sec = 'pending'
+  
+  if (content) {
+    const lines = content.split('\n')
+    for (const line of lines) {
+      if (line.trim() === '[摘要]') {
+        sec = 'summary'
+        continue
+      }
+      if (line.trim() === '[正文]') {
+        sec = 'body'
+        continue
+      }
+      if (sec === 'summary') summary += line + '\n'
+      else if (sec === 'body') body += line + '\n'
+      else if (line.trim()) summary += line + '\n'
+    }
+  }
+
+  summary = summary.trim()
+  body = body.trim()
+  const totalLength = summary.length + body.length
+
+  const [expanded, setExpanded] = useState(false)
+  
+  useEffect(() => {
+    if (sec === 'body' && (status === 'streaming' || status === 'running')) {
+      setExpanded(true)
+    }
+  }, [sec, status])
+
+  return (
+    <div id={'run-' + run.id}
+      className={`bg-white border rounded-2xl flex flex-col shadow-sm transition ${
+        activeRunId === run.id ? 'border-accent ring-1 ring-accent/20' : 'border-gray-200'
+      }`} style={{ minHeight: '180px' }}>
+      <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-2">
+          <span className={`w-2 h-2 rounded-full ${MODEL_STATUS_COLORS[status] || 'bg-gray-300'}`} />
+          <span className="font-medium text-sm text-ink">{run.model}</span>
+        </div>
+        <span className={`text-xs px-2 py-0.5 rounded-full ${
+          status === 'done' || status === 'completed' ? 'bg-green-50 text-green-600' :
+          status === 'error' || status === 'failed' ? 'bg-red-50 text-red-600' :
+          status === 'retrying' ? 'bg-yellow-50 text-yellow-600' :
+          status === 'streaming' || status === 'running' ? 'bg-blue-50 text-blue-600' :
+          'bg-gray-50 text-gray-400'
+        }`}>
+          {status === 'done' || status === 'completed' ? '已完成' :
+          status === 'error' || status === 'failed' ? '失败' :
+          status === 'retrying' ? '重试中...' :
+          status === 'streaming' || status === 'running' ? '生成中...' : '等待中'}
+        </span>
+      </div>
+
+      <div className="px-4 py-3 flex-1 text-sm flex flex-col">
+        {!content && (status === 'queued' || status === 'streaming' || status === 'running') && (
+          <div className="space-y-2">
+            <div className="h-3 w-48 animate-pulse rounded bg-gray-100" />
+            <div className="h-3 w-36 animate-pulse rounded bg-gray-100" />
+            <div className="h-3 w-52 animate-pulse rounded bg-gray-100" />
+          </div>
+        )}
+        {status === 'retrying' && !content && (
+          <div className="flex items-center gap-2 text-yellow-600 text-sm">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span>请求超时，正在自动重试...</span>
+          </div>
+        )}
+        
+        {content && (
+          <>
+            <div className={`text-gray-500 ${sec === 'summary' && (status === 'streaming' || status === 'running') ? 'streaming-cursor' : ''}`}>
+              {summary || (sec === 'summary' && <span className="animate-pulse">...</span>)}
+            </div>
+
+            {expanded && (
+              <div className={`mt-2 pt-2 border-t border-gray-100 overflow-y-auto ${sec === 'body' && (status === 'streaming' || status === 'running') ? 'streaming-cursor' : ''}`} style={{ maxHeight: '280px' }}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
+                  p: ({children}) => <p className="my-1 leading-relaxed">{children}</p>,
+                  h1: ({children}) => <h1 className="text-lg font-bold my-2">{children}</h1>,
+                  h2: ({children}) => <h2 className="text-base font-bold my-2">{children}</h2>,
+                  h3: ({children}) => <h3 className="text-sm font-semibold my-1">{children}</h3>,
+                  ul: ({children}) => <ul className="list-disc pl-4 my-1">{children}</ul>,
+                  ol: ({children}) => <ol className="list-decimal pl-4 my-1">{children}</ol>,
+                  li: ({children}) => <li className="leading-relaxed">{children}</li>,
+                  strong: ({children}) => <strong className="font-semibold">{children}</strong>,
+                  code: ({children}) => <code className="bg-gray-100 px-1 rounded text-xs font-mono">{children}</code>,
+                }}>{body}</ReactMarkdown>
+              </div>
+            )}
+
+            {body && (
+              <button onClick={() => setExpanded(!expanded)} className="mt-3 w-full py-1.5 text-xs text-inkLight hover:text-ink bg-gray-50 hover:bg-gray-100 rounded-lg transition flex items-center justify-center">
+                {expanded ? '收起 ↑' : '展开全文 ↓'}
+              </button>
+            )}
+          </>
+        )}
+
+        {(status === 'error' || status === 'failed') && !content && (
+          <div className="text-center py-4">
+            <div className="text-red-500 text-sm mb-3">生成失败</div>
+            <button
+              onClick={() => retryRun(run.id)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm bg-accent text-white rounded-lg hover:bg-accent/90 transition"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+              重新生成
+            </button>
+          </div>
+        )}
+      </div>
+
+      {(status === 'done' || status === 'completed') && content && (
+        <div className="px-4 py-2 border-t border-gray-100 flex items-center justify-between shrink-0">
+          <span className="text-xs text-inkLight">{totalLength} 字</span>
+          <div className="flex items-center gap-3">
+          <button
+            onClick={() => toggleRef(run.id)}
+            className={`text-xs transition flex items-center gap-1 ${
+              referencedRunIds.includes(run.id)
+                ? 'text-accent font-medium'
+                : 'text-inkLight hover:text-accent'
+            }`}
+          >
+            {referencedRunIds.includes(run.id) ? '✓ 已引用' : '@ 引用'}
+          </button>
+          <button onClick={() => navigator.clipboard.writeText(body || summary)}
+            className="text-xs text-inkLight hover:text-accent transition flex items-center gap-1">
+            <Copy className="w-3 h-3" /> 复制
+          </button>
+          <button onClick={() => window.dispatchEvent(new CustomEvent('gambit:pin-to-draft', { detail: { sourceType: 'card', sourceId: run.id, sourceLabel: run.model, content: body || summary } }))}
+            className="text-xs text-inkLight hover:text-accent transition flex items-center gap-1">
+            <Pin className="w-3 h-3" /> 加入最终稿
+          </button>
+        </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function WorkspacePage() {
   const params = useParams<{ id: string }>()
@@ -79,10 +224,6 @@ export default function WorkspacePage() {
 
   const [workspace, setWorkspace] = useState<WorkspaceData | null>(null)
   const [loading, setLoading] = useState(true)
-
-  // 全局总结卡状态
-  const [summaryData, setSummaryData] = useState<{ consensus: string[], divergence: string, takeaway: string } | null>(null)
-  const [summaryLoading, setSummaryLoading] = useState(false)
 
   const [observerObservations, setObserverObservations] = useState<Observation[]>([])
   const [observerLoading, setObserverLoading] = useState(false)
@@ -117,52 +258,6 @@ export default function WorkspacePage() {
     runsToStream
   )
 
-  // Monitor modelRuns completion for Summary Card
-  useEffect(() => {
-    if (!SHOW_SUMMARY || !workspace || summaryData || summaryLoading) return
-    
-    const runs = workspace.modelRuns || []
-    if (runs.length === 0) return
-
-    const hasInitialPending = runs.some(r => r.status === 'queued' || r.status === 'running')
-    const isStreamingDone = hasInitialPending ? allDone : true
-    const hasAnyCompleted = runs.some(r => r.status === 'completed') || completedCount > 0
-
-    const shouldFetch = isStreamingDone && hasAnyCompleted
-
-    if (shouldFetch) {
-      const fetchSummary = async () => {
-        setSummaryLoading(true)
-        try {
-          const payload = {
-            runs: runs.map(r => {
-              const stream = Object.values(streams).find(s => s.runId === r.id)
-              return {
-                model: r.model,
-                content: stream ? stream.content : r.content
-              }
-            }).filter(r => r.content)
-          }
-
-          const res = await fetch(`/api/workspaces/${wsId}/summary`, { 
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          })
-          if (res.ok) {
-            const data = await res.json()
-            setSummaryData(data)
-          }
-        } catch (e) {
-          console.error('Failed to fetch summary', e)
-        } finally {
-          setSummaryLoading(false)
-        }
-      }
-      fetchSummary()
-    }
-  }, [workspace, summaryData, summaryLoading, wsId, allDone, completedCount, streams])
-
   useEffect(() => {
     if (!wsId) return
     async function load() {
@@ -175,11 +270,6 @@ export default function WorkspacePage() {
         const wsData = await wsRes.json()
         if (wsRes.ok) {
         setWorkspace(wsData.workspace)
-        if (wsData.workspace.summaryCache) {
-          try {
-            setSummaryData(JSON.parse(wsData.workspace.summaryCache))
-          } catch {}
-        }
       }
 
         const latest = wsData.workspace.sceneSessions
@@ -635,42 +725,7 @@ export default function WorkspacePage() {
         <div className="flex-1 overflow-hidden flex flex-col">
           {activeStep === 'models' && !activeScene && (
             <div className="flex-1 overflow-y-auto px-6 py-4">
-              {/* 全局总结卡 */}
-              {SHOW_SUMMARY && (summaryLoading || summaryData) && (
-                <div className="mb-4 bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative overflow-hidden">
-                  <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-green-500" />
-                  <div className="text-xs font-semibold text-gray-400 mb-3 tracking-wider">AI 共识</div>
-                  
-                  {summaryLoading && !summaryData ? (
-                    <div className="space-y-2 animate-pulse">
-                      <div className="h-4 bg-gray-100 rounded w-3/4"></div>
-                      <div className="h-4 bg-gray-100 rounded w-5/6"></div>
-                      <div className="h-4 bg-gray-100 rounded w-2/3"></div>
-                    </div>
-                  ) : summaryData ? (
-                    <div className="space-y-3">
-                      <ul className="space-y-2">
-                        {summaryData.consensus?.map((c, i) => (
-                          <li key={i} className="flex items-start gap-2 text-sm text-ink/90 leading-relaxed">
-                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0 mt-1.5" />
-                            {c}
-                          </li>
-                        ))}
-                      </ul>
-                      <div className="text-sm">
-                        <span className="font-semibold text-orange-600 mr-2">主要分歧：</span>
-                        <span className="text-ink/90">{summaryData.divergence}</span>
-                      </div>
-                      <div className="text-sm">
-                        <span className="font-bold text-ink mr-2">结论：</span>
-                        <span className="text-ink font-semibold">{summaryData.takeaway}</span>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              )}
-
-              {isCardsCollapsed ? (
+                            {isCardsCollapsed ? (
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-2">
                     <div className="text-[10px] font-mono text-black/30 tracking-wider">AI 回答</div>
@@ -700,75 +755,7 @@ export default function WorkspacePage() {
                             }} className="text-xs text-inkLight hover:text-ink">收起</button>
                           </div>
                           {/* 渲染完整的展开卡片 */}
-                          <div className="bg-white border border-gray-200 rounded-2xl flex flex-col shadow-sm" style={{ minHeight: '180px', maxHeight: '320px' }}>
-                            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between shrink-0">
-                              <div className="flex items-center gap-2">
-                                <span className={`w-2 h-2 rounded-full ${MODEL_STATUS_COLORS[status] || 'bg-gray-300'}`} />
-                                <span className="font-medium text-sm text-ink">{run.model}</span>
-                              </div>
-                              <span className={`text-xs px-2 py-0.5 rounded-full ${
-                                status === 'done' || status === 'completed' ? 'bg-green-50 text-green-600' :
-                                status === 'error' || status === 'failed' ? 'bg-red-50 text-red-600' :
-                                status === 'retrying' ? 'bg-yellow-50 text-yellow-600' :
-                                status === 'streaming' || status === 'running' ? 'bg-blue-50 text-blue-600' :
-                                'bg-gray-50 text-gray-400'
-                              }`}>
-                                {status === 'done' || status === 'completed' ? '已完成' :
-                                status === 'error' || status === 'failed' ? '失败' :
-                                status === 'retrying' ? '重试中...' :
-                                status === 'streaming' || status === 'running' ? '生成中...' : '等待中'}
-                              </span>
-                            </div>
-                            <div className="px-4 py-3 flex-1 overflow-y-auto text-sm">
-                              {!content && (status === 'queued' || status === 'streaming' || status === 'running') && (
-                                <div className="space-y-2">
-                                  <div className="h-3 w-48 animate-pulse rounded bg-gray-100" />
-                                  <div className="h-3 w-36 animate-pulse rounded bg-gray-100" />
-                                  <div className="h-3 w-52 animate-pulse rounded bg-gray-100" />
-                                </div>
-                              )}
-                              {content && (
-                                <div className={status === 'streaming' || status === 'running' ? 'streaming-cursor' : ''}>
-                                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
-                                    p: ({children}) => <p className="my-1 leading-relaxed">{children}</p>,
-                                    h1: ({children}) => <h1 className="text-lg font-bold my-2">{children}</h1>,
-                                    h2: ({children}) => <h2 className="text-base font-bold my-2">{children}</h2>,
-                                    h3: ({children}) => <h3 className="text-sm font-semibold my-1">{children}</h3>,
-                                    ul: ({children}) => <ul className="list-disc pl-4 my-1">{children}</ul>,
-                                    ol: ({children}) => <ol className="list-decimal pl-4 my-1">{children}</ol>,
-                                    li: ({children}) => <li className="leading-relaxed">{children}</li>,
-                                    strong: ({children}) => <strong className="font-semibold">{children}</strong>,
-                                    code: ({children}) => <code className="bg-gray-100 px-1 rounded text-xs font-mono">{children}</code>,
-                                  }}>{content}</ReactMarkdown>
-                                </div>
-                              )}
-                            </div>
-                            {(status === 'done' || status === 'completed') && content && (
-                              <div className="px-4 py-2 border-t border-gray-100 flex items-center justify-between shrink-0">
-                                <span className="text-xs text-inkLight">{content.length} 字</span>
-                                <div className="flex items-center gap-3">
-                                <button
-                                  onClick={() => toggleRef(run.id)}
-                                  className={`text-xs transition flex items-center gap-1 ${
-                                    referencedRunIds.includes(run.id)
-                                      ? 'text-accent font-medium'
-                                      : 'text-inkLight hover:text-accent'
-                                  }`}
-                                >
-                                  {referencedRunIds.includes(run.id) ? '✓ 已引用' : '@ 引用'}
-                                </button>
-                                <button onClick={() => navigator.clipboard.writeText(content)}
-                                  className="text-xs text-inkLight hover:text-accent transition flex items-center gap-1">
-                                  <Copy className="w-3 h-3" /> 复制
-                                </button>
-                                <button onClick={() => window.dispatchEvent(new CustomEvent('gambit:pin-to-draft', { detail: { sourceType: 'card', sourceId: run.id, sourceLabel: run.model, content } }))}
-                                  className="text-xs text-inkLight hover:text-accent transition flex items-center gap-1">
-                                  <Pin className="w-3 h-3" /> 加入最终稿
-                                </button>
-                              </div>
-                              </div>
-                            )}
-                          </div>
+                          <AICard run={run} status={status} content={content} activeRunId={activeRunId} referencedRunIds={referencedRunIds} retryRun={retryRun} toggleRef={toggleRef} />
                         </div>
                       ) : (
                         <button key={run.id} onClick={() => {
@@ -800,96 +787,7 @@ export default function WorkspacePage() {
                       const content = getContent(run)
                       const status = getStatus(run)
                       return (
-                        <div key={run.id} id={'run-' + run.id}
-                          className={`bg-white border rounded-2xl flex flex-col shadow-sm transition ${
-                            activeRunId === run.id ? 'border-accent ring-1 ring-accent/20' : 'border-gray-200'
-                          }`} style={{ minHeight: '180px', maxHeight: '320px' }}>
-                          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between shrink-0">
-                            <div className="flex items-center gap-2">
-                              <span className={`w-2 h-2 rounded-full ${MODEL_STATUS_COLORS[status] || 'bg-gray-300'}`} />
-                              <span className="font-medium text-sm text-ink">{run.model}</span>
-                            </div>
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${
-                              status === 'done' || status === 'completed' ? 'bg-green-50 text-green-600' :
-                              status === 'error' || status === 'failed' ? 'bg-red-50 text-red-600' :
-                              status === 'retrying' ? 'bg-yellow-50 text-yellow-600' :
-                              status === 'streaming' || status === 'running' ? 'bg-blue-50 text-blue-600' :
-                              'bg-gray-50 text-gray-400'
-                            }`}>
-                              {status === 'done' || status === 'completed' ? '已完成' :
-                              status === 'error' || status === 'failed' ? '失败' :
-                              status === 'retrying' ? '重试中...' :
-                              status === 'streaming' || status === 'running' ? '生成中...' : '等待中'}
-                            </span>
-                          </div>
-                          <div className="px-4 py-3 flex-1 overflow-y-auto text-sm">
-                            {!content && (status === 'queued' || status === 'streaming' || status === 'running') && (
-                              <div className="space-y-2">
-                                <div className="h-3 w-48 animate-pulse rounded bg-gray-100" />
-                                <div className="h-3 w-36 animate-pulse rounded bg-gray-100" />
-                                <div className="h-3 w-52 animate-pulse rounded bg-gray-100" />
-                              </div>
-                            )}
-                            {status === 'retrying' && !content && (
-                              <div className="flex items-center gap-2 text-yellow-600 text-sm">
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                <span>请求超时，正在自动重试...</span>
-                              </div>
-                            )}
-                            {content && (
-                              <div className={status === 'streaming' || status === 'running' ? 'streaming-cursor' : ''}>
-                                <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
-                                  p: ({children}) => <p className="my-1 leading-relaxed">{children}</p>,
-                                  h1: ({children}) => <h1 className="text-lg font-bold my-2">{children}</h1>,
-                                  h2: ({children}) => <h2 className="text-base font-bold my-2">{children}</h2>,
-                                  h3: ({children}) => <h3 className="text-sm font-semibold my-1">{children}</h3>,
-                                  ul: ({children}) => <ul className="list-disc pl-4 my-1">{children}</ul>,
-                                  ol: ({children}) => <ol className="list-decimal pl-4 my-1">{children}</ol>,
-                                  li: ({children}) => <li className="leading-relaxed">{children}</li>,
-                                  strong: ({children}) => <strong className="font-semibold">{children}</strong>,
-                                  code: ({children}) => <code className="bg-gray-100 px-1 rounded text-xs font-mono">{children}</code>,
-                                }}>{content}</ReactMarkdown>
-                              </div>
-                            )}
-                            {(status === 'error' || status === 'failed') && !content && (
-                              <div className="text-center py-4">
-                                <div className="text-red-500 text-sm mb-3">生成失败</div>
-                                <button
-                                  onClick={() => retryRun(run.id)}
-                                  className="inline-flex items-center gap-1.5 px-4 py-2 text-sm bg-accent text-white rounded-lg hover:bg-accent/90 transition"
-                                >
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
-                                  重新生成
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                          {(status === 'done' || status === 'completed') && content && (
-                            <div className="px-4 py-2 border-t border-gray-100 flex items-center justify-between shrink-0">
-                              <span className="text-xs text-inkLight">{content.length} 字</span>
-                              <div className="flex items-center gap-3">
-                                <button
-                                  onClick={() => toggleRef(run.id)}
-                                  className={`text-xs transition flex items-center gap-1 ${
-                                    referencedRunIds.includes(run.id)
-                                      ? 'text-accent font-medium'
-                                      : 'text-inkLight hover:text-accent'
-                                  }`}
-                                >
-                                  {referencedRunIds.includes(run.id) ? '✓ 已引用' : '@ 引用'}
-                                </button>
-                                <button onClick={() => navigator.clipboard.writeText(content)}
-                                  className="text-xs text-inkLight hover:text-accent transition flex items-center gap-1">
-                                  <Copy className="w-3 h-3" /> 复制
-                                </button>
-                                <button onClick={() => window.dispatchEvent(new CustomEvent('gambit:pin-to-draft', { detail: { sourceType: 'card', sourceId: run.id, sourceLabel: run.model, content } }))}
-                                  className="text-xs text-inkLight hover:text-accent transition flex items-center gap-1">
-                                  <Pin className="w-3 h-3" /> 加入最终稿
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
+                        <AICard key={run.id} run={run} status={status} content={content} activeRunId={activeRunId} referencedRunIds={referencedRunIds} retryRun={retryRun} toggleRef={toggleRef} />
                       )
                     })}
                   </div>

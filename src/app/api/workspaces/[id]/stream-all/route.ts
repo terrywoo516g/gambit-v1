@@ -107,9 +107,15 @@ export async function GET(
                 }
                 resetTimer()
 
+                const finalPrompt = workspace.prompt + `\n\n请严格按以下格式输出，不要省略标记：
+[摘要]
+用一句话概括你的核心观点（100字以内，不要分点，不要标题）
+[正文]
+（你的完整回答，从这里开始正常输出）`
+
                 const stream = streamChat({
                   model: modelInfo.apiId,
-                  messages: [{ role: 'user', content: workspace.prompt }],
+                  messages: [{ role: 'user', content: finalPrompt }],
                   provider: CLIENT_REGISTRY[run.model]?.provider || 'qiniu',
                 })
 
