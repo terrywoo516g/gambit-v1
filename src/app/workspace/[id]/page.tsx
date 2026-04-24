@@ -8,7 +8,7 @@ import remarkGfm from 'remark-gfm'
 import {
   ArrowLeft, Plus, Eye, Zap, Copy, Send, Loader2,
   LayoutGrid, MessageSquare, Pencil, FileCheck,
-  ChevronDown, ChevronUp, FileText, Home
+  FileText, Home
 } from 'lucide-react'
 
 import CompareScene from '@/components/scenes/CompareScene'
@@ -68,8 +68,6 @@ export default function WorkspacePage() {
 
   const [workspace, setWorkspace] = useState<WorkspaceData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [recommendation, setRecommendation] = useState<{ scene: string; reason: string } | null>(null)
-  const [showRecommendReason, setShowRecommendReason] = useState(false)
 
   const [observerContent, setObserverContent] = useState<string | null>(null)
   const [sparkContent, setSparkContent] = useState<string | null>(null)
@@ -147,18 +145,6 @@ export default function WorkspacePage() {
     return run.status
   }
 
-  useEffect(() => {
-    if (!allDone || !wsId || completedCount < 2) return
-    async function recommend() {
-      try {
-        const res = await fetch('/api/workspaces/' + wsId + '/recommend-scene', { method: 'POST' })
-        const data = await res.json()
-        setRecommendation({ scene: data.scene, reason: data.reason })
-      } catch { /* ignore */ }
-    }
-    void recommend()
-  }, [allDone, wsId, completedCount])
-
   const handleDraftGenerated = useCallback((content: string) => {
     setDraftContent(content)
     setActiveStep('output')
@@ -216,6 +202,9 @@ export default function WorkspacePage() {
     setChatInput('')
 
     try {
+      setActiveScene(null) // 明确将场景设为 null，保持在独立对话状态
+      setActiveStep('models')
+      
       const res = await fetch('/api/workspaces/' + wsId + '/chat/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -674,43 +663,26 @@ export default function WorkspacePage() {
           )}
 
           <div className="border-t border-gray-200 bg-white px-6 py-3 shrink-0">
-            {recommendation && !activeScene && (
-              <div className="mb-3">
-                  <button onClick={() => setShowRecommendReason(!showRecommendReason)}
-                    className="text-xs text-inkLight hover:text-accent transition flex items-center gap-1">
-                    <Zap className="w-3.5 h-3.5" />
-                    建议进入【{SCENE_DEFS.find(s => s.key === recommendation.scene)?.label}】
-                    {showRecommendReason ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                  </button>
-                  {showRecommendReason && (
-                    <div className="mt-1 text-xs text-inkLight bg-gray-50 rounded-lg px-3 py-2">
-                      {recommendation.reason}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="flex items-center gap-2 mb-3 overflow-x-auto">
-                {activeScene && (
-                  <button onClick={() => { setActiveScene(null); setActiveStep('models') }}
+            <div className="flex items-center gap-2 mb-3 overflow-x-auto">
+              {activeScene && (
+                <button onClick={() => { setActiveScene(null); setActiveStep('models') }}
                     className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm border border-gray-200 bg-white text-inkLight hover:border-accent transition whitespace-nowrap">
                     <ArrowLeft className="w-3.5 h-3.5" /> AI 回答
                   </button>
                 )}
                 {SCENE_DEFS.map(btn => (
-                  <button key={btn.key} onClick={() => enterScene(btn.key)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm border transition whitespace-nowrap ${
-                      activeScene === btn.key ? 'bg-accent text-white border-accent' :
-                      recommendation?.scene === btn.key && !activeScene ? 'bg-accent/10 text-accent border-accent/30' :
-                      'bg-white text-ink border-gray-200 hover:border-accent'
-                    }`}>
-                    {btn.icon}
-                    <div className="flex items-baseline gap-1.5 text-left">
-                      <div className="font-medium leading-tight whitespace-nowrap">{btn.label}</div>
-                      <div className={`text-[11px] whitespace-nowrap ${activeScene === btn.key ? 'text-white/70' : 'text-inkLight'}`}>{btn.desc}</div>
-                    </div>
-                  </button>
-                ))}
+                <button key={btn.key} onClick={() => enterScene(btn.key)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm border transition whitespace-nowrap ${
+                    activeScene === btn.key ? 'bg-accent text-white border-accent' :
+                    'bg-white text-ink border-gray-200 hover:border-accent'
+                  }`}>
+                  {btn.icon}
+                  <div className="flex items-baseline gap-1.5 text-left">
+                    <div className="font-medium leading-tight whitespace-nowrap">{btn.label}</div>
+                    <div className={`text-[11px] whitespace-nowrap ${activeScene === btn.key ? 'text-white/70' : 'text-inkLight'}`}>{btn.desc}</div>
+                  </div>
+                </button>
+              ))}
               </div>
 
               {referencedRunIds.length > 0 && (
