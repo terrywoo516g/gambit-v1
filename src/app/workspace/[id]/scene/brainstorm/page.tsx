@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { Eye } from 'lucide-react'
 
 type ReflectionData = {
   strongConsensus: { point: string; supporters: string[] }[]
@@ -191,7 +192,7 @@ export default function BrainstormScenePage() {
             <div className="space-y-6">
               {reflection.blindSpots.length > 0 && (
                 <div>
-                  <h3 className="text-sm font-semibold text-red-700 mb-3">👁️ 盲点提醒</h3>
+                  <h3 className="text-sm font-semibold text-red-700 mb-3 flex items-center gap-1.5"><Eye className="w-4 h-4" /> 盲点提醒</h3>
                   <div className="space-y-3">
                     {reflection.blindSpots.map((item, i) => (
                       <PointCard key={i} point={item.point} detail={item.reasoning} />

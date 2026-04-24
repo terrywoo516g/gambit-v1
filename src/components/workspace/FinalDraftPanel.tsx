@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { useState, useEffect, useCallback } from 'react'
-import { Copy, Download, Loader2, Sparkles, FileCheck, ChevronDown, ChevronRight, X, Pin, LayoutGrid, Plus } from 'lucide-react'
+import { Copy, Download, Loader2, Sparkles, FileCheck, ChevronDown, ChevronRight, X, Pin, LayoutGrid, Plus, Wand2, FileText } from 'lucide-react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
@@ -46,7 +46,7 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
   const [selectedBlockIds, setSelectedBlockIds] = useState<Set<string>>(new Set())
   // Old compose state removed
   const [composeInstruction, setComposeInstruction] = useState('')
-  const [composeMode, setComposeMode] = useState<'append' | 'replace' | 'preview'>('replace')
+  const [composeMode] = useState<'append' | 'replace' | 'preview'>('replace')
   const [composing, setComposing] = useState(false)
   const [composePreview, setComposePreview] = useState('')
   const abortControllerRef = React.useRef<AbortController | null>(null)
@@ -71,7 +71,7 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
   const editor = useEditor({
     extensions: [
       StarterKit,
-      Placeholder.configure({ placeholder: '从左侧 📌 收藏素材，点击下方"✨ 生成最终稿"自动合成；也可直接在此编辑' })
+      Placeholder.configure({ placeholder: '从左侧素材库收藏内容，点击下方"生成最终稿"自动合成；也可直接在此编辑' })
     ],
     content: '',
     editorProps: {
@@ -358,7 +358,7 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
       {/* 顶栏: 标题与操作 */}
       <div className="p-3 bg-white border-b border-gray-200 shrink-0 flex items-center justify-between">
         <div className="flex items-center gap-2 flex-1">
-          <Sparkles className="w-4 h-4 text-ink" />
+          <FileText className="w-4 h-4 text-ink" />
           <span className="text-sm font-bold text-ink whitespace-nowrap">最终稿</span>
           <div className="w-[1px] h-3 bg-gray-300 mx-1" />
           <input
@@ -375,7 +375,7 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
             showSpark ? 'bg-purple-100 text-purple-700' : 'text-purple-600 hover:bg-purple-50'
           }`}
         >
-          <Sparkles className="w-3.5 h-3.5" />
+          <Sparkles className="w-4 h-4 text-purple-500" />
           灵光一闪
         </button>
       </div>
@@ -415,7 +415,7 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
         <div className="border-b border-gray-200 bg-white">
           <button onClick={() => setShowBlocks(!showBlocks)} className="w-full flex items-center justify-between p-3 hover:bg-gray-50 transition">
             <div className="flex items-center gap-2 font-medium text-sm text-ink">
-              <LayoutGrid className="w-4 h-4 text-accent" />
+              <LayoutGrid className="w-3.5 h-3.5" />
               素材库 <span className="text-xs text-inkLight bg-gray-100 px-1.5 rounded">{blocks.length}</span>
             </div>
             {showBlocks ? <ChevronDown className="w-4 h-4 text-inkLight" /> : <ChevronRight className="w-4 h-4 text-inkLight" />}
@@ -424,7 +424,7 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
           {showBlocks && (
             <div className="p-3 pt-0 space-y-2 max-h-[300px] overflow-y-auto">
               {blocks.length === 0 ? (
-                <div className="text-xs text-center text-gray-400 py-4">从左侧 AI 卡片或场景中 📌 收藏素材到这里</div>
+                <div className="text-xs text-center text-gray-400 py-4">从左侧 AI 卡片或场景中收藏素材到这里</div>
               ) : (
                 blocks.map(b => (
                   <div key={b.id} className={`flex items-start gap-2 p-2 border rounded-lg text-sm transition ${b.inDraft ? 'bg-gray-50 border-gray-100 opacity-60' : 'bg-white border-gray-200 hover:border-accent/50'}`}>
@@ -449,29 +449,14 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
 
       {/* 合成区 */}
       <div className="bg-white border-t border-gray-200 p-4 shrink-0">
-        <div className="mb-3 space-y-3">
+        <div className="mb-3">
           <input
             type="text"
             value={composeInstruction}
             onChange={e => setComposeInstruction(e.target.value)}
-            placeholder="指令（可选）：如：改成小红书风格..."
+            placeholder="生成指令（可选）：如改成小红书风格 / 生成汇总表格"
             className="w-full text-sm p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-accent transition"
           />
-          <div className="flex items-center gap-4 text-xs text-inkLight">
-            <span className="font-medium text-ink">模式：</span>
-            <label className="flex items-center gap-1.5 cursor-pointer hover:text-ink transition">
-              <input type="radio" name="mode" value="replace" checked={composeMode === 'replace'} onChange={() => setComposeMode('replace')} className="accent-accent" />
-              替换编辑器
-            </label>
-            <label className="flex items-center gap-1.5 cursor-pointer hover:text-ink transition">
-              <input type="radio" name="mode" value="append" checked={composeMode === 'append'} onChange={() => setComposeMode('append')} className="accent-accent" />
-              追加到末尾
-            </label>
-            <label className="flex items-center gap-1.5 cursor-pointer hover:text-ink transition">
-              <input type="radio" name="mode" value="preview" checked={composeMode === 'preview'} onChange={() => setComposeMode('preview')} className="accent-accent" />
-              纯生成（不改编辑器）
-            </label>
-          </div>
         </div>
 
         {composing ? (
@@ -493,8 +478,8 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
             title={blocks.length === 0 ? "请先从 AI 卡片或场景中添加素材" : ""}
             className="w-full py-2.5 bg-accent text-white rounded-xl text-sm font-bold hover:bg-accent/90 transition disabled:opacity-50 disabled:hover:bg-accent flex items-center justify-center gap-2 shadow-sm"
           >
-            <Sparkles className="w-4 h-4" />
-            ✨ 生成最终稿
+            <Wand2 className="w-4 h-4" />
+            生成最终稿
           </button>
         )}
 
@@ -518,6 +503,11 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
       {/* 编辑器与生成控制台 */}
       <div className="flex-1 overflow-y-auto flex flex-col relative">
         <div className="flex-1 p-4 pb-32">
+          {/* 金句与段落标题 */}
+          <div className="flex items-end justify-between mb-2">
+            <span className="text-[12px] text-gray-500 font-light">金句与段落</span>
+            <span className="text-[10px] text-gray-400 font-light">可粘贴可用段落或金句</span>
+          </div>
           <EditorContent editor={editor} />
         </div>
 

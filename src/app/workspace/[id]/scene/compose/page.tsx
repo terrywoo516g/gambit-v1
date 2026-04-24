@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { Sparkles, Copy } from 'lucide-react'
 
 type ModelOutput = {
   model: string
@@ -175,13 +176,13 @@ export default function ComposeScenePage() {
         </div>
         <button onClick={handleGenerate} disabled={generating}
           className="bg-accent text-white px-5 py-2 rounded-lg text-sm font-medium disabled:opacity-40 hover:bg-accent/90 transition">
-          {generating ? '合成中...' : '✨ 创意合成'}
+          {generating ? '合成中...' : <span className="flex items-center gap-1.5"><Sparkles className="w-4 h-4" /> 创意合成</span>}
         </button>
       </header>
 
       {/* 提示条 */}
-      <div className="px-6 py-2.5 bg-amber-50 border-b border-amber-100 text-xs text-amber-700">
-        💡 操作方式：在左侧选中喜欢的文字 → 复制（Ctrl+C）→ 粘贴到右侧对应栏位（Ctrl+V）→ 点击「创意合成」
+      <div className="px-6 py-2.5 bg-amber-50 border-b border-amber-100 text-xs text-amber-700 flex items-center gap-1.5">
+        <Sparkles className="w-4 h-4" /> 操作方式：在左侧选中喜欢的文字 → 复制（Ctrl+C）→ 粘贴到右侧对应栏位（Ctrl+V）→ 点击「创意合成」
       </div>
 
       <div className="flex-1 flex overflow-hidden">
@@ -212,7 +213,7 @@ export default function ComposeScenePage() {
               onClick={() => modelOutputs[activeTab] && applyAsBase(modelOutputs[activeTab])}
               className="text-xs px-3 py-1.5 bg-white border border-gray-200 rounded-lg hover:border-accent hover:text-accent transition text-inkLight"
             >
-              📋 以 {modelOutputs[activeTab]?.model} 的全文为底稿
+              <span className="flex items-center gap-1.5"><Copy className="w-3 h-3" /> 以 {modelOutputs[activeTab]?.model} 的全文为底稿</span>
             </button>
           </div>
 
@@ -309,7 +310,7 @@ export default function ComposeScenePage() {
             </div>
             <button onClick={handleGenerate} disabled={generating}
               className="bg-accent text-white px-5 py-2 rounded-lg text-sm font-medium disabled:opacity-40 hover:bg-accent/90 transition">
-              {generating ? '合成中...' : '✨ 创意合成'}
+              {generating ? '合成中...' : <span className="flex items-center gap-1.5"><Sparkles className="w-4 h-4" /> 创意合成</span>}
             </button>
           </div>
         </div>

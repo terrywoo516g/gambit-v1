@@ -44,11 +44,11 @@ type WorkspaceData = {
 
 type SceneKey = 'compare' | 'brainstorm' | 'compose' | 'review'
 
-const SCENE_DEFS: { key: SceneKey; label: string; desc: string; icon: React.ReactNode }[] = [
-  { key: 'compare', label: '多源对比', desc: '生成推荐报告', icon: <LayoutGrid className="w-4 h-4" /> },
-  { key: 'brainstorm', label: '头脑风暴', desc: '共识分歧盲点', icon: <MessageSquare className="w-4 h-4" /> },
-  { key: 'compose', label: '创意合成', desc: '多源整合成稿', icon: <Pencil className="w-4 h-4" /> },
-  { key: 'review', label: '多AI审稿', desc: '汇总修改建议', icon: <FileCheck className="w-4 h-4" /> },
+const SCENE_DEFS = [
+  { id: 'compare', icon: LayoutGrid, label: '多源对比', desc: '生成推荐报告' },
+  { id: 'brainstorm', icon: MessageSquare, label: '头脑风暴', desc: '共识分歧盲点' },
+  { id: 'compose', icon: Pencil, label: '创意合成', desc: '多源整合成稿' },
+  { id: 'review', icon: FileCheck, label: '多AI审稿', desc: '汇总修改建议' },
 ]
 
 const MODEL_STATUS_COLORS: Record<string, string> = {
@@ -415,14 +415,14 @@ export default function WorkspacePage() {
                 </button>
                 <div className="ml-5 pl-4 border-l-2 border-gray-100 py-1 space-y-1">
                   {workspace.sceneSessions.map(session => {
-                    const sceneDef = SCENE_DEFS.find(s => s.key === session.sceneType)
+                    const sceneDef = SCENE_DEFS.find(s => s.id === session.sceneType)
                     if (!sceneDef) return null
                     return (
                       <button key={session.id} onClick={() => enterScene(session.sceneType as SceneKey)}
                         className={`flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-lg text-xs transition ${
                           activeScene === session.sceneType ? 'text-accent bg-accent/5' : 'text-inkLight hover:text-ink hover:bg-gray-50'
                         }`}>
-                        <div className="w-3.5 h-3.5 shrink-0 opacity-70">{sceneDef.icon}</div>
+                        <div className="w-3.5 h-3.5 shrink-0 opacity-70"><sceneDef.icon /></div>
                         <span className="truncate">{sceneDef.label}</span>
                       </button>
                     )
@@ -472,7 +472,7 @@ export default function WorkspacePage() {
             )}
           </div>
           <span className="text-[10px] font-mono text-black/20 tracking-wider">
-            {activeScene ? SCENE_DEFS.find(s => s.key === activeScene)?.label?.toUpperCase() : 'REVIEW DESK'}
+            {activeScene ? SCENE_DEFS.find(s => s.id === activeScene)?.label?.toUpperCase() : 'REVIEW DESK'}
           </span>
         </div>
 
@@ -835,18 +835,18 @@ export default function WorkspacePage() {
                   </button>
                 )}
                 {SCENE_DEFS.map(btn => (
-                <button key={btn.key} onClick={() => enterScene(btn.key)}
+                <button key={btn.id} onClick={() => enterScene(btn.id as SceneKey)}
                   className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm border transition whitespace-nowrap ${
-                    activeScene === btn.key ? 'bg-accent text-white border-accent' :
+                    activeScene === btn.id ? 'bg-accent text-white border-accent' :
                     'bg-white text-ink border-gray-200 hover:border-accent'
                   }`}>
-                  {btn.icon}
+                  <btn.icon className="w-4 h-4" />
                   <div className="flex items-baseline gap-1.5 text-left">
                     <div className="font-medium leading-tight whitespace-nowrap">{btn.label}</div>
-                    <div className={`text-[11px] whitespace-nowrap ${activeScene === btn.key ? 'text-white/70' : 'text-inkLight'}`}>{btn.desc}</div>
+                    <div className={`text-[11px] whitespace-nowrap ${activeScene === btn.id ? 'text-white/70' : 'text-inkLight'}`}>{btn.desc}</div>
                   </div>
                 </button>
-              ))}
+                ))}
               </div>
 
               {referencedRunIds.length > 0 && (
