@@ -141,7 +141,7 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
         const data = await res.json()
         if (res.ok) {
           setBlocks(prev => [...prev, data.block])
-          alert('✓ 已加入素材库')
+          // alert('✓ 已加入素材库') // removed disruptive alert
         } else if (data.error === '已存在') {
           alert('该素材已在素材库中')
         }
