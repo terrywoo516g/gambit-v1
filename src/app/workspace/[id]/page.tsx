@@ -34,10 +34,10 @@ type WorkspaceData = {
 type SceneKey = 'compare' | 'brainstorm' | 'compose' | 'review'
 
 const SCENE_DEFS: { key: SceneKey; label: string; desc: string; icon: React.ReactNode }[] = [
-  { key: 'compare', label: '对比表格', desc: '结构化对比分析', icon: <LayoutGrid className="w-4 h-4" /> },
-  { key: 'brainstorm', label: '共识分歧', desc: '分析观点碰撞', icon: <MessageSquare className="w-4 h-4" /> },
+  { key: 'compare', label: '多源对比', desc: '生成推荐报告', icon: <LayoutGrid className="w-4 h-4" /> },
+  { key: 'brainstorm', label: '头脑风暴', desc: '共识分歧盲点', icon: <MessageSquare className="w-4 h-4" /> },
   { key: 'compose', label: '创意合成', desc: '多源整合成稿', icon: <Pencil className="w-4 h-4" /> },
-  { key: 'review', label: '审稿意见', desc: '汇总修改建议', icon: <FileCheck className="w-4 h-4" /> },
+  { key: 'review', label: '多AI审稿', desc: '汇总修改建议', icon: <FileCheck className="w-4 h-4" /> },
 ]
 
 const MODEL_STATUS_COLORS: Record<string, string> = {
@@ -474,10 +474,9 @@ export default function WorkspacePage() {
             </div>
           )}
 
-          {allDone && completedCount >= 2 && (
-            <div className="border-t border-gray-200 bg-white px-6 py-3 shrink-0">
-              {recommendation && !activeScene && (
-                <div className="mb-3">
+          <div className="border-t border-gray-200 bg-white px-6 py-3 shrink-0">
+            {recommendation && !activeScene && (
+              <div className="mb-3">
                   <button onClick={() => setShowRecommendReason(!showRecommendReason)}
                     className="text-xs text-inkLight hover:text-accent transition flex items-center gap-1">
                     <Zap className="w-3.5 h-3.5" />
@@ -507,9 +506,9 @@ export default function WorkspacePage() {
                       'bg-white text-ink border-gray-200 hover:border-accent'
                     }`}>
                     {btn.icon}
-                    <div className="text-left">
-                      <div className="font-medium leading-tight">{btn.label}</div>
-                      <div className={`text-[10px] ${activeScene === btn.key ? 'text-white/70' : 'text-inkLight'}`}>{btn.desc}</div>
+                    <div className="flex items-baseline gap-1.5 text-left">
+                      <div className="font-medium leading-tight whitespace-nowrap">{btn.label}</div>
+                      <div className={`text-[11px] whitespace-nowrap ${activeScene === btn.key ? 'text-white/70' : 'text-inkLight'}`}>{btn.desc}</div>
                     </div>
                   </button>
                 ))}
@@ -589,7 +588,6 @@ export default function WorkspacePage() {
                 </button>
               </div>
             </div>
-          )}
         </div>
       </section>
 
