@@ -55,13 +55,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           ? workspace.modelRuns.filter((r: { id: string }) => referencedRunIds.includes(r.id))
           : workspace.modelRuns
 
+        const filteredChatRefs = referencedRunIds.length > 0
+          ? workspace.chatMessages.filter((m: { id: string, role: string }) => m.role === 'assistant' && referencedRunIds.includes(m.id))
+          : []
+
         const runsContext = filteredRuns.map((r: { model: string; content: string }) => `【${r.model}】：\n${r.content}`).join('\n\n')
+        const chatRefsContext = filteredChatRefs.map((m: { content: string }, idx: number) => `【历史对话回答 ${idx + 1}】：\n${m.content}`).join('\n\n')
         
         const systemPrompt = `你是 Gambit 的对话助手。用户在多模型工作台中提问，下面是各 AI 卡片的回答和历史对话，基于这些内容回答用户的新问题。`
         
         let userContext = `【初始问题】：${workspace.prompt}\n\n`
-        if (runsContext) {
-          userContext += `【AI 卡片的回答】：\n${runsContext}\n\n`
+        if (runsContext || chatRefsContext) {
+          userContext += `【被引用的上下文回答】：\n${runsContext}\n${chatRefsContext}\n\n`
         }
 
         // Re-order messages to ascending

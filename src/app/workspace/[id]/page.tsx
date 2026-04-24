@@ -323,6 +323,7 @@ export default function WorkspacePage() {
     return s === 'done' || s === 'completed'
   })
   const refRunsMap = new Map(runs.map(r => [r.id, r]))
+  const refChatMap = new Map(chatMessages.filter(m => m.role === 'assistant').map(m => [m.id, m]))
 
   // ========== JSX 部分在任务 8B 中补充 ==========
   return (
@@ -589,19 +590,45 @@ export default function WorkspacePage() {
           {(chatMessages.length > 0 || streamingMessage) && !activeScene && (
             <div className="flex-1 overflow-y-auto px-6 py-4 bg-gray-50/30">
               <div className="max-w-3xl mx-auto space-y-6">
-                {chatMessages.map((msg, i) => (
-                  <div key={msg.id || i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${
-                      msg.role === 'user' 
+                {chatMessages.map((msg, i) => {
+                  const isUser = msg.role === 'user'
+                  const isAssistant = msg.role === 'assistant'
+
+                  return (
+                  <div key={msg.id || i} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[85%] rounded-2xl px-4 py-3 flex flex-col ${
+                      isUser 
                         ? 'bg-gray-100 text-ink rounded-tr-sm' 
                         : 'bg-white border border-gray-200 text-ink shadow-sm rounded-tl-sm'
                     }`}>
-                      <div className="prose prose-sm max-w-none">
+                      <div className="prose prose-sm max-w-none mb-2">
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                       </div>
+                      
+                      {isAssistant && (
+                        <div className="border-t border-gray-100 pt-2 mt-1 flex items-center justify-between">
+                          <span className="text-[10px] text-inkLight">{msg.content.length} 字</span>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => toggleRef(msg.id)}
+                              className={`text-xs transition flex items-center gap-1 ${
+                                referencedRunIds.includes(msg.id)
+                                  ? 'text-accent font-medium'
+                                  : 'text-inkLight hover:text-accent'
+                              }`}
+                            >
+                              {referencedRunIds.includes(msg.id) ? '✓ 已引用' : '@ 引用'}
+                            </button>
+                            <button onClick={() => navigator.clipboard.writeText(msg.content)}
+                              className="text-xs text-inkLight hover:text-accent transition flex items-center gap-1">
+                              <Copy className="w-3 h-3" /> 复制
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
-                ))}
+                )})}
                 {streamingMessage && (
                   <div className="flex justify-start">
                     <div className="max-w-[85%] rounded-2xl px-4 py-3 bg-white border border-gray-200 text-ink shadow-sm rounded-tl-sm">
@@ -681,11 +708,23 @@ export default function WorkspacePage() {
                   <span className="text-[10px] font-mono text-black/30 tracking-wider mr-1">REFS:</span>
                   {referencedRunIds.map(rid => {
                     const r = refRunsMap.get(rid)
-                    if (!r) return null
+                    const m = refChatMap.get(rid)
+                    if (!r && !m) return null
+                    
+                    let label = ''
+                    if (r) {
+                      label = `${r.model}`
+                    } else if (m) {
+                      // find round index
+                      const idx = chatMessages.findIndex(msg => msg.id === m.id)
+                      const roundIndex = chatMessages.slice(0, idx).filter(msg => msg.role === 'user').length + 1
+                      label = `对话 ${roundIndex}`
+                    }
+
                     return (
                       <span key={rid}
                         className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/10 text-accent text-xs border border-accent/30">
-                        @{r.model}的回答
+                        @{label}的回答
                         <button onClick={() => toggleRef(rid)} className="hover:text-accent/70 transition" aria-label="移除引用">×</button>
                       </span>
                     )
@@ -731,6 +770,24 @@ export default function WorkspacePage() {
                                   selected ? 'bg-accent/5 text-accent' : 'text-ink hover:bg-gray-50'
                                 }`}>
                                 <span className="truncate">{r.model}</span>
+                                {selected && <span className="text-accent">✓</span>}
+                              </button>
+                            )
+                          })}
+                          {chatMessages.map((msg, i) => {
+                            if (msg.role !== 'assistant') return null
+                            const roundIndex = chatMessages.slice(0, i).filter(m => m.role === 'user').length + 1
+                            const selected = referencedRunIds.includes(msg.id)
+                            return (
+                              <button key={msg.id}
+                                onClick={() => {
+                                  toggleRef(msg.id)
+                                  if (chatInput.endsWith('@')) setChatInput(chatInput.slice(0, -1))
+                                }}
+                                className={`w-full flex items-center justify-between px-3 py-2 text-sm text-left transition ${
+                                  selected ? 'bg-accent/5 text-accent' : 'text-ink hover:bg-gray-50'
+                                }`}>
+                                <span className="truncate">对话 {roundIndex}</span>
                                 {selected && <span className="text-accent">✓</span>}
                               </button>
                             )
