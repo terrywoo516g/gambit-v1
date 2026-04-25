@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { useState, useEffect, useCallback } from 'react'
-import { Loader2, Sparkles, FileCheck, ChevronDown, ChevronRight, X, Pin, LayoutGrid, Plus, Wand2, FileText } from 'lucide-react'
+import { Loader2, Sparkles, FileCheck, ChevronDown, ChevronRight, X, Pin, LayoutGrid, Plus, Wand2, FileText, Copy, Download } from 'lucide-react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
@@ -437,13 +437,23 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
 
   const exportMarkdown = () => {
     if (!editor) return
-    // Simplified export, ideally use tiptap markdown extension
     const text = editor.getText()
     const blob = new Blob([text], { type: 'text/markdown' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
     a.download = `${title || '未命名文稿'}.md`
+    a.click()
+  }
+
+  const exportTxt = () => {
+    if (!editor) return
+    const text = editor.getText()
+    const blob = new Blob([text], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${title || '未命名文稿'}.txt`
     a.click()
   }
 
@@ -704,15 +714,24 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
 
       {/* 底栏: 操作 */}
       <div className="p-3 border-t border-gray-200 bg-white shrink-0 flex items-center gap-2">
-        <button onClick={runReview} disabled={reviewing || !editor?.getText().trim()} className="flex-1 flex items-center justify-center gap-1.5 py-2 border border-gray-200 rounded-lg text-sm text-ink hover:bg-gray-50 transition disabled:opacity-50 font-medium">
-          {reviewing ? <Loader2 className="w-4 h-4 animate-spin" /> : '审阅'}
-        </button>
         <button onClick={() => { if(editor) { navigator.clipboard.writeText(editor.getText()); alert('已复制全文到剪贴板') } }} className="flex-1 flex items-center justify-center gap-1.5 py-2 border border-gray-200 rounded-lg text-sm text-ink hover:bg-gray-50 transition font-medium">
+          <Copy className="w-4 h-4 text-ink" />
           复制全文
         </button>
-        <button onClick={exportMarkdown} className="flex-1 flex items-center justify-center gap-1.5 py-2 border border-gray-200 rounded-lg text-sm text-ink hover:bg-gray-50 transition font-medium">
-          导出 MD
-        </button>
+        <div className="flex-1 relative group">
+          <button className="w-full flex items-center justify-center gap-1.5 py-2 border border-gray-200 rounded-lg text-sm text-ink hover:bg-gray-50 transition font-medium">
+            <Download className="w-4 h-4 text-ink" />
+            导出
+          </button>
+          <div className="absolute bottom-full left-0 w-full mb-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+            <button onClick={exportTxt} className="w-full px-4 py-2.5 text-sm text-ink hover:bg-gray-50 text-center border-b border-gray-100">
+              导出 TXT
+            </button>
+            <button onClick={exportMarkdown} className="w-full px-4 py-2.5 text-sm text-ink hover:bg-gray-50 text-center">
+              导出 MD
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )
