@@ -19,7 +19,7 @@ export default function LoginPage() {
     })
 
     if (res.ok) {
-      window.location.href = '/workspaces'
+      window.location.href = '/'
     } else {
       setError('邀请码错误，请确认后重试')
       setLoading(false)
