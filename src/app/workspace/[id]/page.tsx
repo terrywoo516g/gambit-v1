@@ -322,7 +322,7 @@ export default function WorkspacePage() {
       const res = await fetch('/api/workspaces/' + wsId + '/observer', { method: 'POST' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      setObserverObservations(data.text ? data.text.split('').filter((p: string) => p.trim()) : [])
+      setObserverObservations(data.text ? data.text.split(/\n\n+/).filter((p: string) => p.trim()) : [])
     } catch (e) {
       alert(e instanceof Error ? e.message : '旁观者调用失败')
     } finally {
@@ -486,7 +486,7 @@ export default function WorkspacePage() {
   return (
     <main className="flex h-screen bg-[radial-gradient(circle,_rgba(0,0,0,0.03)_1px,_transparent_1px)] bg-[length:24px_24px] text-ink">
       {/* ===== 左栏：导航 ===== */}
-      <aside className="hidden md:flex w-56 border-r border-gray-200 bg-white/80 backdrop-blur-sm flex-col shrink-0">
+      <aside className="hidden md:flex w-56 border-r border-gray-200 bg-white/80 backdrop-blur-sm flex-col shrink-0 z-20">
         <div className="p-4 border-b border-gray-200">
           <button onClick={() => router.push('/')}
             className="text-xs text-inkLight hover:text-accent flex items-center gap-1 mb-3 transition">
