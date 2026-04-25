@@ -16,7 +16,7 @@ export async function POST(request: Request) {
 
   res.cookies.set('gambit_invite', sessionId, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: false, // 允许 http 访问
     sameSite: 'lax',
     maxAge: 60 * 60 * 24 * 30, // 30 天免重新输入
     path: '/',
