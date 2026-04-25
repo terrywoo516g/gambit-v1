@@ -1,218 +1,95 @@
 'use client'
+import { useEffect, useRef, useState } from 'react'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
-
-export interface RunStream {
+export type StreamState = {
   runId: string
   model: string
   content: string
-  status: 'queued' | 'streaming' | 'done' | 'error' | 'retrying'
+  status: 'idle' | 'streaming' | 'done' | 'error'
 }
-
-const MAX_RETRIES = 2
-const RETRY_DELAY = 2000
 
 export function useMultiStream(
   workspaceId: string | null,
   runs: { id: string; model: string }[]
 ) {
-  const [streams, setStreams] = useState<Record<string, RunStream>>({})
-
-  // --- 核心改动：用 ref 缓冲 token，RAF 刷新 ---
-  // 每个 runId 对应一个 token 缓冲区
-  const bufferRef = useRef<Record<string, string[]>>({})
-  // 每个 runId 的最终状态（done/error 时设置）
-  const finalStateRef = useRef<Record<string, { status: 'done' | 'error'; content?: string }>>({})
-  const rafRef = useRef<number>(0)
-  const mountedRef = useRef(true)
+  const [streams, setStreams] = useState<Record<string, StreamState>>({})
   const sourceRef = useRef<EventSource | null>(null)
-  const retryCountRef = useRef<number>(0)
-
-  // RAF 刷新循环：每帧把缓冲区内容合并到 React state
-  const startFlushLoop = useCallback(() => {
-    const flush = () => {
-      if (!mountedRef.current) return
-
-      const buffer = bufferRef.current
-      const finals = finalStateRef.current
-      let hasUpdate = false
-
-      // 检查是否有新 token 或状态变更
-      for (const runId in buffer) {
-        if (buffer[runId].length > 0) {
-          hasUpdate = true
-          break
-        }
-      }
-      for (const key in finals) {
-        if (Object.prototype.hasOwnProperty.call(finals, key)) {
-          hasUpdate = true
-          break
-        }
-      }
-
-      if (hasUpdate) {
-        setStreams(prev => {
-          const next = { ...prev }
-          Object.values(next).forEach(s => {
-            const newTokens = buffer[s.runId]
-            const final = finals[s.runId]
-
-            if (final) {
-              delete finals[s.runId]
-              const pendingTokens = newTokens ? newTokens.splice(0) : []
-              next[s.runId] = {
-                ...s,
-                content: final.content ?? (s.content + pendingTokens.join('')),
-                status: final.status
-              }
-            } else if (newTokens && newTokens.length > 0) {
-              const tokens = newTokens.splice(0)
-              next[s.runId] = {
-                ...s,
-                content: s.content + tokens.join(''),
-                status: 'streaming'
-              }
-            }
-          })
-          return next
-        })
-      }
-
-      rafRef.current = requestAnimationFrame(flush)
-    }
-    rafRef.current = requestAnimationFrame(flush)
-  }, [])
-
-  const connectStreamAll = useCallback(() => {
-    if (sourceRef.current) return
-
-    const url = `/api/workspaces/${workspaceId}/stream-all`
-    const es = new EventSource(url)
-    sourceRef.current = es
-
-    es.onmessage = (event) => {
-      if (!mountedRef.current) return
-      try {
-        const chunk = JSON.parse(event.data)
-
-        if (chunk.type === 'all-done') {
-          es.close()
-          sourceRef.current = null
-          return
-        }
-
-        const runId = chunk.runId
-        if (!runId) return
-
-        switch (chunk.type) {
-          case 'token':
-            if (bufferRef.current[runId]) {
-              bufferRef.current[runId].push(chunk.token)
-            }
-            break
-
-          case 'retry':
-            setStreams(prev => ({
-              ...prev,
-              [runId]: {
-                ...prev[runId],
-                status: 'retrying'
-              }
-            }))
-            break
-
-          case 'done':
-            finalStateRef.current[runId] = {
-              status: 'done',
-              content: chunk.content 
-            }
-            break
-
-          case 'error':
-            finalStateRef.current[runId] = { status: 'error' }
-            break
-        }
-      } catch (e) {
-        console.error('SSE parse error:', e)
-      }
-    }
-
-    es.onerror = () => {
-      if (!mountedRef.current) return
-      es.close()
-      sourceRef.current = null
-
-      const retries = retryCountRef.current || 0
-      if (retries < MAX_RETRIES) {
-        retryCountRef.current = retries + 1
-        
-        setStreams(prev => {
-          const next = { ...prev }
-          for (const runId in next) {
-            if (next[runId].status !== 'done' && next[runId].status !== 'error') {
-              next[runId] = { ...next[runId], status: 'retrying' }
-            }
-          }
-          return next
-        })
-        
-        setTimeout(() => {
-          if (mountedRef.current) {
-            connectStreamAll()
-          }
-        }, RETRY_DELAY)
-      } else {
-        for (const runId in bufferRef.current) {
-          if (!finalStateRef.current[runId]) {
-             finalStateRef.current[runId] = { status: 'error' }
-          }
-        }
-      }
-    }
-  }, [workspaceId])
 
   useEffect(() => {
     if (!workspaceId || runs.length === 0) return
 
-    mountedRef.current = true
-    bufferRef.current = {}
-    finalStateRef.current = {}
-    retryCountRef.current = 0
-
-    // 初始化所有 stream 的状态
-    const initialStreams: Record<string, RunStream> = {}
+    // 初始化每个 run 的状态
+    const initial: Record<string, StreamState> = {}
     runs.forEach(r => {
-      initialStreams[r.id] = {
-        runId: r.id,
-        model: r.model,
-        content: '',
-        status: 'queued'
-      }
-      bufferRef.current[r.id] = []
+      initial[r.id] = { runId: r.id, model: r.model, content: '', status: 'idle' }
     })
-    setStreams(initialStreams)
+    setStreams(initial)
 
-    // 启动 RAF 刷新循环
-    startFlushLoop()
+    // 关闭上一个连接
+    sourceRef.current?.close()
 
-    // 连接 stream-all
-    connectStreamAll()
+    const es = new EventSource(`/api/workspaces/${workspaceId}/stream-all`)
+    sourceRef.current = es
+
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        const runId = data.runId
+        if (!runId) return
+
+        if (data.type === 'delta' || data.type === 'token') {
+          // 兼容 text 和 token 两种字段名
+          const chunk = data.text ?? data.token ?? ''
+          if (!chunk) return
+
+          setStreams(prev => ({
+            ...prev,
+            [runId]: {
+              ...prev[runId],
+              content: (prev[runId]?.content ?? '') + chunk,
+              status: 'streaming',
+            }
+          }))
+
+        } else if (data.type === 'done') {
+          setStreams(prev => ({
+            ...prev,
+            [runId]: {
+              ...prev[runId],
+              content: data.content ?? prev[runId]?.content ?? '',
+              status: 'done',
+            }
+          }))
+
+        } else if (data.type === 'error') {
+          setStreams(prev => ({
+            ...prev,
+            [runId]: {
+              ...prev[runId],
+              status: 'error',
+            }
+          }))
+        }
+      } catch (e) {
+        console.error('[useMultiStream] parse error:', e)
+      }
+    }
+
+    es.onerror = () => {
+      es.close()
+      sourceRef.current = null
+    }
 
     return () => {
-      mountedRef.current = false
-      cancelAnimationFrame(rafRef.current)
-      if (sourceRef.current) {
-        sourceRef.current.close()
-        sourceRef.current = null
-      }
-      bufferRef.current = {}
-      finalStateRef.current = {}
+      es.close()
+      sourceRef.current = null
     }
-  }, [workspaceId, runs.length, connectStreamAll, startFlushLoop])
+  }, [workspaceId]) // ← 只依赖 workspaceId，runs 不放进来避免重复触发
 
-  const allDone = Object.values(streams).length > 0 && Object.values(streams).every(s => s.status === 'done' || s.status === 'error')
-  const completedCount = Object.values(streams).filter(s => s.status === 'done').length
+  const values = Object.values(streams)
+  const allDone = values.length > 0 && values.every(s => s.status === 'done' || s.status === 'error')
+  const completedCount = values.filter(s => s.status === 'done').length
+  const total = values.length
 
-  return { streams, allDone, completedCount, total: Object.values(streams).length }
+  return { streams, allDone, completedCount, total }
 }

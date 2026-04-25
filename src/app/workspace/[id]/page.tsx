@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { useMultiStream } from '@/hooks/useMultiStream'
+import { useMultiStream, StreamState } from '@/hooks/useMultiStream'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { 
@@ -292,7 +292,8 @@ export default function WorkspacePage() {
   }
 
   function getStatus(run: { id: string; status: string }): string {
-    if (streams[run.id]) return streams[run.id].status
+    const stream = streams[run.id] as StreamState | undefined
+    if (stream) return stream.status
     return run.status
   }
 
