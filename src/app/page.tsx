@@ -23,9 +23,9 @@ const ALL_MODELS = [
 const DEFAULT_SELECTED = ['DeepSeek V3.2', 'MiniMax M1', 'Qwen3 Max']
 
 const TEMPLATES = [
-  { tool: 'compose', label: '创意合成', text: '帮我写一篇小红书种草文案，主题是露营装备' },
-  { tool: 'brainstorm', label: '头脑风暴', text: '我该不该从大厂跳槽去创业公司，帮我分析共识和分歧' },
-  { tool: 'compare', label: '多源对比', text: '推荐几款3000元以内的降噪耳机，帮我整理成对比表格' },
+  { tool: 'compose', label: '创意合成', text: '帮我写一篇小红书种草文案，主题是春季露营装备' },
+  { tool: 'brainstorm', label: '头脑风暴', text: 'AI 时代哪些技能最值得花时间学，梳理不同观点' },
+  { tool: 'compare', label: '多源对比', text: '对比几款主流 AI 写作工具，各自适合什么场景' },
 ]
 
 function getShortName(id: string): string {
