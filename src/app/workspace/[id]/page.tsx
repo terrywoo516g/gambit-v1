@@ -8,7 +8,7 @@ import remarkGfm from 'remark-gfm'
 import { 
   ArrowLeft, Eye, Copy, Send, Loader2,
   LayoutGrid, MessageSquare, Pencil,
-  FileText, Pin, RefreshCw, X, Maximize2, Minimize2, 
+  FileText, Pin, RefreshCw, Maximize2, Minimize2, Zap
 } from 'lucide-react'
 
 import CompareScene from '@/components/scenes/CompareScene'
@@ -943,22 +943,9 @@ export default function WorkspacePage() {
               )}
 
               {showRecommendation && recommendation && (
-                <div className="mb-3 px-4 py-2.5 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-between animate-in slide-in-from-bottom-2 fade-in duration-300 shadow-sm shrink-0">
-                  <div className="flex items-center gap-2 text-sm text-blue-800">
-                    <span className="text-base">💡</span>
-                    <span>{recommendation.reason}，建议使用「{SCENE_DEFS.find(s => s.id === recommendation.scene)?.label || '相关场景'}」</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <button onClick={() => {
-                      enterScene(recommendation.scene as SceneKey)
-                      setShowRecommendation(false)
-                    }} className="text-xs font-medium text-blue-600 hover:text-blue-800 transition bg-white px-3 py-1.5 rounded-lg border border-blue-200 shadow-sm">
-                      立即使用
-                    </button>
-                    <button onClick={() => setShowRecommendation(false)} className="text-blue-400 hover:text-blue-600 transition p-1">
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
+                <div className="flex items-center gap-1 text-xs text-gray-400 mb-2 px-0.5">
+                  <Zap size={11} className="text-gray-900 fill-gray-900 shrink-0" />
+                  <span>建议使用「{SCENE_DEFS.find(s => s.id === recommendation.scene)?.label || '相关场景'}」</span>
                 </div>
               )}
               <div className="flex items-center gap-2">
