@@ -1,90 +1,62 @@
-'use client'
+import { cookies } from 'next/headers'
+import { prisma } from '@/lib/db'
+import { redirect } from 'next/navigation'
+import Link from 'next/link'
+import { Plus, ArrowRight } from 'lucide-react'
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+export default async function WorkspacesPage() {
+  const cookieStore = cookies()
+  const session = cookieStore.get('gambit_invite')
+  if (!session?.value) redirect('/login')
 
-type WsItem = {
-  id: string
-  title: string
-  status: string
-  selectedModels: string[]
-  updatedAt: string
-  modelRunCount: number
-}
-
-export default function WorkspacesPage() {
-  const router = useRouter()
-  const [list, setList] = useState<WsItem[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    async function load() {
-      try {
-        const res = await fetch('/api/workspaces')
-        const data = await res.json()
-        setList(data.workspaces ?? [])
-      } catch {
-        setList([])
-      } finally {
-        setLoading(false)
-      }
-    }
-    void load()
-  }, [])
+  const workspaces = await prisma.workspace.findMany({
+    where: { userId: session.value },
+    orderBy: { updatedAt: 'desc' },
+    take: 30,
+  })
 
   return (
-    <div className="min-h-screen blueprint-grid">
-      <nav className="h-14 border-b border-black/5 flex items-center justify-between px-8 bg-paper/80">
-        <div className="flex items-center gap-2">
-          <img src="/mascot.png" className="w-7 h-7 rounded-full" alt="G" />
-          <span className="font-bold text-sm">Gambit</span>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-2xl mx-auto px-6 py-12">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-xl font-bold text-gray-900">我的工作台</h1>
+          <Link
+            href="/"
+            className="flex items-center gap-1.5 bg-blue-600 text-white rounded-xl px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-colors"
+          >
+            <Plus size={14} />
+            新建
+          </Link>
         </div>
-        <a href="/" className="text-sm text-inkLight hover:text-accent">首页</a>
-      </nav>
 
-      <div className="max-w-3xl mx-auto px-6 pt-10">
-        <h1 className="text-2xl font-bold mb-1">历史工作台</h1>
-        <p className="text-sm text-inkLight mb-6">{list.length} 个任务</p>
-
-        {loading ? (
-          <div className="space-y-3">
-            {[1,2,3].map(i => (
-              <div key={i} className="rounded-xl border border-gray-200 bg-white p-5 animate-pulse">
-                <div className="h-4 w-40 rounded bg-gray-100 mb-3" />
-                <div className="h-3 w-24 rounded bg-gray-100" />
-              </div>
-            ))}
-          </div>
-        ) : list.length === 0 ? (
-          <div className="text-center py-20">
-            <p className="text-inkLight">还没有任务</p>
-            <a href="/" className="mt-4 inline-block bg-accent text-white px-5 py-2 rounded-lg text-sm">开始第一次协作</a>
+        {workspaces.length === 0 ? (
+          <div className="text-center py-24">
+            <p className="text-gray-400 text-sm">还没有工作台</p>
+            <Link href="/" className="text-blue-500 text-sm mt-2 inline-block hover:underline">
+              去首页创建第一个 →
+            </Link>
           </div>
         ) : (
-          <div className="space-y-3">
-            {list.map(w => (
-              <div key={w.id} onClick={() => router.push('/workspace/' + w.id)}
-                className="group cursor-pointer rounded-xl border border-gray-200 bg-white p-5 hover:border-accent transition">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-sm">{w.title}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-inkLight">{new Date(w.updatedAt).toLocaleString('zh-CN')}</span>
-                    <button onClick={e => {
-                      e.stopPropagation()
-                      if (confirm('确定删除？')) {
-                        fetch('/api/workspaces/' + w.id, { method: 'DELETE' })
-                          .then(r => { if (r.ok) setList(p => p.filter(x => x.id !== w.id)) })
-                      }
-                    }} className="hidden group-hover:block text-inkLight hover:text-red-500 text-sm">🗑</button>
-                  </div>
+          <div className="space-y-2">
+            {workspaces.map((ws: any) => (
+              <Link
+                key={ws.id}
+                href={`/workspace/${ws.id}`}
+                className="flex items-center justify-between bg-white rounded-xl border border-gray-100 px-4 py-3.5 hover:border-blue-200 hover:shadow-sm transition-all group"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {ws.title || '未命名工作台'}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {new Date(ws.updatedAt).toLocaleDateString('zh-CN', {
+                      month: 'short', day: 'numeric',
+                      hour: '2-digit', minute: '2-digit',
+                    })}
+                  </p>
                 </div>
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                  {w.selectedModels.map(m => (
-                    <span key={m} className="rounded bg-gray-50 px-2 py-0.5 text-xs text-inkLight">{m}</span>
-                  ))}
-                  <span className="rounded bg-gray-50 px-2 py-0.5 text-xs text-inkLight">{w.modelRunCount} 个模型</span>
-                </div>
-              </div>
+                <ArrowRight size={14} className="text-gray-300 group-hover:text-blue-400 shrink-0 ml-3 transition-colors" />
+              </Link>
             ))}
           </div>
         )}

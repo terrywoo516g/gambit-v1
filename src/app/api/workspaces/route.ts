@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getModelByName } from '@/lib/model-registry'
+import { cookies } from 'next/headers'
 
 // 创建工作空间
 export async function POST(req: NextRequest) {
@@ -20,9 +21,13 @@ export async function POST(req: NextRequest) {
 
     const title = prompt.slice(0, 30) + (prompt.length > 30 ? '...' : '')
 
+    const cookieStore = cookies()
+    const userId = cookieStore.get('gambit_invite')?.value || null
+
     // 用事务一次性创建 workspace + 所有 modelRuns，减少 DB 往返
     const workspace = await prisma.workspace.create({
       data: {
+        userId,
         prompt,
         selectedModels: JSON.stringify(selectedModels),
         title,
@@ -58,7 +63,15 @@ export async function POST(req: NextRequest) {
 // 获取工作空间列表
 export async function GET() {
   try {
+    const cookieStore = cookies()
+    const userId = cookieStore.get('gambit_invite')?.value
+
+    if (!userId) {
+      return NextResponse.json({ workspaces: [] }, { status: 200 })
+    }
+
     const workspaces = await prisma.workspace.findMany({
+      where: { userId },
       orderBy: { updatedAt: 'desc' },
       take: 50,
       include: {
