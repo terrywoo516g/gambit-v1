@@ -4,7 +4,10 @@ import { randomUUID } from 'crypto'
 export async function POST(request: Request) {
   const { code } = await request.json()
 
-  if (code?.trim().toUpperCase() !== process.env.INVITE_CODE) {
+  // 提供 Fallback 避免服务器 .env 未配置时校验失败
+  const expectedCode = process.env.INVITE_CODE || 'GAMBIT2026'
+
+  if (code?.trim().toUpperCase() !== expectedCode) {
     return NextResponse.json({ error: '邀请码错误' }, { status: 401 })
   }
 

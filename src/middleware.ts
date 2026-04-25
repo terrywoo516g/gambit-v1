@@ -10,5 +10,7 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/workspace/:path*', '/workspaces/:path*'],
+  matcher: [
+    '/((?!login|api/auth/verify|_next/static|_next/image|favicon.ico).*)',
+  ],
 }
