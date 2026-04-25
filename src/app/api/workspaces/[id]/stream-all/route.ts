@@ -110,7 +110,7 @@ export async function GET(
                 const stream = streamChat({
                   model: modelInfo.apiId,
                   messages: [{ role: 'user', content: workspace.prompt }],
-                  provider: (CLIENT_REGISTRY[run.model]?.provider || modelInfo.provider?.toLowerCase() === 'volcano' ? 'volcano' : 'qiniu') as any,
+                  provider: CLIENT_REGISTRY[run.model]?.provider || 'qiniu',
                 })
 
                 for await (const chunk of stream) {
