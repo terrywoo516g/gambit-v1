@@ -891,7 +891,13 @@ export default function WorkspacePage() {
           )}
 
           <div className="border-t border-gray-200 bg-white px-6 py-3 shrink-0">
-            <div className="flex items-center gap-2 mb-3 overflow-x-auto">
+            {showRecommendation && recommendation && (
+              <div className="flex items-center gap-1 text-xs text-gray-400 mb-2 px-0.5">
+                <Zap size={11} className="text-gray-900 fill-gray-900 shrink-0" />
+                <span>建议使用「{SCENE_DEFS.find(s => s.id === recommendation.scene)?.label || '相关场景'}」</span>
+              </div>
+            )}
+            <div className="flex gap-3 mb-4 overflow-x-auto pb-1 scrollbar-hide snap-x">
               {activeScene && (
                 <button onClick={() => { setActiveScene(null); setActiveStep('models') }}
                     className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm border border-gray-200 bg-white text-inkLight hover:border-accent transition whitespace-nowrap">
@@ -942,12 +948,6 @@ export default function WorkspacePage() {
                 </div>
               )}
 
-              {showRecommendation && recommendation && (
-                <div className="flex items-center gap-1 text-xs text-gray-400 mb-2 px-0.5">
-                  <Zap size={11} className="text-gray-900 fill-gray-900 shrink-0" />
-                  <span>建议使用「{SCENE_DEFS.find(s => s.id === recommendation.scene)?.label || '相关场景'}」</span>
-                </div>
-              )}
               <div className="flex items-center gap-2">
                 <div className="flex-1 relative">
                   <input type="text" value={chatInput}
