@@ -5,7 +5,7 @@ export async function POST(request: Request) {
   const { code } = await request.json()
 
   // 提供 Fallback 避免服务器 .env 未配置时校验失败
-  const expectedCode = process.env.INVITE_CODE || 'GAMBIT2026'
+  const expectedCode = (process.env.INVITE_CODE || 'GAMBIT2026').trim().toUpperCase()
 
   if (code?.trim().toUpperCase() !== expectedCode) {
     return NextResponse.json({ error: '邀请码错误' }, { status: 401 })
