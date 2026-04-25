@@ -12,6 +12,30 @@ export const runtime = 'nodejs'
 const STREAM_TIMEOUT = 60_000 // 60s 无数据超时
 const MAX_RETRIES = 1         // 服务端自动重试 1 次
 
+// MiniMax think 标签过滤器（流式，有状态）
+function makeThinkFilter() {
+  let inThink = false
+  return function filterThink(text: string): string {
+    let result = ''
+    let remaining = text
+    while (remaining.length > 0) {
+      if (!inThink) {
+        const startIdx = remaining.indexOf('<think>')
+        if (startIdx === -1) { result += remaining; break }
+        result += remaining.substring(0, startIdx)
+        remaining = remaining.substring(startIdx + 7)
+        inThink = true
+      } else {
+        const endIdx = remaining.indexOf('</think>')
+        if (endIdx === -1) { break }
+        remaining = remaining.substring(endIdx + 8)
+        inThink = false
+      }
+    }
+    return result
+  }
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -48,6 +72,8 @@ export async function GET(
         await Promise.all(
           allRuns.map(async (run: any) => {
             const runId = run.id
+            const isMiniMax = run.model.toLowerCase().includes('minimax')
+            const filterThink = makeThinkFilter()
 
             // ── 已完成 → 直接返回缓存 ──
             if (run.status === 'completed' && run.content) {
@@ -118,8 +144,12 @@ export async function GET(
 
                   if (chunk.type === 'token') {
                     resetTimer()
-                    fullContent += chunk.data
-                    safeSend(controller, { type: 'token', runId, token: chunk.data })
+                    let text = chunk.data
+                    if (isMiniMax) text = filterThink(text)
+                    if (!text) continue
+                    
+                    fullContent += text
+                    safeSend(controller, { type: 'token', runId, token: text })
                   } else if (chunk.type === 'done') {
                     tokensIn = chunk.data.tokensIn ?? 0
                     tokensOut = chunk.data.tokensOut ?? 0
