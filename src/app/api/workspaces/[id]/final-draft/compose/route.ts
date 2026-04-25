@@ -14,7 +14,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       where: { workspaceId: params.id, id: { in: blockIds } },
     })
 
-    const blocksText = blocks.map(b => `[${b.sourceLabel}]\n${b.content}`).join('\n---\n')
+    const blocksText = blocks.map((b: any) => `[${b.sourceLabel}]\n${b.content}`).join('\n---\n')
 
     const prompt = `请把以下素材组合成一篇连贯文稿：\n\n${blocksText}\n\n${instruction ? `附加要求：${instruction}` : ''}`
 

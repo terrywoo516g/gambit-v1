@@ -31,7 +31,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           return
         }
 
-        const userMessageCount = workspace.chatMessages.filter(m => m.role === 'user').length
+        const userMessageCount = workspace.chatMessages.filter((m: any) => m.role === 'user').length
 
         if (userMessageCount >= 4) {
           sendEvent('limit', { message: '已达 4 轮对话上限，建议开新窗口' })
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         }
 
         // Re-order messages to ascending
-        const history = workspace.chatMessages.reverse().map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n\n')
+        const history = workspace.chatMessages.reverse().map((m: any) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n\n')
         if (history) {
           userContext += `【历史对话】：\n${history}\n\n`
         }

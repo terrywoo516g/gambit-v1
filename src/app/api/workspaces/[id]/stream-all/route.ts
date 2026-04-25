@@ -46,7 +46,7 @@ export async function GET(
       ;(async () => {
         // 使用 Promise.all 并行处理该 workspace 下所有的 run
         await Promise.all(
-          allRuns.map(async (run) => {
+          allRuns.map(async (run: any) => {
             const runId = run.id
 
             // ── 已完成 → 直接返回缓存 ──
@@ -187,8 +187,7 @@ export async function GET(
           const currentRuns = await prisma.modelRun.findMany({
             where: { workspaceId },
           })
-          const allDone = currentRuns.every(
-            (r) => r.status === 'completed' || r.status === 'failed'
+          const allDone = currentRuns.every((r: any) => r.status === 'completed' || r.status === 'failed'
           )
           if (allDone) {
             await prisma.workspace.update({

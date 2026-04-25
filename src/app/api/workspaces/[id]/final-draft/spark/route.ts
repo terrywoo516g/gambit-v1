@@ -24,7 +24,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ error: 'Workspace not found' }, { status: 404 })
     }
 
-    const modelsSummary = workspace.modelRuns.map(run => {
+    const modelsSummary = workspace.modelRuns.map((run: any) => {
       const content = run.content.length > 400 ? run.content.substring(0, 400) + '...' : run.content
       return `【${run.model}】：\n${content}`
     }).join('\n\n')

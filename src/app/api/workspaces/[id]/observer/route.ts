@@ -29,12 +29,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       })
     }
 
-    const modelsSummary = workspace.modelRuns.map(run => {
+    const modelsSummary = workspace.modelRuns.map((run: any) => {
       const content = run.content.length > 600 ? run.content.substring(0, 600) + '...' : run.content
       return `【${run.model}】：\n${content}`
     }).join('\n\n')
 
-    const chatHistory = workspace.chatMessages.reverse().map(m => `${m.role === 'user' ? '用户' : 'AI'}：${m.content}`).join('\n') || '（无）'
+    const chatHistory = workspace.chatMessages.reverse().map((m: any) => `${m.role === 'user' ? '用户' : 'AI'}：${m.content}`).join('\n') || '（无）'
 
     const prompt = `你是 Gambit 工作台的「旁观者」。你的唯一职责是：发现这场对话里没人注意到的漏洞和盲区。
 你不是参与者，你是场外的冷眼旁观者。你不给答案，不提建议，不说"应该怎么做"。你只说"这里有问题"。

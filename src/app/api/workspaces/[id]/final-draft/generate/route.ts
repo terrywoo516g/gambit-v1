@@ -30,15 +30,15 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
     if (!workspace) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-    const chatHistory = workspace.chatMessages.reverse().map(m => `${m.role === 'user' ? '用户' : 'AI'}：${m.content}`).join('\n')
+    const chatHistory = workspace.chatMessages.reverse().map((m: any) => `${m.role === 'user' ? '用户' : 'AI'}：${m.content}`).join('\n')
     
     let blocks = workspace.finalDraftBlocks
     if (selectedBlockIds && selectedBlockIds.length > 0) {
-      blocks = blocks.filter(b => selectedBlockIds.includes(b.id))
+      blocks = blocks.filter((b: any) => selectedBlockIds.includes(b.id))
     }
 
-    const blocksText = blocks.map(b => `【来源：${b.sourceLabel}】\n${b.content}`).join('\n\n')
-    const allDrafts = workspace.sceneSessions.flatMap(s => s.finalDrafts).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    const blocksText = blocks.map((b: any) => `【来源：${b.sourceLabel}】\n${b.content}`).join('\n\n')
+    const allDrafts = workspace.sceneSessions.flatMap((s: any) => s.finalDrafts).sort((a: any, b: any) => b.createdAt.getTime() - a.createdAt.getTime())
     const currentDraft = allDrafts[0]?.content || '（无）'
 
     const prompt = `你是一个资深内容编辑，擅长把零散的多源素材整合成结构清晰、语言流畅的成稿。
