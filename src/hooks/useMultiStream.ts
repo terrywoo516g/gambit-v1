@@ -12,7 +12,13 @@ export function useMultiStream(
   workspaceId: string | null,
   runs: { id: string; model: string }[]
 ) {
-  const [streams, setStreams] = useState<Record<string, StreamState>>({})
+  const [streams, setStreams] = useState<Record<string, StreamState>>(() => {
+    const initial: Record<string, StreamState> = {}
+    runs.forEach(r => {
+      initial[r.id] = { runId: r.id, model: r.model, content: '', status: 'idle' }
+    })
+    return initial
+  })
   const sourceRef = useRef<EventSource | null>(null)
 
   useEffect(() => {
@@ -32,6 +38,7 @@ export function useMultiStream(
     sourceRef.current = es
 
     es.onmessage = (event) => {
+      console.log('[SSE]', event.data.slice(0, 100))
       try {
         const data = JSON.parse(event.data)
         const runId = data.runId
@@ -84,7 +91,7 @@ export function useMultiStream(
       es.close()
       sourceRef.current = null
     }
-  }, [workspaceId]) // ← 只依赖 workspaceId，runs 不放进来避免重复触发
+  }, [workspaceId, runs.length]) // ← 依赖加上 runs.length
 
   const values = Object.values(streams)
   const allDone = values.length > 0 && values.every(s => s.status === 'done' || s.status === 'error')
