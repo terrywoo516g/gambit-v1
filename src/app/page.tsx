@@ -24,8 +24,8 @@ const DEFAULT_SELECTED = ['DeepSeek V3.2', 'MiniMax M1', 'Qwen3 Max']
 
 const TEMPLATES = [
   { tool: 'compose', label: '创意合成', text: '帮我写一篇小红书种草文案，主题是春季露营装备' },
-  { tool: 'brainstorm', label: '头脑风暴', text: 'AI 时代哪些技能最值得花时间学，梳理不同观点' },
-  { tool: 'compare', label: '多源对比', text: '对比几款主流 AI 写作工具，各自适合什么场景' },
+  { tool: 'brainstorm', label: '头脑风暴', text: 'AI 时代哪些技能最值得花时间学习，梳理不同观点' },
+  { tool: 'compare', label: '多源对比', text: '对比几款主流的 AI 写作工具，各自适合什么场景' },
 ]
 
 function getShortName(id: string): string {
