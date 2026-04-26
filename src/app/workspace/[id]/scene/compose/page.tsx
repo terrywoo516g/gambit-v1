@@ -113,6 +113,9 @@ export default function ComposeScenePage() {
 
     try {
       setGenerating(true)
+      import('@/lib/track').then(({ track }) => {
+        track('report_click', { workspaceId: wsId, scene: 'compose' })
+      }).catch(console.error)
       const res = await fetch(`/api/scenes/${sceneId}/generate`, { method: 'POST' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)

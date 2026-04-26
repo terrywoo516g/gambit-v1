@@ -9,6 +9,7 @@ datasource db {
 model Workspace {
   id             String         @id @default(uuid())
   userId         String?
+  user           User?          @relation(fields: [userId], references: [id])
   deviceId       String?
   prompt         String
   selectedModels String         // JSON string: '["DeepSeek V3.2","豆包 Seed 2.0 Pro","Kimi K2.5"]'
@@ -57,6 +58,7 @@ model Artifact {
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   type        String   // reflection / review_suggestions / comparison_table / observer / spark
+  kind        String   @default("legacy")  // summary / reflection / draft / report
   payload     String   @default("{}") // JSON string
   version     Int      @default(1)
   createdAt   DateTime @default(now())
@@ -108,8 +110,55 @@ model ChatMessage {
   role               String    // "user" | "assistant"
   content            String
   referencedRunIds   String    @default("[]") // JSON array
+  includeInReport    Boolean   @default(true)  // 第一轮默认 true，追问轮代码层覆盖为 false
   createdAt          DateTime  @default(now())
   workspace          Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   
   @@index([workspaceId, createdAt])
+}
+
+model User {
+  id           String   @id @default(cuid())
+  phone        String?  @unique
+  email        String?  @unique
+  credits      Int      @default(100)
+  createdAt    DateTime @default(now())
+  workspaces   Workspace[]
+  creditLogs   CreditLog[]
+}
+
+model RedeemCode {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  credits      Int
+  status       String   @default("unused")  // unused / used
+  source       String   // manual_sale / gift / interview / survey
+  note         String?
+  usedByUserId String?
+  usedAt       DateTime?
+  expiresAt    DateTime?
+  createdAt    DateTime @default(now())
+}
+
+model CreditLog {
+  id          String   @id @default(cuid())
+  userId      String
+  delta       Int      // 正数=充值/赠送，负数=消费
+  reason      String   // register / survey / redeem / report_generate / report_refund
+  refId       String?  // 关联的 reportId / redeemCodeId
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+model Report {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String
+  templateId  String   // full / memo / (social 暂不做)
+  selections  String   // JSON string, replaced from Json for SQLite compat
+  pdfUrl      String?
+  status      String   @default("pending")  // pending / generating / done / failed
+  creditsCost Int      @default(20)
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime?  // 用于 30min 内重复生成免扣判定
 }

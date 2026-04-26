@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AlertTriangle, Paperclip, X } from 'lucide-react'
 import { toast } from '@/components/Toast'
+import { track } from '@/lib/track'
 
 const ALL_MODELS = [
   { id: 'DeepSeek V3.2', provider: 'DeepSeek', short: 'DeepSeek V3.2' },
@@ -73,6 +74,7 @@ export default function HomePage() {
 
     try {
       setLoading(true)
+      track('home_send', { models: selectedModels, hasFile: !!attachedDoc })
       const res = await fetch('/api/workspaces', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

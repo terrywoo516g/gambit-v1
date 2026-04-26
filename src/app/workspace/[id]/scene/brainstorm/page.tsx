@@ -66,9 +66,11 @@ export default function BrainstormScenePage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ starred: adopted, excluded: rejected, editedRows: { notes } }),
     })
-
-    try {
+try {
       setGenerating(true)
+      import('@/lib/track').then(({ track }) => {
+        track('report_click', { workspaceId: wsId, scene: 'brainstorm' })
+      }).catch(console.error)
       const res = await fetch(`/api/scenes/${sceneId}/generate`, { method: 'POST' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)

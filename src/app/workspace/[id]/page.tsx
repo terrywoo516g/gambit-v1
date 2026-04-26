@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useMultiStream, StreamState } from '@/hooks/useMultiStream'
 import ReactMarkdown from 'react-markdown'
@@ -233,6 +233,17 @@ export default function WorkspacePage() {
     runsToStream.length > 0 ? wsId : null,
     runsToStream
   )
+
+  const trackedAllDone = useRef(false)
+  useEffect(() => {
+    if (allDone && completedCount > 0 && !trackedAllDone.current) {
+      trackedAllDone.current = true
+      import('@/lib/track').then(({ track }) => {
+        track('ai_all_done', { workspaceId: wsId, durationMs: 0 }) // TODO: Calculate real duration
+      }).catch(console.error)
+    }
+  }, [allDone, completedCount, wsId])
+
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (allDone && !recommendation && activeScene === null && wsId && completedCount > 0) {

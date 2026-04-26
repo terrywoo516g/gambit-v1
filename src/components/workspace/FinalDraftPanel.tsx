@@ -7,6 +7,8 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 
+import { track } from '@/lib/track'
+
 type Block = {
   id: string
   sourceType: string
@@ -312,6 +314,7 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
     if (!editor) return
     setComposing(true)
     setComposePreview('')
+    track('report_click', { workspaceId })
 
     abortControllerRef.current = new AbortController()
 
@@ -714,7 +717,7 @@ export default function FinalDraftPanel({ workspaceId }: { workspaceId: string }
 
       {/* 底栏: 操作 */}
       <div className="p-3 border-t border-gray-200 bg-white shrink-0 flex items-center gap-2">
-        <button onClick={() => { if(editor) { navigator.clipboard.writeText(editor.getText()); alert('已复制全文到剪贴板') } }} className="flex-1 flex items-center justify-center gap-1.5 py-2 border border-gray-200 rounded-lg text-sm text-ink hover:bg-gray-50 transition font-medium">
+        <button onClick={() => { if(editor) { navigator.clipboard.writeText(editor.getText()); track('draft_copy', { workspaceId }); alert('已复制全文到剪贴板') } }} className="flex-1 flex items-center justify-center gap-1.5 py-2 border border-gray-200 rounded-lg text-sm text-ink hover:bg-gray-50 transition font-medium">
           <Copy className="w-4 h-4 text-ink" />
           复制全文
         </button>

@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import { reportError } from '@/lib/track'
 
 export type StreamState = {
   runId: string
@@ -23,13 +24,6 @@ export function useMultiStream(
 
   useEffect(() => {
     if (!workspaceId || runs.length === 0) return
-
-    // 初始化每个 run 的状态
-    const initial: Record<string, StreamState> = {}
-    runs.forEach(r => {
-      initial[r.id] = { runId: r.id, model: r.model, content: '', status: 'idle' }
-    })
-    setStreams(initial)
 
     // 关闭上一个连接
     sourceRef.current?.close()
@@ -69,20 +63,26 @@ export function useMultiStream(
           }))
 
         } else if (data.type === 'error') {
-          setStreams(prev => ({
-            ...prev,
-            [runId]: {
-              ...prev[runId],
-              status: 'error',
+          setStreams(prev => {
+            import('@/lib/track').then(({ track }) => {
+              track('ai_failed', { runId, model: prev[runId]?.model, error: data.error || 'Unknown error' })
+            }).catch(console.error)
+            return {
+              ...prev,
+              [runId]: {
+                ...prev[runId],
+                status: 'error',
+              }
             }
-          }))
+          })
         }
       } catch (e) {
         console.error('[useMultiStream] parse error:', e)
       }
     }
 
-    es.onerror = () => {
+    es.onerror = (err) => {
+      reportError('useMultiStream', err, { workspaceId })
       es.close()
       sourceRef.current = null
     }

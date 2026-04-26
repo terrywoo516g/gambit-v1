@@ -4,6 +4,7 @@ import { streamChat } from '@/lib/llm-client'
 import { getModelByName } from '@/lib/model-registry'
 import { MODEL_REGISTRY as CLIENT_REGISTRY } from '@/lib/llm-client'
 import { dbWrite } from '@/lib/db-queue'
+import { reportError } from '@/lib/track'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300 // 防止 Vercel 等平台过早中断
@@ -184,6 +185,7 @@ export async function GET(
                 break // 成功，退出重试循环
               } catch (err: any) {
                 const isLastAttempt = attempt >= MAX_RETRIES
+                reportError('stream-all', err, { runId, model: run.model, attempt })
                 console.error(
                   `[stream attempt ${attempt + 1}/${MAX_RETRIES + 1}] ${run.model}:`,
                   err?.message || err
