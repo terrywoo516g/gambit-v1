@@ -54,16 +54,13 @@ type StepKey = 'models' | 'output'
 
 
 const AICard = React.memo(function AICard({ run, status, content, activeRunId, referencedRunIds, retryRun, toggleRef, isMaximized, onToggleMaximize }: any) {
-  const [expanded, setExpanded] = useState(false)
   const totalLength = content ? content.length : 0
-
-  const displayContent = (isMaximized || expanded) ? content : (!expanded && content && content.length > 68 ? content.substring(0, 68) + '...' : content)
 
   return (
     <div id={isMaximized ? 'run-max-' + run.id : 'run-' + run.id}
       className={`bg-white border rounded-2xl flex flex-col shadow-sm transition ${
-        isMaximized ? 'h-full shadow-2xl ring-1 ring-black/5 border-none' : (activeRunId === run.id ? 'border-accent ring-1 ring-accent/20' : 'border-gray-200')
-      }`} style={isMaximized ? undefined : { minHeight: '130px' }}>
+        isMaximized ? 'h-full shadow-2xl ring-1 ring-black/5 border-none' : (activeRunId === run.id ? 'border-accent ring-1 ring-accent/20 h-[360px]' : 'border-gray-200 h-[360px]')
+      }`}>
       <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
           <span className={`w-2 h-2 rounded-full ${MODEL_STATUS_COLORS[status] || 'bg-gray-300'}`} />
@@ -111,10 +108,10 @@ const AICard = React.memo(function AICard({ run, status, content, activeRunId, r
         
         {content && (
           <>
-            <div className={`overflow-y-auto ${status === 'streaming' || status === 'running' ? 'streaming-cursor' : ''}`} style={isMaximized ? { height: '100%' } : (expanded ? { maxHeight: '280px' } : undefined)}>
+            <div className={`overflow-y-auto ${status === 'streaming' || status === 'running' ? 'streaming-cursor' : ''}`} style={isMaximized ? { height: '100%' } : { height: '100%' }}>
               {status === 'streaming' || status === 'running' ? (
                 <div className="whitespace-pre-wrap leading-relaxed">
-                  {displayContent}
+                  {content}
                   <span className="animate-pulse">▍</span>
                 </div>
               ) : (
@@ -128,15 +125,9 @@ const AICard = React.memo(function AICard({ run, status, content, activeRunId, r
                   li: ({children}) => <li className="leading-relaxed">{children}</li>,
                   strong: ({children}) => <strong className="font-semibold">{children}</strong>,
                   code: ({children}) => <code className="bg-gray-100 px-1 rounded text-xs font-mono">{children}</code>,
-                }}>{displayContent}</ReactMarkdown>
+                }}>{content}</ReactMarkdown>
               )}
             </div>
-
-            {content.length > 68 && !isMaximized && (
-              <button onClick={() => setExpanded(!expanded)} className="mt-3 w-full py-1.5 text-xs text-inkLight hover:text-ink bg-gray-50 hover:bg-gray-100 rounded-lg transition flex items-center justify-center shrink-0">
-                {expanded ? '收起 ↑' : '展开全文 ↓'}
-              </button>
-            )}
           </>
         )}
 
