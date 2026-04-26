@@ -37,6 +37,7 @@ export function useMultiStream(
           setStreams(prev => {
             const next = { ...prev }
             for (const [id, text] of Object.entries(snapshot)) {
+              if (!text) continue // done handler cleared this run's buffer; don't revert its status
               next[id] = {
                 ...next[id],
                 content: (next[id]?.content ?? '') + text,
