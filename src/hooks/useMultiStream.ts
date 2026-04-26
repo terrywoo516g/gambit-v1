@@ -21,9 +21,33 @@ export function useMultiStream(
     return initial
   })
   const sourceRef = useRef<EventSource | null>(null)
+  const bufferRef = useRef<Record<string, string>>({})
+  const flushTimerRef = useRef<any>(null)
 
   useEffect(() => {
     if (!workspaceId || runs.length === 0) return
+
+    function appendToken(runId: string, chunk: string) {
+      bufferRef.current[runId] = (bufferRef.current[runId] ?? '') + chunk
+      if (!flushTimerRef.current) {
+        flushTimerRef.current = setTimeout(() => {
+          const snapshot = { ...bufferRef.current }
+          bufferRef.current = {}
+          flushTimerRef.current = null
+          setStreams(prev => {
+            const next = { ...prev }
+            for (const [id, text] of Object.entries(snapshot)) {
+              next[id] = {
+                ...next[id],
+                content: (next[id]?.content ?? '') + text,
+                status: 'streaming',
+              }
+            }
+            return next
+          })
+        }, 80)
+      }
+    }
 
     // 关闭上一个连接
     sourceRef.current?.close()
@@ -32,52 +56,48 @@ export function useMultiStream(
     sourceRef.current = es
 
     es.onmessage = (event) => {
-      console.log('[SSE]', event.data.slice(0, 100))
       try {
+        console.log('[SSE]', event.data.slice(0, 100))
         const data = JSON.parse(event.data)
-        const runId = data.runId
+        const { type, runId } = data
+
+        if (type === 'all-done') { es.close(); sourceRef.current = null; return }
         if (!runId) return
 
-        if (data.type === 'delta' || data.type === 'token') {
-          // 兼容 text 和 token 两种字段名
-          const chunk = data.text ?? data.token ?? ''
-          if (!chunk) return
+        if (type === 'token' || type === 'delta') {
+          const chunk = data.token ?? data.text ?? data.content ?? ''
+          if (chunk) appendToken(runId, chunk)
+          return
+        }
 
+        if (type === 'done') {
+          // 先 flush buffer 再设 done
+          const buffered = bufferRef.current[runId] ?? ''
+          bufferRef.current[runId] = ''
           setStreams(prev => ({
             ...prev,
             [runId]: {
               ...prev[runId],
-              content: (prev[runId]?.content ?? '') + chunk,
-              status: 'streaming',
-            }
-          }))
-
-        } else if (data.type === 'done') {
-          setStreams(prev => ({
-            ...prev,
-            [runId]: {
-              ...prev[runId],
-              content: data.content ?? prev[runId]?.content ?? '',
+              content: data.content ?? ((prev[runId]?.content ?? '') + buffered),
               status: 'done',
             }
           }))
+          return
+        }
 
-        } else if (data.type === 'error') {
+        if (type === 'error') {
           setStreams(prev => {
             import('@/lib/track').then(({ track }) => {
               track('ai_failed', { runId, model: prev[runId]?.model, error: data.error || 'Unknown error' })
             }).catch(console.error)
             return {
               ...prev,
-              [runId]: {
-                ...prev[runId],
-                status: 'error',
-              }
+              [runId]: { ...prev[runId], status: 'error' }
             }
           })
         }
       } catch (e) {
-        console.error('[useMultiStream] parse error:', e)
+        console.error('[SSE parse error]', e, event.data)
       }
     }
 
@@ -88,6 +108,9 @@ export function useMultiStream(
     }
 
     return () => {
+      if (flushTimerRef.current) clearTimeout(flushTimerRef.current)
+      flushTimerRef.current = null
+      bufferRef.current = {}
       es.close()
       sourceRef.current = null
     }

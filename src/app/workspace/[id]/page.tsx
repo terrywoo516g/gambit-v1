@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useMultiStream, StreamState } from '@/hooks/useMultiStream'
 import ReactMarkdown from 'react-markdown'
@@ -53,7 +53,7 @@ const MODEL_STATUS_COLORS: Record<string, string> = {
 type StepKey = 'models' | 'output'
 
 
-function AICard({ run, status, content, activeRunId, referencedRunIds, retryRun, toggleRef, isMaximized, onToggleMaximize }: any) {
+const AICard = React.memo(function AICard({ run, status, content, activeRunId, referencedRunIds, retryRun, toggleRef, isMaximized, onToggleMaximize }: any) {
   const [expanded, setExpanded] = useState(false)
   const totalLength = content ? content.length : 0
 
@@ -112,17 +112,24 @@ function AICard({ run, status, content, activeRunId, referencedRunIds, retryRun,
         {content && (
           <>
             <div className={`overflow-y-auto ${status === 'streaming' || status === 'running' ? 'streaming-cursor' : ''}`} style={isMaximized ? { height: '100%' } : (expanded ? { maxHeight: '280px' } : undefined)}>
-              <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
-                p: ({children}) => <p className="my-1 leading-relaxed">{children}</p>,
-                h1: ({children}) => <h1 className="text-lg font-bold my-2">{children}</h1>,
-                h2: ({children}) => <h2 className="text-base font-bold my-2">{children}</h2>,
-                h3: ({children}) => <h3 className="text-sm font-semibold my-1">{children}</h3>,
-                ul: ({children}) => <ul className="list-disc pl-4 my-1">{children}</ul>,
-                ol: ({children}) => <ol className="list-decimal pl-4 my-1">{children}</ol>,
-                li: ({children}) => <li className="leading-relaxed">{children}</li>,
-                strong: ({children}) => <strong className="font-semibold">{children}</strong>,
-                code: ({children}) => <code className="bg-gray-100 px-1 rounded text-xs font-mono">{children}</code>,
-              }}>{displayContent}</ReactMarkdown>
+              {status === 'streaming' || status === 'running' ? (
+                <div className="whitespace-pre-wrap leading-relaxed">
+                  {displayContent}
+                  <span className="animate-pulse">▍</span>
+                </div>
+              ) : (
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
+                  p: ({children}) => <p className="my-1 leading-relaxed">{children}</p>,
+                  h1: ({children}) => <h1 className="text-lg font-bold my-2">{children}</h1>,
+                  h2: ({children}) => <h2 className="text-base font-bold my-2">{children}</h2>,
+                  h3: ({children}) => <h3 className="text-sm font-semibold my-1">{children}</h3>,
+                  ul: ({children}) => <ul className="list-disc pl-4 my-1">{children}</ul>,
+                  ol: ({children}) => <ol className="list-decimal pl-4 my-1">{children}</ol>,
+                  li: ({children}) => <li className="leading-relaxed">{children}</li>,
+                  strong: ({children}) => <strong className="font-semibold">{children}</strong>,
+                  code: ({children}) => <code className="bg-gray-100 px-1 rounded text-xs font-mono">{children}</code>,
+                }}>{displayContent}</ReactMarkdown>
+              )}
             </div>
 
             {content.length > 68 && !isMaximized && (
@@ -174,7 +181,7 @@ function AICard({ run, status, content, activeRunId, referencedRunIds, retryRun,
       )}
     </div>
   )
-}
+})
 
 export default function WorkspacePage() {
   const params = useParams<{ id: string }>()
