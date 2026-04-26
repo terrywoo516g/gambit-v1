@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useMultiStream, StreamState } from '@/hooks/useMultiStream'
 import ReactMarkdown from 'react-markdown'
@@ -12,6 +12,7 @@ import {
 
 import ChatTurnCard from '@/components/workspace/ChatTurnCard'
 import FinalDraftPanel from '@/components/workspace/FinalDraftPanel'
+import { Reflection } from '@/lib/reflection/types'
 
 type ChatMessage = {
   id: string
@@ -191,6 +192,11 @@ export default function WorkspacePage() {
   const [recommendation, setRecommendation] = useState<{scene: string, reason: string} | null>(null)
   const [draftContent, setDraftContent] = useState<string | null>(null)
 
+  // Reflection 状态
+  const [reflection, setReflection] = useState<Reflection | null>(null)
+  const [reflectionStatus, setReflectionStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+  const [reflectionError, setReflectionError] = useState<string | null>(null)
+
   // 聊天状态
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [chatInput, setChatInput] = useState('')
@@ -217,6 +223,48 @@ export default function WorkspacePage() {
     runsToStream.length > 0 ? wsId : null,
     runsToStream
   )
+
+  const triggerReflection = useCallback(async () => {
+    if (!wsId) return
+    setReflectionStatus('loading')
+    setReflectionError(null)
+    try {
+      const res = await fetch(`/api/workspaces/${wsId}/reflection`, {
+        method: 'POST',
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        const errMap: Record<string, string> = {
+          'INSUFFICIENT_RESPONSES': '回答数量不足',
+          'PARSE_ERROR': '分析格式异常',
+          'SERVER_ERROR': '生成失败',
+          'WORKSPACE_NOT_FOUND': '工作区不存在',
+          'INVALID_WORKSPACE_ID': '无效工作区 ID',
+        }
+        throw new Error(errMap[data.error] || '生成失败')
+      }
+      if (data.reflection) {
+        setReflection(data.reflection)
+        setReflectionStatus('success')
+      } else {
+        throw new Error('分析格式异常')
+      }
+    } catch (err: any) {
+      setReflectionError(err.message || '生成失败')
+      setReflectionStatus('error')
+    }
+  }, [wsId])
+
+  const hasTriggeredReflectionRef = useRef(false)
+  useEffect(() => {
+    if (allDone && !hasTriggeredReflectionRef.current) {
+      hasTriggeredReflectionRef.current = true
+      triggerReflection()
+    }
+  }, [allDone, triggerReflection])
+  useEffect(() => {
+    hasTriggeredReflectionRef.current = false
+  }, [wsId])
 
   const trackedAllDone = useRef(false)
   useEffect(() => {
@@ -964,7 +1012,14 @@ export default function WorkspacePage() {
 
       {/* ===== 右栏：最终稿预览 ===== */}
       <aside id="right-panel-container" className="hidden lg:flex w-96 border-l border-gray-200 bg-white flex flex-col relative z-10 shrink-0 shadow-[-4px_0_24px_-8px_rgba(0,0,0,0.05)]">
-        <FinalDraftPanel workspaceId={wsId} workspace={workspace} allDone={allDone} />
+        <FinalDraftPanel 
+          workspaceId={wsId} 
+          allDone={allDone} 
+          reflection={reflection}
+          reflectionStatus={reflectionStatus}
+          reflectionError={reflectionError}
+          onRetryReflection={triggerReflection}
+        />
       </aside>
 
       {/* ===== 抽屉 (原版已移除) ===== */}

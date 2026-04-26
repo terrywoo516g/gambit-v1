@@ -2,12 +2,17 @@
 
 import * as React from 'react'
 import { useState, useEffect } from 'react'
-import { Copy } from 'lucide-react'
+import { Copy, RefreshCw } from 'lucide-react'
+import { Reflection } from '@/lib/reflection/types'
 
 interface FinalDraftPanelProps {
   workspaceId: string
   workspace?: any
   allDone?: boolean
+  reflection?: Reflection | null
+  reflectionStatus?: 'idle' | 'loading' | 'success' | 'error'
+  reflectionError?: string | null
+  onRetryReflection?: () => void
 }
 
 const MOCK_REFLECTION = {
@@ -38,7 +43,7 @@ const MOCK_REFLECTION = {
   draft: "关于「996 在某些行业是否合理」这个问题，三个模型的回答呈现出明确的法律共识与情境分歧：\n\n所有模型都同意，从法律层面看 996 工作制违反《劳动法》对工时的规定，企业以「自愿加班」为由也无法规避法律责任。同时，长期高强度工作对员工健康的负面影响在医学层面有充分证据。\n\n但在「行业特殊性是否构成合理性」这一点上，模型间存在分歧。一种观点认为互联网、金融等高竞争行业的早期阶段，存在事实上的高强度工作现象；另一种观点则认为任何形式的违法加班都不应被「行业特殊性」合理化。\n\n建议关注：保留考勤记录和工资条作为维权依据；在评估工作机会时综合考虑职业发展、薪酬福利与工作强度；如遇违法加班可向劳动监察部门投诉。",
 };
 
-function DimensionCard({ title, items }: { title: string, items: { id: string, text: string }[] }) {
+function DimensionCard({ title, items, loading }: { title: string, items: { id: string, text: string }[], loading?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const displayItems = expanded ? items : items.slice(0, 3);
   const hasMore = items.length > 3;
@@ -47,10 +52,16 @@ function DimensionCard({ title, items }: { title: string, items: { id: string, t
     <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm flex flex-col h-full min-h-[100px]">
       <div className="flex items-center gap-2 mb-2">
         <h3 className="text-xs font-bold text-gray-800">{title}</h3>
-        <span className="bg-gray-100 text-gray-500 text-[10px] px-1.5 py-0.5 rounded-full font-mono">{items.length}</span>
+        <span className="bg-gray-100 text-gray-500 text-[10px] px-1.5 py-0.5 rounded-full font-mono">{loading ? '-' : items.length}</span>
       </div>
       <div className="flex-1">
-        {items.length === 0 ? (
+        {loading ? (
+          <div className="flex flex-col gap-2 mt-2">
+            <div className="h-2 w-full bg-gray-100 rounded animate-pulse" />
+            <div className="h-2 w-4/5 bg-gray-100 rounded animate-pulse" />
+            <div className="h-2 w-5/6 bg-gray-100 rounded animate-pulse" />
+          </div>
+        ) : items.length === 0 ? (
           <div className="h-full flex items-center justify-center">
             <span className="text-xs text-gray-400">暂无内容</span>
           </div>
@@ -79,7 +90,13 @@ function DimensionCard({ title, items }: { title: string, items: { id: string, t
   )
 }
 
-export default function FinalDraftPanel({ allDone }: FinalDraftPanelProps) {
+export default function FinalDraftPanel({ 
+  allDone,
+  reflection,
+  reflectionStatus = 'idle',
+  reflectionError,
+  onRetryReflection
+}: FinalDraftPanelProps) {
   const [isMockMode, setIsMockMode] = useState(false)
   const [copied, setCopied] = useState(false)
 
@@ -90,30 +107,36 @@ export default function FinalDraftPanel({ allDone }: FinalDraftPanelProps) {
     }
   }, [])
 
-  // 防御式编程：安全地读取上游状态
   const isAllDone = allDone ?? false
   
-  // P0 不接入真实文稿生成，先固定没有草稿
-  const hasDraft = isMockMode 
+  // 根据 mockMode / reflectionStatus / allDone 切换顶部状态
+  let statusText = "等待模型回答"
+  let statusColor = "bg-gray-400"
+  let statusBg = "bg-gray-50 text-gray-600 border-gray-200"
 
-  // 根据 mockMode / allDone 切换顶部状态
-  const statusText = hasDraft 
-    ? "已生成文稿" 
-    : isAllDone 
-      ? "可生成分析" 
-      : "等待模型回答"
-
-  const statusColor = hasDraft 
-    ? "bg-green-500" 
-    : isAllDone 
-      ? "bg-blue-500" 
-      : "bg-gray-400"
-
-  const statusBg = hasDraft
-    ? "bg-green-50 text-green-700 border-green-200"
-    : isAllDone
-      ? "bg-blue-50 text-blue-700 border-blue-200"
-      : "bg-gray-50 text-gray-600 border-gray-200"
+  if (isMockMode) {
+    statusText = "已生成分析（DEMO）"
+    statusColor = "bg-green-500"
+    statusBg = "bg-green-50 text-green-700 border-green-200"
+  } else if (isAllDone) {
+    if (reflectionStatus === 'success') {
+      statusText = "已生成分析"
+      statusColor = "bg-green-500"
+      statusBg = "bg-green-50 text-green-700 border-green-200"
+    } else if (reflectionStatus === 'loading') {
+      statusText = "生成分析中…"
+      statusColor = "bg-blue-400 animate-pulse"
+      statusBg = "bg-blue-50 text-blue-600 border-blue-200"
+    } else if (reflectionStatus === 'error') {
+      statusText = "分析生成失败"
+      statusColor = "bg-red-500"
+      statusBg = "bg-red-50 text-red-600 border-red-200"
+    } else {
+      statusText = "可生成分析"
+      statusColor = "bg-blue-500"
+      statusBg = "bg-blue-50 text-blue-700 border-blue-200"
+    }
+  }
 
   const handleCopy = () => {
     if (isMockMode && MOCK_REFLECTION.draft) {
@@ -125,6 +148,18 @@ export default function FinalDraftPanel({ allDone }: FinalDraftPanelProps) {
         .catch(err => console.error('Failed to copy text: ', err))
     }
   }
+
+  const isLoading = reflectionStatus === 'loading' && !isMockMode
+  const isError = reflectionStatus === 'error' && !isMockMode
+  const isSuccess = reflectionStatus === 'success' && !isMockMode
+
+  const currentSummary = isMockMode 
+    ? MOCK_REFLECTION.summary 
+    : (isSuccess && reflection ? reflection.summary : null)
+    
+  const currentDimensions = isMockMode
+    ? MOCK_REFLECTION.dimensions
+    : (isSuccess && reflection ? reflection.dimensions : null)
 
   return (
     <div className="flex flex-col h-full bg-gray-50 w-full overflow-hidden">
@@ -145,10 +180,26 @@ export default function FinalDraftPanel({ allDone }: FinalDraftPanelProps) {
         {/* 区域 2：综合判断区 */}
         <section>
           <h2 className="text-sm font-bold text-gray-900 mb-3">综合判断</h2>
-          <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm min-h-[100px] flex items-center justify-center">
-            {isMockMode ? (
+          <div className={`bg-white border ${isError ? 'border-red-200' : 'border-gray-200'} rounded-xl p-4 shadow-sm min-h-[100px] flex items-center justify-center`}>
+            {isLoading ? (
+              <div className="flex flex-col items-center gap-2 w-full">
+                <div className="h-3 w-full bg-gray-100 rounded animate-pulse" />
+                <div className="h-3 w-5/6 bg-gray-100 rounded animate-pulse" />
+                <span className="text-xs text-gray-400 mt-2">正在生成综合判断…</span>
+              </div>
+            ) : isError ? (
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-sm text-red-600">分析生成失败：{reflectionError || '未知错误'}</span>
+                <button 
+                  onClick={onRetryReflection}
+                  className="mt-1 flex items-center gap-1 text-xs text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-full transition-colors"
+                >
+                  <RefreshCw className="w-3 h-3" /> 重试
+                </button>
+              </div>
+            ) : currentSummary ? (
               <span className="text-sm text-gray-700 leading-relaxed w-full">
-                {MOCK_REFLECTION.summary}
+                {currentSummary}
               </span>
             ) : (
               <span className="text-sm text-gray-400 text-center leading-relaxed">
@@ -163,19 +214,23 @@ export default function FinalDraftPanel({ allDone }: FinalDraftPanelProps) {
           <div className="grid grid-cols-2 gap-3">
             <DimensionCard 
               title="共识" 
-              items={isMockMode ? (MOCK_REFLECTION.dimensions?.consensus ?? []) : []} 
+              loading={isLoading}
+              items={currentDimensions?.consensus ?? []} 
             />
             <DimensionCard 
               title="分歧" 
-              items={isMockMode ? (MOCK_REFLECTION.dimensions?.divergence ?? []) : []} 
+              loading={isLoading}
+              items={currentDimensions?.divergence ?? []} 
             />
             <DimensionCard 
               title="少数派" 
-              items={isMockMode ? (MOCK_REFLECTION.dimensions?.minority ?? []) : []} 
+              loading={isLoading}
+              items={currentDimensions?.minority ?? []} 
             />
             <DimensionCard 
               title="待验证" 
-              items={isMockMode ? (MOCK_REFLECTION.dimensions?.pending ?? []) : []} 
+              loading={isLoading}
+              items={currentDimensions?.pending ?? []} 
             />
           </div>
         </section>
