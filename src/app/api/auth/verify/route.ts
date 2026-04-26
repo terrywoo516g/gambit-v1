@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { randomUUID } from 'crypto'
+import { prisma } from '@/lib/db'
 
 export async function POST(request: Request) {
   const { code } = await request.json()
@@ -12,6 +13,23 @@ export async function POST(request: Request) {
   }
 
   const sessionId = randomUUID()
+
+  // ✨ Day 1 收尾：邀请码通过时同时建 User 记录，
+  // sessionId 同时作为 cookie 值和 User.id —— 这样后续
+  // Workspace.userId = cookie 值时不会再触发外键违约
+  try {
+    await prisma.user.create({
+      data: {
+        id: sessionId,
+        credits: 100, // 注册赠送 100 积分
+      },
+    })
+  } catch (err) {
+    // 忽略 — 极小概率 UUID 冲突或 Prisma 暂时性失败
+    // 不阻塞登录流程
+    console.error('[auth/verify] user create failed (non-fatal)', err)
+  }
+
   const res = NextResponse.json({ success: true })
 
   res.cookies.set('gambit_invite', sessionId, {
