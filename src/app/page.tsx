@@ -23,12 +23,6 @@ const ALL_MODELS = [
 
 const DEFAULT_SELECTED = ['DeepSeek V3.2', 'MiniMax M1', 'Qwen3 Max']
 
-const TEMPLATES = [
-  { tool: 'compose', label: '创意合成', text: '帮我写一篇小红书种草文案，主题是春季露营装备' },
-  { tool: 'brainstorm', label: '头脑风暴', text: 'AI 时代哪些技能最值得花时间学习，梳理不同观点' },
-  { tool: 'compare', label: '多源对比', text: '对比几款主流的 AI 写作工具，各自适合什么场景' },
-]
-
 function getShortName(id: string): string {
   return ALL_MODELS.find(m => m.id === id)?.short || id.split(' ')[0]
 }
@@ -54,10 +48,6 @@ export default function HomePage() {
         return [...prev, model]
       }
     })
-  }
-
-  function applyTemplate(tpl: typeof TEMPLATES[0]) {
-    setText(tpl.text)
   }
 
   async function handleSubmit(inputText?: string) {
@@ -266,21 +256,6 @@ export default function HomePage() {
               内容较长，可能影响 AI 响应速度
             </span>
           )}
-        </div>
-
-        {/* 模板卡片 */}
-        <div className="w-full max-w-4xl mt-5 grid grid-cols-3 gap-3">
-          {TEMPLATES.map(tpl => (
-            <div
-              key={tpl.tool}
-              onClick={() => applyTemplate(tpl)}
-              className="group relative bg-white/60 border border-gray-200 rounded-xl px-4 py-2.5 cursor-pointer hover:bg-white hover:border-gray-300 transition"
-            >
-              <span className="text-[11px] font-mono font-semibold text-gray-400 uppercase tracking-wider">{tpl.label}</span>
-              <p className="text-sm text-ink mt-0.5 leading-snug line-clamp-2">{tpl.text}</p>
-              <span className="absolute right-3 top-2.5 opacity-0 group-hover:opacity-100 transition text-[11px] bg-ink text-white px-2 py-1 rounded font-medium">一键输入</span>
-            </div>
-          ))}
         </div>
       </main>
 

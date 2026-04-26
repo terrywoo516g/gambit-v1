@@ -1,20 +1,15 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useMultiStream, StreamState } from '@/hooks/useMultiStream'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { 
   ArrowLeft, Eye, Copy, Send, Loader2,
-  LayoutGrid, MessageSquare, Pencil,
-  FileText, Pin, RefreshCw, Maximize2, Minimize2, Zap
+  FileText, Pin, RefreshCw, Maximize2, Minimize2
 } from 'lucide-react'
 
-import CompareScene from '@/components/scenes/CompareScene'
-import BrainstormScene from '@/components/scenes/BrainstormScene'
-import ComposeScene from '@/components/scenes/ComposeScene'
-import ReviewScene from '@/components/scenes/ReviewScene'
 import ChatTurnCard from '@/components/workspace/ChatTurnCard'
 import FinalDraftPanel from '@/components/workspace/FinalDraftPanel'
 
@@ -42,14 +37,7 @@ type WorkspaceData = {
   }[]
 }
 
-type SceneKey = 'compare' | 'brainstorm' | 'compose' | 'review'
-
-
-const SCENE_DEFS = [
-  { id: 'compare', icon: LayoutGrid, label: '多源对比', desc: '生成推荐报告' },
-  { id: 'brainstorm', icon: MessageSquare, label: '头脑风暴', desc: '共识分歧盲点' },
-  { id: 'compose', icon: Pencil, label: '创意合成', desc: '多源整合成稿' },
-]
+// Scene definitions removed as requested
 
 const MODEL_STATUS_COLORS: Record<string, string> = {
   done: 'bg-green-400',
@@ -62,7 +50,7 @@ const MODEL_STATUS_COLORS: Record<string, string> = {
   failed: 'bg-red-400',
 }
 
-type StepKey = 'models' | 'scene' | 'output'
+type StepKey = 'models' | 'output'
 
 
 function AICard({ run, status, content, activeRunId, referencedRunIds, retryRun, toggleRef, isMaximized, onToggleMaximize }: any) {
@@ -201,10 +189,8 @@ export default function WorkspacePage() {
   const [showDrawer, setShowDrawer] = useState<'observer' | null>(null)
 
   const [activeStep, setActiveStep] = useState<StepKey>('models')
-  const [activeScene, setActiveScene] = useState<SceneKey | null>(null)
   
   const [recommendation, setRecommendation] = useState<{scene: string, reason: string} | null>(null)
-  const [showRecommendation, setShowRecommendation] = useState(false)
   const [draftContent, setDraftContent] = useState<string | null>(null)
 
   // 聊天状态
@@ -245,21 +231,17 @@ export default function WorkspacePage() {
   }, [allDone, completedCount, wsId])
 
   useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (allDone && !recommendation && activeScene === null && wsId && completedCount > 0) {
+    if (allDone && !recommendation && wsId && completedCount > 0) {
       fetch(`/api/workspaces/${wsId}/recommend-scene`, { method: 'POST' })
         .then(r => r.json())
         .then(data => {
           if (data && data.scene) {
             setRecommendation(data)
-            setShowRecommendation(true)
-            timer = setTimeout(() => setShowRecommendation(false), 5000)
           }
         })
         .catch(console.error)
     }
-    return () => { if (timer) clearTimeout(timer) }
-  }, [allDone, activeScene, wsId, recommendation, completedCount])
+  }, [allDone, wsId, recommendation, completedCount])
 
 
   useEffect(() => {
@@ -308,16 +290,6 @@ export default function WorkspacePage() {
     return run.status
   }
 
-  const handleDraftGenerated = useCallback((content: string) => {
-    setDraftContent(content)
-    setActiveStep('output')
-  }, [])
-
-  function enterScene(key: SceneKey) {
-    setActiveScene(key)
-    setActiveStep('scene')
-  }
-
   async function handleObserver(forceReload = false) {
     if (showDrawer === 'observer' && !forceReload) {
       setShowDrawer(null)
@@ -359,7 +331,6 @@ export default function WorkspacePage() {
     setChatInput('')
 
     try {
-      setActiveScene(null) // 明确将场景设为 null，保持在独立对话状态
       setActiveStep('models')
       
       const res = await fetch('/api/workspaces/' + wsId + '/chat/stream', {
@@ -431,7 +402,6 @@ export default function WorkspacePage() {
   function scrollToRun(runId: string) {
     setActiveRunId(runId)
     setActiveStep('models')
-    setActiveScene(null)
     setTimeout(() => {
       document.getElementById('run-' + runId)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }, 100)
@@ -514,7 +484,7 @@ export default function WorkspacePage() {
           <div className="space-y-1">
             {/* 1. AI 回答 */}
             <div>
-              <button onClick={() => { setActiveStep('models'); setActiveScene(null) }}
+              <button onClick={() => { setActiveStep('models') }}
                 className={`flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg text-sm transition ${
                   activeStep === 'models' ? 'bg-accent/10 text-accent font-medium' : 'text-inkLight hover:bg-gray-50'
                 }`}>
@@ -545,7 +515,6 @@ export default function WorkspacePage() {
             <div>
               <button onClick={() => { 
                 setActiveStep('models')
-                setActiveScene(null)
                 setTimeout(() => document.getElementById('messages-end')?.scrollIntoView({ behavior: 'smooth' }), 100)
               }}
                 className={`flex items-center justify-between w-full text-left px-3 py-2 rounded-lg text-sm transition ${
@@ -565,45 +534,15 @@ export default function WorkspacePage() {
               </button>
             </div>
 
-            {/* 3. 场景产物 */}
-            {workspace.sceneSessions.length > 0 && (
-              <div>
-                <button onClick={() => { setActiveStep('scene'); if (workspace.sceneSessions[0]) enterScene(workspace.sceneSessions[0].sceneType as SceneKey) }}
-                  className={`flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg text-sm transition ${
-                    activeStep === 'scene' ? 'bg-accent/10 text-accent font-medium' : 'text-inkLight hover:bg-gray-50'
-                  }`}>
-                  <span className={`w-5 h-5 rounded-full text-xs flex items-center justify-center font-medium shrink-0 ${
-                    activeStep === 'scene' ? 'bg-accent text-white' : 'bg-gray-200 text-inkLight'
-                  }`}>3</span>
-                  场景产物
-                </button>
-                <div className="ml-5 pl-4 border-l-2 border-gray-100 py-1 space-y-1">
-                  {workspace.sceneSessions.map(session => {
-                    const sceneDef = SCENE_DEFS.find(s => s.id === session.sceneType)
-                    if (!sceneDef) return null
-                    return (
-                      <button key={session.id} onClick={() => enterScene(session.sceneType as SceneKey)}
-                        className={`flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-lg text-xs transition ${
-                          activeScene === session.sceneType ? 'text-accent bg-accent/5' : 'text-inkLight hover:text-ink hover:bg-gray-50'
-                        }`}>
-                        <div className="w-3.5 h-3.5 shrink-0 opacity-70"><sceneDef.icon /></div>
-                        <span className="truncate">{sceneDef.label}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* 4. 最终稿 */}
+            {/* 3. 最终稿 */}
             <div>
-              <button onClick={() => { setActiveStep('output'); setActiveScene(null) }}
+              <button onClick={() => { setActiveStep('output') }}
                 className={`flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg text-sm transition ${
                   activeStep === 'output' ? 'bg-accent/10 text-accent font-medium' : 'text-inkLight hover:bg-gray-50'
                 }`}>
                 <span className={`w-5 h-5 rounded-full text-xs flex items-center justify-center font-medium shrink-0 ${
                   activeStep === 'output' ? 'bg-accent text-white' : 'bg-gray-200 text-inkLight'
-                }`}>{workspace.sceneSessions.length > 0 ? '4' : '3'}</span>
+                }`}>3</span>
                 最终稿
               </button>
             </div>
@@ -705,7 +644,7 @@ export default function WorkspacePage() {
             )}
           </div>
           <span className="text-[10px] font-mono text-black/20 tracking-wider">
-            {activeScene ? SCENE_DEFS.find(s => s.id === activeScene)?.label?.toUpperCase() : 'REVIEW DESK'}
+            REVIEW DESK
           </span>
         </div>
 
@@ -715,7 +654,7 @@ export default function WorkspacePage() {
         </div>
 
         <div className="flex-1 overflow-hidden flex flex-col">
-          {activeStep === 'models' && !activeScene && (
+          {activeStep === 'models' && (
             <div className="flex-1 overflow-y-auto px-6 py-4">
                             {isCardsCollapsed ? (
                 <div className="mb-4">
@@ -875,16 +814,9 @@ export default function WorkspacePage() {
             </div>
           )}
 
-          {activeScene && (
-            <div className="flex-1 overflow-hidden">
-              {activeScene === 'compare' && <CompareScene workspaceId={wsId} onDraftGenerated={handleDraftGenerated} referencedRunIds={referencedRunIds} />}
-              {activeScene === 'brainstorm' && <BrainstormScene workspaceId={wsId} onDraftGenerated={handleDraftGenerated} referencedRunIds={referencedRunIds} />}
-              {activeScene === 'compose' && <ComposeScene workspaceId={wsId} onDraftGenerated={handleDraftGenerated} referencedRunIds={referencedRunIds} />}
-              {activeScene === 'review' && <ReviewScene workspaceId={wsId} onDraftGenerated={handleDraftGenerated} referencedRunIds={referencedRunIds} />}
-            </div>
-          )}
+          {/* activeScene logic removed */}
 
-          {activeStep === 'output' && !activeScene && (
+          {activeStep === 'output' && (
             <div className="flex-1 overflow-y-auto px-6 py-4">
               {draftContent ? (
                 <div className="max-w-3xl mx-auto bg-white border border-gray-200 rounded-2xl p-8">
@@ -903,34 +835,6 @@ export default function WorkspacePage() {
           )}
 
           <div className="border-t border-gray-200 bg-white px-6 py-3 shrink-0">
-            {showRecommendation && recommendation && (
-              <div className="flex items-center gap-1 text-xs text-gray-400 mb-2 px-0.5">
-                <Zap size={11} className="text-gray-900 fill-gray-900 shrink-0" />
-                <span>建议使用「{SCENE_DEFS.find(s => s.id === recommendation.scene)?.label || '相关场景'}」</span>
-              </div>
-            )}
-            <div className="flex gap-3 mb-4 overflow-x-auto pb-1 scrollbar-hide snap-x">
-              {activeScene && (
-                <button onClick={() => { setActiveScene(null); setActiveStep('models') }}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm border border-gray-200 bg-white text-inkLight hover:border-accent transition whitespace-nowrap">
-                    <ArrowLeft className="w-3.5 h-3.5" /> AI 回答
-                  </button>
-                )}
-                {SCENE_DEFS.map(btn => (
-                <button key={btn.id} onClick={() => enterScene(btn.id as SceneKey)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm border transition whitespace-nowrap ${
-                    activeScene === btn.id ? 'bg-accent text-white border-accent' :
-                    'bg-white text-ink border-gray-200 hover:border-accent'
-                  }`}>
-                  <btn.icon className="w-4 h-4" />
-                  <div className="flex items-baseline gap-1.5 text-left">
-                    <div className="font-medium leading-tight whitespace-nowrap">{btn.label}</div>
-                    <div className={`text-[11px] whitespace-nowrap ${activeScene === btn.id ? 'text-white/70' : 'text-inkLight'}`}>{btn.desc}</div>
-                  </div>
-                </button>
-                ))}
-              </div>
-
               {referencedRunIds.length > 0 && (
                 <div className="flex flex-wrap items-center gap-1.5 mb-2">
                   <span className="text-[10px] font-mono text-black/30 tracking-wider mr-1">REFS:</span>
