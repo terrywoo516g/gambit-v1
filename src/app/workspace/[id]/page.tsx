@@ -214,7 +214,6 @@ export default function WorkspacePage() {
   const [referencedRunIds, setReferencedRunIds] = useState<string[]>([])
   const [showMentionPicker, setShowMentionPicker] = useState(false)
 
-  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set())
   const [expandedRounds, setExpandedRounds] = useState<Set<number>>(new Set())
 
   const runsToStream = workspace?.modelRuns
@@ -553,7 +552,6 @@ export default function WorkspacePage() {
 
   // 计算对话轮次
   const userMessages = chatMessages.filter(m => m.role === 'user')
-  const hasUserMessages = userMessages.length > 0
   const latestRoundIndex = userMessages.length
   const chatRounds = userMessages.map((userMsg, index) => {
     const roundIndex = index + 1
@@ -561,8 +559,6 @@ export default function WorkspacePage() {
       (index === userMessages.length - 1 || m.createdAt < userMessages[index + 1].createdAt))
     return { roundIndex, userMsg, assistantMsg }
   })
-
-  const isCardsCollapsed = hasUserMessages && expandedCards.size === 0
 
   // ========== JSX 部分在任务 8B 中补充 ==========
   return (
@@ -756,74 +752,17 @@ export default function WorkspacePage() {
         <div className="flex-1 overflow-hidden flex flex-col">
           {activeStep === 'models' && (
             <div className="flex-1 overflow-y-auto px-6 py-4">
-                            {isCardsCollapsed ? (
-                <div className="mb-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-[10px] font-mono text-black/30 tracking-wider">AI 回答</div>
-                    <button 
-                      onClick={() => {
-                        const newSet = new Set<string>()
-                        runs.forEach(r => newSet.add(r.id))
-                        setExpandedCards(newSet)
-                      }}
-                      className="text-[10px] text-accent hover:underline">
-                      全部展开
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {runs.map(run => {
-                      const content = getContent(run)
-                      const status = getStatus(run)
-                      const isExpanded = expandedCards.has(run.id)
-                      
-                      return isExpanded ? (
-                        <div key={run.id} id={'run-' + run.id} className="w-full mt-2 mb-2">
-                          <div className="flex justify-end mb-1">
-                            <button onClick={() => {
-                              const newSet = new Set(expandedCards)
-                              newSet.delete(run.id)
-                              setExpandedCards(newSet)
-                            }} className="text-xs text-inkLight hover:text-ink">收起</button>
-                          </div>
-                          {/* 渲染完整的展开卡片 */}
-                          <AICard run={run} status={status} content={content} activeRunId={activeRunId} referencedRunIds={referencedRunIds} retryRun={retryRun} toggleRef={toggleRef} onToggleMaximize={() => setMaximizedRunId(run.id)} />
-                        </div>
-                      ) : (
-                        <button key={run.id} onClick={() => {
-                          const newSet = new Set(expandedCards)
-                          newSet.add(run.id)
-                          setExpandedCards(newSet)
-                        }} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-xs shadow-sm hover:border-accent hover:text-accent transition">
-                          <span className={`w-1.5 h-1.5 rounded-full ${MODEL_STATUS_COLORS[status] || 'bg-gray-300'}`} />
-                          <span className="font-medium">{run.model}</span>
-                          <span className="text-inkLight ml-1">· {content?.length || 0} 字</span>
-                        </button>
-                      )
-                    })}
-                  </div>
+              <div className="mb-4">
+                <div className={`grid gap-4 ${runs.length <= 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                  {runs.map(run => {
+                    const content = getContent(run)
+                    const status = getStatus(run)
+                    return (
+                      <AICard key={run.id} run={run} status={status} content={content} activeRunId={activeRunId} referencedRunIds={referencedRunIds} retryRun={retryRun} toggleRef={toggleRef} onToggleMaximize={() => setMaximizedRunId(run.id)} />
+                    )
+                  })}
                 </div>
-              ) : (
-                <div className="mb-4">
-                  {hasUserMessages && (
-                    <div className="flex justify-end mb-2">
-                      <button 
-                        onClick={() => setExpandedCards(new Set())}
-                        className="text-[10px] text-inkLight hover:text-ink">
-                        全部折叠
-                      </button>
-                    </div>
-                  )}
-                  <div className={`grid gap-4 ${runs.length <= 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-                    {runs.map(run => {
-                      const content = getContent(run)
-                      const status = getStatus(run)
-                      return (
-                        <AICard key={run.id} run={run} status={status} content={content} activeRunId={activeRunId} referencedRunIds={referencedRunIds} retryRun={retryRun} toggleRef={toggleRef} onToggleMaximize={() => setMaximizedRunId(run.id)} />
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
+              </div>
 
               {/* 对话历史区域（按轮次分组） */}
               {chatRounds.length > 0 && (
