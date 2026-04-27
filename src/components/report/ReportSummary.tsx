@@ -33,9 +33,9 @@ export default function ReportSummary({ reflection }: { reflection: Reflection }
                   <div className="w-6 h-6 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[10px] text-gray-400 font-mono print-card">M</div>
                 </div>
 
-                <h3 className="text-xl font-semibold mb-3 print-text-invert text-gray-100">{dim.title}</h3>
+                <h3 className="text-xl font-semibold mb-3 print-text-invert text-gray-100">{dim?.title ?? '—'}</h3>
                 <p className="text-gray-400 leading-relaxed whitespace-pre-wrap print-text-gray text-sm">
-                  {dim.content}
+                  {dim?.content ?? '—'}
                 </p>
               </div>
             ))

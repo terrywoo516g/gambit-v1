@@ -1,11 +1,13 @@
 import React from 'react'
 
 export default function ReportCover({ workspace }: { workspace: any }) {
-  const dateStr = workspace.reflectionAt 
+  const dateStr = workspace?.reflectionAt 
     ? new Date(workspace.reflectionAt).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '.')
     : ''
     
-  const modelList = workspace.modelRuns?.map((m: any) => m.model).join(' · ') || '多模型'
+  const modelList = Array.isArray(workspace?.modelRuns) 
+    ? workspace.modelRuns.map((m: any) => m?.model ?? '未知模型').join(' · ') 
+    : '多模型'
 
   return (
     <section className="relative w-full h-screen flex flex-col justify-between p-8 md:p-16 lg:p-24 overflow-hidden report-gradient-bg bg-gradient-to-br from-[#0a0a0f] via-[#130f1c] to-[#0a0a0f] print-page-break print:h-auto print:min-h-screen">
@@ -22,7 +24,7 @@ export default function ReportCover({ workspace }: { workspace: any }) {
           <span className="text-xl font-semibold tracking-wide text-white print-text-invert">Gambit</span>
         </div>
         <div className="text-sm font-mono tracking-widest text-gray-400 print-text-gray uppercase">
-          {dateStr.split('.')[0]} · Q{Math.floor((new Date(workspace.reflectionAt || Date.now()).getMonth() + 3) / 3)} · FLAGSHIP REPORT
+          {dateStr ? dateStr.split('.')[0] : ''} · Q{Math.floor((new Date(workspace?.reflectionAt || Date.now()).getMonth() + 3) / 3)} · FLAGSHIP REPORT
         </div>
       </header>
 
@@ -30,7 +32,7 @@ export default function ReportCover({ workspace }: { workspace: any }) {
       <main className="flex-1 flex flex-col justify-center max-w-5xl z-10 mt-12">
         <p className="text-purple-400 font-mono tracking-[0.2em] text-sm mb-6 print-text-gray">GAMBIT RESEARCH</p>
         <h1 className="text-5xl md:text-7xl font-bold text-white leading-tight mb-8 line-clamp-2 print-text-invert">
-          {workspace.prompt}
+          {workspace?.prompt ?? '未知工作区'}
         </h1>
         <h2 className="text-2xl md:text-3xl text-gray-400 font-light tracking-wide print-text-gray">
           多模型交叉验证 · 综合判断

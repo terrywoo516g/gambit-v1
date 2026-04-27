@@ -43,6 +43,12 @@ export default function ReportPage() {
               : Object.values(parsed.dimensions || {}).flat() as any,
             draft: parsed.draft || ''
           }
+          
+          if (!reflectionObj.dimensions || !Array.isArray(reflectionObj.dimensions) || reflectionObj.dimensions.length === 0) {
+            setStatus('noReflection')
+            return
+          }
+          
           setReflection(reflectionObj)
           setStatus('success')
         } catch (err) {
