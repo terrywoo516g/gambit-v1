@@ -46,3 +46,10 @@ github_key
 github_key.pub
 .pnpm-store/
 .pnpm-store/
+
+# env file backups and typo variants
+.envy
+.env.backup
+.env.bak
+.env.local.backup
+.env.*.backup
