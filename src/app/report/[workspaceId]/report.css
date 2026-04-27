@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@media print {
+  body {
+    background-color: white !important;
+    color: black !important;
+  }
+  
+  .print-force-bg {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  
+  .report-gradient-bg {
+    background: none !important;
+    border: 1px solid #e5e5e5;
+  }
+  
+  .report-text-glow {
+    text-shadow: none !important;
+    color: black !important;
+  }
+  
+  /* Hide UI elements unnecessary for print */
+  .print\:hidden {
+    display: none !important;
+  }
+  
+  /* Force dark cards to light mode for printing */
+  .print-card {
+    background-color: white !important;
+    border: 1px solid #ccc !important;
+    color: black !important;
+  }
+  
+  .print-text-invert {
+    color: black !important;
+  }
+  
+  .print-text-gray {
+    color: #666 !important;
+  }
+  
+  /* Page breaks */
+  .print-page-break {
+    page-break-before: always;
+  }
+}
