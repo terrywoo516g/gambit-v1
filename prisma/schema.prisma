@@ -18,6 +18,8 @@ model Workspace {
   recommendScene String?        // compare / brainstorm / compose / review
   reflectionData String?
   reflectionAt   DateTime?
+  reportConfig   String?        // 报告定制配置（JSON 字符串），由 /report/[id]/customize 写入。详见 src/lib/report/types.ts 中的 ReportConfig 类型
+  reportConfigAt DateTime?
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   modelRuns      ModelRun[]
