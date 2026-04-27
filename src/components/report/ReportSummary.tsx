@@ -1,5 +1,6 @@
 import React from 'react'
 import { Reflection } from '@/lib/reflection/types'
+import { ReportConfig } from '@/lib/report/types'
 
 const DIMENSION_LABELS = [
   { key: 'consensus',  label: '核心共识', desc: '三模型一致认同的观点' },
@@ -8,9 +9,13 @@ const DIMENSION_LABELS = [
   { key: 'pending',    label: '待观察', desc: '需更多信息才能判断的议题' },
 ] as const
 
-export default function ReportSummary({ reflection, modelLetters = [] }: { reflection: Reflection, modelLetters?: string[] }) {
+export default function ReportSummary({ reflection, modelLetters = [], reportConfig }: { reflection: Reflection, modelLetters?: string[], reportConfig?: ReportConfig }) {
   const dimensions = reflection?.dimensions || {}
   
+  // Apply dimension filtering if config is present
+  const allowedDimensions = reportConfig?.selectedDimensions || ['consensus', 'divergence', 'minority', 'pending']
+  const filteredLabels = DIMENSION_LABELS.filter(config => allowedDimensions.includes(config.key as any))
+
   return (
     <section className="report-section p-8 md:p-16 lg:p-24 bg-paper text-ink">
       {/* Header */}
@@ -24,7 +29,7 @@ export default function ReportSummary({ reflection, modelLetters = [] }: { refle
         
         {/* Left Column: Dimensions */}
         <div className="flex flex-col gap-12">
-          {DIMENSION_LABELS.map((config, idx) => {
+          {filteredLabels.map((config, idx) => {
             const items = dimensions[config.key as keyof typeof dimensions] || []
             const hasItems = Array.isArray(items) && items.length > 0
 

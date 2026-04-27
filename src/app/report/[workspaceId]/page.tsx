@@ -7,6 +7,7 @@ import ReportCover from '@/components/report/ReportCover'
 import ReportSummary from '@/components/report/ReportSummary'
 import ReportConclusion from '@/components/report/ReportConclusion'
 import { Reflection } from '@/lib/reflection/types'
+import { ReportConfig, parseReportConfig, DEFAULT_REPORT_CONFIG } from '@/lib/report/types'
 
 export default function ReportPage() {
   const params = useParams<{ workspaceId: string }>()
@@ -14,6 +15,7 @@ export default function ReportPage() {
 
   const [workspace, setWorkspace] = useState<any>(null)
   const [reflection, setReflection] = useState<Reflection | null>(null)
+  const [reportConfig, setReportConfig] = useState<ReportConfig>(DEFAULT_REPORT_CONFIG)
   const [status, setStatus] = useState<'loading' | 'error' | 'noReflection' | 'success'>('loading')
 
   useEffect(() => {
@@ -66,6 +68,7 @@ export default function ReportPage() {
 
         setWorkspace({ ...ws, modelLetters: letters })
         setReflection(reflectionObj)
+        setReportConfig(parseReportConfig(ws.reportConfig) || { ...DEFAULT_REPORT_CONFIG, title: ws.prompt ?? '' })
         setStatus('success')
       } catch (err) {
         console.error('[report] Load failed', err)
@@ -120,9 +123,9 @@ export default function ReportPage() {
 
   return (
     <div className="w-full">
-      <ReportCover workspace={workspace} />
-      <ReportSummary reflection={reflection!} modelLetters={workspace?.modelLetters || []} />
-      <ReportConclusion workspace={workspace} reflection={reflection!} modelLetters={workspace?.modelLetters || []} />
+      <ReportCover workspace={workspace} reportConfig={reportConfig} />
+      <ReportSummary reflection={reflection!} modelLetters={workspace?.modelLetters || []} reportConfig={reportConfig} />
+      <ReportConclusion workspace={workspace} reflection={reflection!} modelLetters={workspace?.modelLetters || []} reportConfig={reportConfig} />
     </div>
   )
 }

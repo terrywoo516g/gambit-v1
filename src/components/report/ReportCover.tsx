@@ -1,6 +1,7 @@
 import React from 'react'
+import { ReportConfig } from '@/lib/report/types'
 
-export default function ReportCover({ workspace }: { workspace: any }) {
+export default function ReportCover({ workspace, reportConfig }: { workspace: any, reportConfig?: ReportConfig }) {
   const dateStr = workspace?.reflectionAt 
     ? new Date(workspace.reflectionAt).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '.')
     : ''
@@ -8,6 +9,8 @@ export default function ReportCover({ workspace }: { workspace: any }) {
   const modelList = Array.isArray(workspace?.modelRuns) 
     ? workspace.modelRuns.map((m: any) => m?.model ?? '未知模型').join(' · ') 
     : '多模型'
+
+  const title = reportConfig?.title || workspace?.prompt || '未知工作区'
 
   return (
     <section className="relative w-full h-screen flex flex-col justify-between p-8 md:p-16 lg:p-24 overflow-hidden bg-gradient-to-br from-white via-gray-50 to-white print:h-auto print:min-h-screen">
@@ -32,7 +35,7 @@ export default function ReportCover({ workspace }: { workspace: any }) {
       <main className="flex-1 flex flex-col justify-center max-w-5xl z-10 mt-12">
         <p className="text-accent font-mono tracking-[0.2em] text-sm mb-6">GAMBIT RESEARCH</p>
         <h1 className="text-5xl md:text-7xl font-bold text-ink leading-tight mb-8 line-clamp-2">
-          {workspace?.prompt ?? '未知工作区'}
+          {title}
         </h1>
         <h2 className="text-2xl md:text-3xl text-inkLight font-light tracking-wide">
           多模型交叉验证 · 综合判断

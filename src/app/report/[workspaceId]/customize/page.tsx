@@ -10,7 +10,7 @@ export default async function CustomizePage({
 }) {
   const workspace = await prisma.workspace.findUnique({
     where: { id: params.workspaceId },
-    select: { id: true, prompt: true, reportConfig: true }
+    select: { id: true, prompt: true, reportConfig: true, reflectionData: true, reflectionAt: true, selectedModels: true }
   })
 
   if (!workspace) {
@@ -22,10 +22,19 @@ export default async function CustomizePage({
     title: workspace.prompt ?? ''
   }
 
+  let reflection = null
+  if (workspace.reflectionData) {
+    try {
+      reflection = JSON.parse(workspace.reflectionData)
+    } catch {
+      reflection = null
+    }
+  }
+
   return (
     <CustomizePageClient 
-      workspaceId={workspace.id}
-      prompt={workspace.prompt}
+      workspace={workspace}
+      reflection={reflection}
       initialConfig={initialConfig}
     />
   )

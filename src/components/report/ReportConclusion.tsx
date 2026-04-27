@@ -1,7 +1,8 @@
 import React from 'react'
 import { Reflection } from '@/lib/reflection/types'
+import { ReportConfig } from '@/lib/report/types'
 
-export default function ReportConclusion({ workspace, reflection, modelLetters = [] }: { workspace: any, reflection: Reflection, modelLetters?: string[] }) {
+export default function ReportConclusion({ workspace, reflection, modelLetters = [], reportConfig }: { workspace: any, reflection: Reflection, modelLetters?: string[], reportConfig?: ReportConfig }) {
   const dimensions = reflection?.dimensions || {}
   const consensus = dimensions.consensus || []
   const divergence = dimensions.divergence || []
@@ -22,13 +23,15 @@ export default function ReportConclusion({ workspace, reflection, modelLetters =
     topPoints = [...topPoints, ...consensus.slice(0, needed).map(c => c.text)]
   }
 
+  const title = reportConfig?.title || workspace?.prompt || '未知工作区'
+
   return (
     <section className="report-section p-8 md:p-16 lg:p-24 bg-paper text-ink flex flex-col justify-between">
       {/* Header */}
       <header className="mb-16">
         <h2 className="text-accent font-mono tracking-widest text-sm mb-4 uppercase">核心问题</h2>
         <h1 className="text-3xl md:text-4xl font-bold leading-tight text-ink">
-          {workspace?.prompt ?? '未知工作区'}
+          {title}
         </h1>
       </header>
 

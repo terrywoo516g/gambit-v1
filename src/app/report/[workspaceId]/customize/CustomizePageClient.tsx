@@ -7,19 +7,23 @@ import { ArrowLeft } from 'lucide-react'
 import { ReportConfig } from '@/lib/report/types'
 import { ConfigPanel } from '@/components/report/customize/ConfigPanel'
 import { SaveButton } from '@/components/report/customize/SaveButton'
+import ReportPreviewSwitch from '@/components/report/ReportPreviewSwitch'
+import { Reflection } from '@/lib/reflection/types'
 
 interface CustomizePageClientProps {
-  workspaceId: string
-  prompt: string
+  workspace: any
+  reflection: Reflection | null
   initialConfig: ReportConfig
 }
 
 export default function CustomizePageClient({
-  workspaceId,
-  prompt,
+  workspace,
+  reflection,
   initialConfig
 }: CustomizePageClientProps) {
   const router = useRouter()
+  const workspaceId = workspace.id
+  const prompt = workspace.prompt
   const [config, setConfig] = useState<ReportConfig>(initialConfig)
   const [isDirty, setIsDirty] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -107,17 +111,16 @@ export default function CustomizePageClient({
           <ConfigPanel config={config} onChange={handleConfigChange} />
         </aside>
 
-        {/* 右侧预览区占位 */}
-        <section className="flex-1 bg-gray-50 flex items-center justify-center p-8 overflow-y-auto">
-          <div className="w-full max-w-3xl h-full border-2 border-dashed border-gray-300 rounded-2xl bg-white/50 flex flex-col items-center justify-center text-inkLight gap-4">
-            <h2 className="text-xl font-medium text-ink">预览区（1.0c 接入）</h2>
-            <p className="text-sm">当前选中模板：<span className="font-semibold text-accent uppercase">{config.template}</span></p>
-            <p className="text-sm">报告标题：{config.title || prompt}</p>
-            <p className="text-sm">分析维度：{config.selectedDimensions.join(', ')}</p>
-          </div>
+        {/* 右侧预览区 */}
+        <section className="flex-1 bg-gray-50 flex overflow-y-auto">
+          <ReportPreviewSwitch
+            template={config.template}
+            workspace={workspace}
+            reflection={reflection}
+            reportConfig={config}
+          />
         </section>
       </main>
-
     </div>
   )
 }
