@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { Copy, RefreshCw } from 'lucide-react'
 import { Reflection } from '@/lib/reflection/types'
 
@@ -91,6 +92,7 @@ function DimensionCard({ title, items, loading }: { title: string, items: { id: 
 }
 
 export default function FinalDraftPanel({ 
+  workspaceId,
   allDone,
   reflection,
   reflectionStatus = 'idle',
@@ -289,12 +291,24 @@ export default function FinalDraftPanel({
 
       {/* 区域 5：操作区（底部） */}
       <div className="p-4 bg-white border-t border-gray-200 shrink-0 flex flex-col gap-2.5">
-        <button 
-          onClick={() => console.log('生成报告预览 clicked')}
-          className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium shadow-sm transition-colors"
-        >
-          生成报告预览
-        </button>
+        {(isSuccess && reflection?.draft) || isMockMode ? (
+          <Link 
+            href={`/report/${workspaceId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium shadow-sm transition-colors text-center"
+          >
+            查看报告
+          </Link>
+        ) : (
+          <button 
+            disabled
+            className="w-full py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium shadow-sm transition-colors opacity-50 cursor-not-allowed"
+            title="等待 reflection 完成后可查看报告"
+          >
+            查看报告
+          </button>
+        )}
         <button 
           onClick={() => console.log('深化定制输出 clicked')}
           className="w-full py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 bg-white border border-gray-200 rounded-lg text-sm font-medium transition-colors"
