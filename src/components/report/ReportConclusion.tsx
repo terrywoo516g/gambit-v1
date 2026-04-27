@@ -1,7 +1,7 @@
 import React from 'react'
 import { Reflection } from '@/lib/reflection/types'
 
-export default function ReportConclusion({ workspace, reflection }: { workspace: any, reflection: Reflection }) {
+export default function ReportConclusion({ workspace, reflection, modelLetters = [] }: { workspace: any, reflection: Reflection, modelLetters?: string[] }) {
   const dimensions = reflection?.dimensions || {}
   const consensus = dimensions.consensus || []
   const divergence = dimensions.divergence || []
@@ -23,7 +23,7 @@ export default function ReportConclusion({ workspace, reflection }: { workspace:
   }
 
   return (
-    <section className="min-h-screen p-8 md:p-16 lg:p-24 bg-[#0a0a0f] text-white print-page-break print:bg-white print:text-black flex flex-col justify-between">
+    <section className="report-section p-8 md:p-16 lg:p-24 bg-[#0a0a0f] text-white print:bg-white print:text-black flex flex-col justify-between">
       {/* Header */}
       <header className="mb-16">
         <h2 className="text-purple-500 font-mono tracking-widest text-sm mb-4 print-text-gray uppercase">核心问题</h2>
@@ -40,7 +40,7 @@ export default function ReportConclusion({ workspace, reflection }: { workspace:
           {topPoints.length > 0 ? topPoints.map((text: string, idx: number) => {
             const preview = text.length > 80 ? text.substring(0, 80) + '...' : text
             return (
-              <div key={idx} className="flex items-start gap-4 p-4 rounded-xl bg-white/5 border border-white/10 print-card print-force-bg">
+              <div key={idx} className="flex items-start gap-4 p-4 rounded-xl bg-white/[0.06] border border-white/10 print-card print-force-bg">
                 <span className="text-purple-500 font-mono text-xl font-bold">{(idx + 1).toString().padStart(2, '0')}</span>
                 <div className="flex-1">
                   <p className="text-gray-400 text-sm leading-relaxed print-text-gray line-clamp-2 mt-1">
@@ -48,9 +48,9 @@ export default function ReportConclusion({ workspace, reflection }: { workspace:
                   </p>
                 </div>
                 <div className="flex gap-1 self-center">
-                  <div className="w-5 h-5 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-[8px] text-gray-400 font-mono print-card">D</div>
-                  <div className="w-5 h-5 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-[8px] text-gray-400 font-mono print-card">Q</div>
-                  <div className="w-5 h-5 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-[8px] text-gray-400 font-mono print-card">M</div>
+                  {modelLetters.map((m, i) => (
+                    <div key={i} className="w-5 h-5 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-[8px] text-gray-400 font-mono print-card">{m}</div>
+                  ))}
                 </div>
               </div>
             )
@@ -69,9 +69,9 @@ export default function ReportConclusion({ workspace, reflection }: { workspace:
           const preview = text.length > 80 ? text.substring(0, 80) + '...' : text
           return (
             <div key={idx} className="p-6 rounded-2xl bg-gradient-to-b from-[#13131a] to-[#0a0a0f] border border-white/10 print-card print-force-bg flex flex-col">
-              <h4 className="text-purple-400 font-mono tracking-widest text-xs mb-4 uppercase print-text-gray">{item.label}</h4>
+              <h4 className="text-purple-200 font-mono tracking-widest text-xs mb-4 uppercase print-text-gray">{item.label}</h4>
               {text ? (
-                <p className="text-gray-300 text-sm leading-relaxed line-clamp-4 print-text-gray flex-1">
+                <p className="text-white/85 text-sm leading-relaxed line-clamp-4 print-text-gray flex-1">
                   {preview}
                 </p>
               ) : (
@@ -85,7 +85,7 @@ export default function ReportConclusion({ workspace, reflection }: { workspace:
       {/* Footer Section: Recommendation */}
       <footer className="pt-8 border-t border-white/10 print:border-gray-300">
         <h4 className="text-gray-500 font-mono tracking-widest text-sm mb-4 uppercase print-text-gray">推荐行动</h4>
-        <div className="text-gray-300 text-sm leading-relaxed print-text-invert bg-white/5 p-6 rounded-xl border border-white/10 print-card print-force-bg">
+        <div className="text-gray-300 text-sm leading-7 print-text-invert bg-white/[0.05] p-6 rounded-xl border border-white/10 print-card print-force-bg">
           {reflection?.draft ? (
             <p className="whitespace-pre-wrap">
               {reflection.draft}

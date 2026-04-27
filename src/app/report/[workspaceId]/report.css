@@ -3,6 +3,37 @@
 @tailwind utilities;
 
 @media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+  
+  .report-section {
+    page-break-after: always;
+    page-break-inside: avoid;
+    min-height: auto !important;
+    height: auto !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+  
+  .report-section:last-child {
+    page-break-after: auto;
+  }
+  
+  .no-print {
+    display: none !important;
+  }
+  
+  /* 打印态字号收紧 */
+  .report-section h1 { font-size: 28pt !important; }
+  .report-section h2 { font-size: 18pt !important; }
+  .report-section h3 { font-size: 14pt !important; }
+  .report-section p, .report-section li { font-size: 10.5pt !important; line-height: 1.5 !important; }
+  
+  /* 卡片间距压缩 */
+  .print-compact { gap: 8mm !important; padding: 4mm !important; }
+
   body {
     background-color: white !important;
     color: black !important;

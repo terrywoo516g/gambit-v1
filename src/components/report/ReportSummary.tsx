@@ -8,11 +8,11 @@ const DIMENSION_LABELS = [
   { key: 'pending',    label: '待观察', desc: '需更多信息才能判断的议题' },
 ] as const
 
-export default function ReportSummary({ reflection }: { reflection: Reflection }) {
+export default function ReportSummary({ reflection, modelLetters = [] }: { reflection: Reflection, modelLetters?: string[] }) {
   const dimensions = reflection?.dimensions || {}
   
   return (
-    <section className="min-h-screen p-8 md:p-16 lg:p-24 bg-[#0a0a0f] text-white print-page-break print:bg-white print:text-black">
+    <section className="report-section p-8 md:p-16 lg:p-24 bg-[#0a0a0f] text-white print:bg-white print:text-black">
       {/* Header */}
       <header className="mb-16 border-b border-white/10 pb-8 print:border-gray-300">
         <h2 className="text-purple-500 font-mono tracking-widest text-sm mb-4 print-text-gray uppercase">EXECUTIVE SUMMARY</h2>
@@ -29,20 +29,20 @@ export default function ReportSummary({ reflection }: { reflection: Reflection }
             const hasItems = Array.isArray(items) && items.length > 0
 
             return (
-              <div key={idx} className="relative pl-8 border-l-2 border-white/10 print:border-gray-300">
-                <div className="absolute -left-1 top-0 w-2 h-2 rounded-full bg-purple-500 print-force-bg" />
+              <div key={idx} className="relative pl-8 border-l-2 border-white/15 print:border-gray-300 bg-white/[0.05] p-4 rounded-r-xl">
+                <div className="absolute -left-1 top-4 w-2 h-2 rounded-full bg-purple-500 print-force-bg" />
                 
                 {/* Model Avatars Placeholder */}
                 <div className="flex gap-2 mb-4">
-                  <div className="w-6 h-6 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[10px] text-gray-400 font-mono print-card">D</div>
-                  <div className="w-6 h-6 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[10px] text-gray-400 font-mono print-card">Q</div>
-                  <div className="w-6 h-6 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[10px] text-gray-400 font-mono print-card">M</div>
+                  {modelLetters.map((m, i) => (
+                    <div key={i} className="w-6 h-6 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[10px] text-gray-400 font-mono print-card">{m}</div>
+                  ))}
                 </div>
 
-                <h3 className="text-xl font-semibold mb-1 print-text-invert text-gray-100">{config.label}</h3>
-                <p className="text-xs text-gray-500 mb-4 print-text-gray">{config.desc}</p>
+                <h3 className="text-xl font-semibold mb-1 print-text-invert text-white">{config.label}</h3>
+                <p className="text-xs text-white/55 mb-4 print-text-gray">{config.desc}</p>
                 
-                <div className="text-gray-400 leading-relaxed print-text-gray text-sm space-y-2">
+                <div className="text-white/80 leading-relaxed print-text-gray text-sm space-y-2">
                   {hasItems ? (
                     <ul className="list-disc list-inside space-y-2 ml-2">
                       {items.map((item) => (

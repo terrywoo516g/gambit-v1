@@ -43,6 +43,28 @@ export default function ReportPage() {
           return
         }
 
+        // Calculate model letters for display
+        let models: string[] = []
+        try {
+          models = typeof ws.selectedModels === 'string' ? JSON.parse(ws.selectedModels) : (ws.selectedModels || [])
+        } catch {
+          models = []
+        }
+        
+        const letters = models.map(model => {
+          if (!model) return '?'
+          const m = model.toLowerCase()
+          if (m.includes('deepseek')) return 'D'
+          if (m.includes('qwen')) return 'Q'
+          if (m.includes('minimax')) return 'M'
+          if (m.includes('gpt') || m.includes('openai')) return 'G'
+          if (m.includes('claude')) return 'C'
+          if (m.includes('gemini')) return 'E'
+          const firstChar = model.replace(/[^a-zA-Z]/g, '').charAt(0)
+          return firstChar ? firstChar.toUpperCase() : '?'
+        })
+
+        setWorkspace({ ...ws, modelLetters: letters })
         setReflection(reflectionObj)
         setStatus('success')
       } catch (err) {
@@ -91,8 +113,8 @@ export default function ReportPage() {
   return (
     <div className="w-full">
       <ReportCover workspace={workspace} />
-      <ReportSummary reflection={reflection!} />
-      <ReportConclusion workspace={workspace} reflection={reflection!} />
+      <ReportSummary reflection={reflection!} modelLetters={workspace?.modelLetters || []} />
+      <ReportConclusion workspace={workspace} reflection={reflection!} modelLetters={workspace?.modelLetters || []} />
     </div>
   )
 }
