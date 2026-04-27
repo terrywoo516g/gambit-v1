@@ -29,6 +29,8 @@ export async function POST(
         return { model: r.model, content }
       })
 
+    console.log('[reflection] workspace:', wsId, 'totalRuns:', workspace.modelRuns.length, 'validAnswers:', validAnswers.length)
+
     if (validAnswers.length === 0) {
       return NextResponse.json({ error: 'INSUFFICIENT_RESPONSES' }, { status: 422 })
     }
