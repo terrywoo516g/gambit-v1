@@ -4,7 +4,7 @@ export function PrintButton() {
   return (
     <button
       onClick={() => window.print()}
-      className="hidden md:inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/15 text-white/80 hover:text-white text-sm transition-colors print:hidden"
+      className="hidden md:inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white hover:border-accent border border-gray-200 text-inkLight hover:text-accent text-sm transition-colors print:hidden"
       aria-label="导出 PDF"
     >
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

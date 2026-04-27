@@ -12,11 +12,11 @@ export default function ReportLayout({
   params: { workspaceId: string }
 }) {
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-[#e5e5e5] font-sans selection:bg-purple-500/30">
+    <div className="min-h-screen bg-paper text-ink font-sans selection:bg-accent/30">
       <div className="fixed top-6 left-6 z-50 flex items-center gap-3 print:hidden">
         <Link 
           href={`/workspace/${params.workspaceId}`}
-          className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors bg-black/20 backdrop-blur px-3 py-1.5 rounded-full border border-white/10"
+          className="flex items-center gap-2 text-sm text-inkLight hover:text-ink transition-colors bg-white hover:bg-gray-50 px-3 py-1.5 rounded-full border border-gray-200"
         >
           <ArrowLeft className="w-4 h-4" />
           返回 Workspace

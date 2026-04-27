@@ -86,11 +86,11 @@ export default function ReportPage() {
 
   if (status === 'loading') {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-8">
+      <div className="min-h-screen bg-paper flex items-center justify-center p-8">
         <div className="flex flex-col gap-8 w-full max-w-4xl animate-pulse">
-          <div className="h-[400px] bg-white/5 rounded-2xl border border-white/10" />
-          <div className="h-[300px] bg-white/5 rounded-2xl border border-white/10" />
-          <div className="h-[200px] bg-white/5 rounded-2xl border border-white/10" />
+          <div className="h-[400px] bg-white rounded-2xl border border-gray-200 shadow-sm" />
+          <div className="h-[300px] bg-white rounded-2xl border border-gray-200 shadow-sm" />
+          <div className="h-[200px] bg-white rounded-2xl border border-gray-200 shadow-sm" />
         </div>
       </div>
     )
@@ -98,9 +98,9 @@ export default function ReportPage() {
 
   if (status === 'error') {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] flex flex-col items-center justify-center text-white">
-        <p className="text-xl text-red-400 mb-6">无法加载报告</p>
-        <Link href={`/workspace/${wsId}`} className="px-6 py-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors">
+      <div className="min-h-screen bg-paper flex flex-col items-center justify-center text-ink">
+        <p className="text-xl text-red-600 mb-6">无法加载报告</p>
+        <Link href={`/workspace/${wsId}`} className="px-6 py-2 bg-white border border-gray-200 text-inkLight hover:text-ink hover:bg-gray-50 rounded-full transition-colors">
           返回 Workspace
         </Link>
       </div>
@@ -109,9 +109,9 @@ export default function ReportPage() {
 
   if (status === 'noReflection') {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] flex flex-col items-center justify-center text-white">
-        <p className="text-xl text-gray-400 mb-6">该 workspace 尚未生成综合分析，无法查看报告</p>
-        <Link href={`/workspace/${wsId}`} className="px-6 py-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors text-purple-400">
+      <div className="min-h-screen bg-paper flex flex-col items-center justify-center text-ink">
+        <p className="text-xl text-inkLight mb-6">该 workspace 尚未生成综合分析，无法查看报告</p>
+        <Link href={`/workspace/${wsId}`} className="px-6 py-2 bg-white border border-gray-200 text-accent hover:text-accent hover:bg-gray-50 rounded-full transition-colors">
           返回 Workspace 生成分析
         </Link>
       </div>
