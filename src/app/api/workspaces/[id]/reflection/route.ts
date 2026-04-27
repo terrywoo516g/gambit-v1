@@ -39,7 +39,7 @@ function cleanLLMJsonOutput(raw: string): string {
   return s.trim()
 }
 
-export const dynamic = 'force-dynamic'
+
 
 export async function POST(
   req: Request,
