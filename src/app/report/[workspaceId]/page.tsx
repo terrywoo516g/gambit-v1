@@ -17,7 +17,7 @@ export default function ReportPage() {
   const [status, setStatus] = useState<'loading' | 'error' | 'noReflection' | 'success'>('loading')
 
   useEffect(() => {
-    if (!wsId) return
+    if (!wsId) return;
 
     async function load() {
       try {
@@ -75,6 +75,14 @@ export default function ReportPage() {
     
     void load()
   }, [wsId])
+
+  useEffect(() => {
+    if (!workspace?.prompt) return
+    const originalTitle = document.title
+    const promptSlice = workspace.prompt.slice(0, 30).trim()
+    document.title = `Gambit 报告 - ${promptSlice}`
+    return () => { document.title = originalTitle }
+  }, [workspace?.prompt])
 
   if (status === 'loading') {
     return (
