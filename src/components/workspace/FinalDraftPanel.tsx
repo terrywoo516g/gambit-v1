@@ -309,12 +309,22 @@ export default function FinalDraftPanel({
             查看报告
           </button>
         )}
-        <button 
-          onClick={() => console.log('深化定制输出 clicked')}
-          className="w-full py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 bg-white border border-gray-200 rounded-lg text-sm font-medium transition-colors"
-        >
-          深化定制输出
-        </button>
+        {(isSuccess && reflection?.draft) || isMockMode ? (
+          <Link 
+            href={`/report/${workspaceId}/customize`}
+            className="w-full py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 bg-white border border-gray-200 rounded-lg text-sm font-medium transition-colors text-center"
+          >
+            深化定制输出
+          </Link>
+        ) : (
+          <button 
+            disabled
+            className="w-full py-2 text-gray-600 bg-white border border-gray-200 rounded-lg text-sm font-medium transition-colors opacity-50 cursor-not-allowed"
+            title="等待 reflection 完成后可进行深化定制"
+          >
+            深化定制输出
+          </button>
+        )}
       </div>
     </div>
   )
