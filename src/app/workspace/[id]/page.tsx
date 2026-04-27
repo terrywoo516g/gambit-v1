@@ -36,6 +36,8 @@ type WorkspaceData = {
     status: string
     finalDrafts: { id: string; content: string; version: number }[]
   }[]
+  reflectionData?: string | null
+  reflectionAt?: string | null
 }
 
 // Scene definitions removed as requested
@@ -276,9 +278,31 @@ export default function WorkspacePage() {
   ).length
 
   const isMockReflection = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("mockReflection") === "1"
-  
-  const canTriggerReflection = 
+
+  useEffect(() => {
+    if (!workspace) return
+    if (isMockReflection) return
+    if (!workspace.reflectionData) return
+    
+    try {
+      const parsed = JSON.parse(workspace.reflectionData)
+      setReflection(parsed)
+      setReflectionStatus('success')
+      hasTriggeredReflectionRef.current = true
+    } catch (e) {
+      console.error('[reflection] failed to parse saved reflectionData', e)
+      setReflection(null)
+      setReflectionStatus('idle')
+      hasTriggeredReflectionRef.current = false
+    }
+  }, [workspace?.id, workspace?.reflectionData, isMockReflection])
+
+  const hasSavedReflection = Boolean(workspace?.reflectionData && workspace?.reflectionAt)
+
+  const canTriggerReflection =
     !isMockReflection &&
+    !hasSavedReflection &&
+    reflectionStatus !== 'success' &&
     allDone &&
     expectedRunCount > 0 &&
     trackedRuns.length >= expectedRunCount &&
