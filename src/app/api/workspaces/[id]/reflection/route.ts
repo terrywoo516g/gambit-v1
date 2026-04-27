@@ -60,6 +60,18 @@ export async function POST(
       return NextResponse.json({ error: 'PARSE_ERROR' }, { status: 500 })
     }
 
+    try {
+      await prisma.workspace.update({
+        where: { id: wsId },
+        data: {
+          reflectionData: JSON.stringify(reflection),
+          reflectionAt: new Date(),
+        },
+      })
+    } catch (dbErr) {
+      console.error('[reflection] DB persist failed:', dbErr)
+    }
+
     return NextResponse.json({ reflection })
 
   } catch (error) {
