@@ -1,10 +1,15 @@
 import React from 'react'
 import { Reflection } from '@/lib/reflection/types'
 
+const DIMENSION_LABELS = [
+  { key: 'consensus',  label: '核心共识', desc: '三模型一致认同的观点' },
+  { key: 'divergence', label: '关键分歧', desc: '模型间存在显著分歧的观点' },
+  { key: 'minority',   label: '少数派观点', desc: '仅个别模型提出的独立判断' },
+  { key: 'pending',    label: '待观察', desc: '需更多信息才能判断的议题' },
+] as const
+
 export default function ReportSummary({ reflection }: { reflection: Reflection }) {
-  const dims = Array.isArray(reflection?.dimensions) 
-    ? reflection.dimensions 
-    : Object.values(reflection?.dimensions || {}).flat()
+  const dimensions = reflection?.dimensions || {}
   
   return (
     <section className="min-h-screen p-8 md:p-16 lg:p-24 bg-[#0a0a0f] text-white print-page-break print:bg-white print:text-black">
@@ -19,10 +24,11 @@ export default function ReportSummary({ reflection }: { reflection: Reflection }
         
         {/* Left Column: Dimensions */}
         <div className="flex flex-col gap-12">
-          {dims.length === 0 ? (
-            <p className="text-gray-500 italic print-text-gray">暂无分析维度</p>
-          ) : (
-            dims.map((dim: any, idx: number) => (
+          {DIMENSION_LABELS.map((config, idx) => {
+            const items = dimensions[config.key as keyof typeof dimensions] || []
+            const hasItems = Array.isArray(items) && items.length > 0
+
+            return (
               <div key={idx} className="relative pl-8 border-l-2 border-white/10 print:border-gray-300">
                 <div className="absolute -left-1 top-0 w-2 h-2 rounded-full bg-purple-500 print-force-bg" />
                 
@@ -33,13 +39,23 @@ export default function ReportSummary({ reflection }: { reflection: Reflection }
                   <div className="w-6 h-6 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[10px] text-gray-400 font-mono print-card">M</div>
                 </div>
 
-                <h3 className="text-xl font-semibold mb-3 print-text-invert text-gray-100">{dim?.title ?? '—'}</h3>
-                <p className="text-gray-400 leading-relaxed whitespace-pre-wrap print-text-gray text-sm">
-                  {dim?.content ?? '—'}
-                </p>
+                <h3 className="text-xl font-semibold mb-1 print-text-invert text-gray-100">{config.label}</h3>
+                <p className="text-xs text-gray-500 mb-4 print-text-gray">{config.desc}</p>
+                
+                <div className="text-gray-400 leading-relaxed print-text-gray text-sm space-y-2">
+                  {hasItems ? (
+                    <ul className="list-disc list-inside space-y-2 ml-2">
+                      {items.map((item) => (
+                        <li key={item.id || item.text} className="pl-1">{item.text}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="italic text-gray-600">本次未识别到该类观点</p>
+                  )}
+                </div>
               </div>
-            ))
-          )}
+            )
+          })}
         </div>
 
         {/* Right Column: Flow Chart Placeholder */}
