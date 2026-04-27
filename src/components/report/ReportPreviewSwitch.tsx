@@ -7,6 +7,7 @@ import ReportCover from './ReportCover'
 import ReportSummary from './ReportSummary'
 import ReportConclusion from './ReportConclusion'
 import MemoView from './MemoView'
+import CustomView from './CustomView'
 
 interface ReportPreviewSwitchProps {
   template: 'report' | 'memo' | 'custom'
@@ -42,12 +43,8 @@ export default function ReportPreviewSwitch({
         
       case 'custom':
         return (
-          <div className="w-full h-full flex flex-col items-center justify-center text-inkLight gap-4 p-12">
-            <div className="w-16 h-16 rounded-2xl bg-white border-2 border-dashed border-gray-300 flex items-center justify-center mb-4">
-              <span className="text-2xl">⚙️</span>
-            </div>
-            <h2 className="text-xl font-medium text-ink">Custom 模板渲染将在 1.0d 接入</h2>
-            <p className="text-sm text-center max-w-md">自定义模板支持模块自由组合、排序以及基础文本编辑，目前仅开放配置界面，渲染引擎建设中。</p>
+          <div className="w-[800px] mx-auto overflow-hidden my-8">
+            <CustomView workspace={workspace} reflection={reflection} reportConfig={reportConfig} />
           </div>
         )
     }

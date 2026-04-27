@@ -26,9 +26,13 @@ export interface ReportConfig {
   enabledSections: SectionKey[]
   sectionOrder: SectionKey[]
   contentEdits: {
+    title?: string
+    question?: string
+    judgment?: string
     summary?: string
     draft?: string
     conclusion?: string
+    actions?: string
     dimensions?: Partial<Record<DimensionKey, string[]>>
   }
 }

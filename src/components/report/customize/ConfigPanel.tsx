@@ -157,7 +157,7 @@ export function ConfigPanel({ config, onChange }: ConfigPanelProps) {
 
       {/* 5. 模块开关与顺序（仅 Custom 模板显示） */}
       {config.template === 'custom' && (
-        <div className="mb-6">
+        <div className="mb-6 pb-6 border-b border-gray-100">
           <h3 className="text-sm font-bold text-ink mb-4">模块与顺序 (Custom)</h3>
           <div className="space-y-2">
             {config.sectionOrder.map((secKey, index) => {
@@ -197,6 +197,54 @@ export function ConfigPanel({ config, onChange }: ConfigPanelProps) {
             })}
           </div>
         </div>
+      )}
+
+      {/* 6. 内容编辑（仅 Custom 模板显示） */}
+      {config.template === 'custom' && (
+        <details className="mb-6 group">
+          <summary className="text-sm font-bold text-ink mb-4 cursor-pointer select-none outline-none list-none flex items-center justify-between">
+            内容编辑（共 6 项）
+            <span className="text-inkLight group-open:rotate-180 transition-transform">▼</span>
+          </summary>
+          <div className="space-y-4 pt-2">
+            {[
+              { key: 'title', label: '标题块' },
+              { key: 'question', label: '原始问题块' },
+              { key: 'judgment', label: '综合判断块' },
+              { key: 'draft', label: '综合文稿块' },
+              { key: 'conclusion', label: '核心结论块' },
+              { key: 'actions', label: '推荐行动块' }
+            ].map(field => {
+              const val = (config.contentEdits as any)[field.key]
+              return (
+                <div key={field.key} className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-inkLight">{field.label}</span>
+                    <button 
+                      onClick={() => {
+                        const newEdits = { ...config.contentEdits }
+                        delete (newEdits as any)[field.key]
+                        onChange({ contentEdits: newEdits })
+                      }}
+                      className="text-[10px] text-accent hover:underline disabled:opacity-30 disabled:hover:no-underline"
+                      disabled={val === undefined}
+                    >
+                      重置
+                    </button>
+                  </div>
+                  <textarea
+                    value={val || ''}
+                    onChange={e => onChange({
+                      contentEdits: { ...config.contentEdits, [field.key]: e.target.value }
+                    })}
+                    placeholder="留空则使用原始内容"
+                    className="w-full min-h-[80px] p-2 text-sm border border-gray-200 rounded focus:border-accent focus:outline-none resize-y bg-white"
+                  />
+                </div>
+              )
+            })}
+          </div>
+        </details>
       )}
 
     </div>
