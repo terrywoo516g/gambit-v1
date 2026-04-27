@@ -139,8 +139,9 @@ export default function FinalDraftPanel({
   }
 
   const handleCopy = () => {
-    if (isMockMode && MOCK_REFLECTION.draft) {
-      navigator.clipboard.writeText(MOCK_REFLECTION.draft)
+    const textToCopy = isMockMode ? MOCK_REFLECTION.draft : reflection?.draft
+    if (textToCopy) {
+      navigator.clipboard.writeText(textToCopy)
         .then(() => {
           setCopied(true)
           setTimeout(() => setCopied(false), 1500)
@@ -235,14 +236,14 @@ export default function FinalDraftPanel({
           </div>
         </section>
 
-        {/* 区域 4：轻量文稿区 */}
+        {/* 区域 4：综合文稿区 */}
         <section className="flex-1 flex flex-col min-h-[160px]">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-bold text-gray-900">轻量文稿</h2>
+            <h2 className="text-sm font-bold text-gray-900">综合文稿</h2>
             <div className="flex items-center gap-2">
               {copied && <span className="text-xs text-green-600 font-medium">已复制</span>}
               <button 
-                disabled={!isMockMode}
+                disabled={!isMockMode && !isSuccess}
                 onClick={handleCopy}
                 className="p-1.5 text-gray-400 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:hover:bg-transparent transition-colors"
                 title="复制内容"
@@ -251,14 +252,35 @@ export default function FinalDraftPanel({
               </button>
             </div>
           </div>
-          <div className={`flex-1 bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex flex-col ${isMockMode ? '' : 'items-center justify-center'}`}>
-            {isMockMode ? (
+          <div className={`flex-1 bg-white border ${isError ? 'border-red-200' : 'border-gray-200'} rounded-xl p-4 shadow-sm flex flex-col ${isMockMode || isSuccess ? '' : 'items-center justify-center'}`}>
+            {isLoading ? (
+              <div className="flex flex-col gap-3 w-full">
+                <div className="h-3 w-full bg-gray-100 rounded animate-pulse" />
+                <div className="h-3 w-full bg-gray-100 rounded animate-pulse" />
+                <div className="h-3 w-5/6 bg-gray-100 rounded animate-pulse" />
+                <div className="h-3 w-4/5 bg-gray-100 rounded animate-pulse" />
+              </div>
+            ) : isError ? (
+              <div className="flex flex-col items-center justify-center h-full gap-2">
+                <span className="text-sm text-red-600">文稿生成失败：{reflectionError || '未知错误'}</span>
+                <button 
+                  onClick={onRetryReflection}
+                  className="mt-1 flex items-center gap-1 text-xs text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-full transition-colors"
+                >
+                  <RefreshCw className="w-3 h-3" /> 重试
+                </button>
+              </div>
+            ) : isMockMode ? (
               <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
                 {MOCK_REFLECTION.draft}
               </div>
+            ) : isSuccess && reflection?.draft ? (
+              <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                {reflection.draft}
+              </div>
             ) : (
               <span className="text-sm text-gray-400 text-center leading-relaxed">
-                Reflection 完成后，将自动生成简版文稿。
+                Reflection 完成后，将自动生成综合文稿。
               </span>
             )}
           </div>

@@ -50,6 +50,11 @@ export async function POST(
       const match = rawContent.match(/```json\s*([\s\S]*?)\s*```/) || rawContent.match(/\{[\s\S]*\}/)
       const raw = match ? match[1] || match[0] : rawContent
       reflection = JSON.parse(raw)
+
+      if (!reflection || typeof reflection.draft !== 'string' || reflection.draft.trim().length === 0) {
+        console.error('Reflection parse error: missing or empty draft field')
+        return NextResponse.json({ error: 'PARSE_ERROR' }, { status: 500 })
+      }
     } catch {
       console.error('Reflection parse error. Raw:', rawContent)
       return NextResponse.json({ error: 'PARSE_ERROR' }, { status: 500 })

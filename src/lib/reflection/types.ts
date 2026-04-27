@@ -11,4 +11,5 @@ export interface Reflection {
     minority: ReflectionItem[]
     pending: ReflectionItem[]
   }
+  draft: string
 }
