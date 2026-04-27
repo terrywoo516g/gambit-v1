@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Gambit — Report Templates</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; font-family: 'Inter', system-ui, sans-serif; background: #F2F1EF; }
+  #root { height: 100%; display: flex; flex-direction: column; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #C8C6C2; border-radius: 3px; }
+  button { cursor: pointer; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="gcomponents.jsx"></script>
+<script type="text/babel" src="t1-decision.jsx"></script>
+<script type="text/babel" src="t2-competitive.jsx"></script>
+<script type="text/babel" src="t3-content.jsx"></script>
+<script type="text/babel" src="t4-review.jsx"></script>
+<script type="text/babel" src="t5-social.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+
+<script type="text/babel">
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "docWidth": 860,
+  "paperShadow": true,
+  "compactMode": false
+}/*EDITMODE-END*/;
+
+const tabs = [
+  { id:'t1', label:'决策报告', sublabel:'Decision Report', icon:'⚖️' },
+  { id:'t2', label:'竞品分析', sublabel:'Competitive', icon:'📊' },
+  { id:'t3', label:'内容创作', sublabel:'Content Studio', icon:'✏️' },
+  { id:'t4', label:'写作审查', sublabel:'Writing Review', icon:'🔍' },
+  { id:'t5', label:'社交卡片', sublabel:'Share Cards', icon:'📱' },
+];
+
+function App() {
+  const [active, setActive] = React.useState('t1');
+  const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+  const docWidth = tweaks.docWidth;
+  const shadow = tweaks.paperShadow;
+  const compact = tweaks.compactMode;
+
+  const templates = { t1: Template1, t2: Template2, t3: Template3, t4: Template4, t5: Template5 };
+  const ActiveTemplate = templates[active];
+
+  const isFullBg = active === 't5';
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', height:'100%', background:'#F2F1EF' }}>
+
+      {/* Top Nav */}
+      <div style={{
+        background:'white', borderBottom:'1px solid #DDDBD8',
+        display:'flex', alignItems:'stretch', flexShrink:0,
+        padding:'0 24px'
+      }}>
+        {/* Logo */}
+        <div style={{ display:'flex', alignItems:'center', gap:9, paddingRight:20, marginRight:4, borderRight:'1px solid #ECEAE7' }}>
+          <img src="gambit-icon.png" width="26" height="26" style={{display:'block',objectFit:'contain'}} alt="Gambit"/>
+          <span style={{ fontWeight:800, fontSize:16, color:'#0D0D0D', letterSpacing:'-0.3px' }}>Gambit</span>
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display:'flex', flex:1 }}>
+          {tabs.map(tab => (
+            <button key={tab.id} onClick={() => setActive(tab.id)} style={{
+              padding: compact ? '0 14px' : '0 20px',
+              border:'none', background:'transparent',
+              color: active === tab.id ? '#5C4FD4' : '#8A8A8A',
+              fontFamily:'Inter,sans-serif', fontWeight: active === tab.id ? 700 : 500,
+              fontSize:12, letterSpacing:'0.2px',
+              borderBottom: active === tab.id ? '2px solid #5C4FD4' : '2px solid transparent',
+              borderTop:'2px solid transparent',
+              cursor:'pointer', transition:'all 0.15s', whiteSpace:'nowrap'
+            }}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Right meta */}
+        <div style={{ fontSize:10, color:'#8A8A8A', fontFamily:'Inter,sans-serif', display:'flex', alignItems:'center', gap:6, paddingLeft:16, borderLeft:'1px solid #ECEAE7' }}>
+          <span style={{ width:5, height:5, borderRadius:'50%', background:'#1A6B45', display:'inline-block' }}/>
+          3 个模型在线
+        </div>
+      </div>
+
+      {/* Doc Viewer */}
+      <div style={{ flex:1, overflow:'auto', padding: isFullBg ? 0 : '32px 20px', display:'flex', flexDirection:'column', alignItems:'center' }}>
+        {isFullBg ? (
+          <div style={{ flex:1, width:'100%' }}>
+            <ActiveTemplate/>
+          </div>
+        ) : (
+          <div style={{
+            width: docWidth, maxWidth:'100%',
+            background:'white', borderRadius:4,
+            boxShadow: shadow ? '0 2px 8px rgba(0,0,0,0.08), 0 8px 32px rgba(0,0,0,0.06)' : 'none',
+            border: shadow ? 'none' : '1px solid #E8E7E5',
+            overflow:'hidden', flexShrink:0, marginBottom:32
+          }}>
+            <ActiveTemplate/>
+          </div>
+        )}
+      </div>
+
+      {/* Tweaks Panel */}
+      <TweaksPanel title="Tweaks">
+        <TweakSlider label="文档宽度" min={680} max={1100} step={20} unit="px" value={tweaks.docWidth} onChange={v => setTweak('docWidth', v)}/>
+        <TweakToggle label="纸张阴影" value={tweaks.paperShadow} onChange={v => setTweak('paperShadow', v)}/>
+        <TweakToggle label="紧凑导航" value={tweaks.compactMode} onChange={v => setTweak('compactMode', v)}/>
+      </TweaksPanel>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

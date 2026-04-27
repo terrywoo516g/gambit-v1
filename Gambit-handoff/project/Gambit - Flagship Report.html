@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Gambit — 2026 中国AI应用市场格局</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: #0D0D0D; font-family: 'Inter', system-ui, sans-serif; }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+  #root { display: flex; min-height: 100vh; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="flagship-components.jsx"></script>
+<script type="text/babel" src="fs-cover.jsx"></script>
+<script type="text/babel" src="fs-summary.jsx"></script>
+<script type="text/babel" src="fs-market.jsx"></script>
+<script type="text/babel" src="fs-consensus.jsx"></script>
+<script type="text/babel" src="fs-deepdive.jsx"></script>
+<script type="text/babel" src="fs-risk.jsx"></script>
+<script type="text/babel" src="fs-opportunity.jsx"></script>
+<script type="text/babel" src="fs-latter.jsx"></script>
+
+<script type="text/babel">
+const NAV_ITEMS = [
+  { id:'cover',       num:'00', label:'封面' },
+  { id:'summary',     num:'01', label:'分析摘要' },
+  { id:'market',      num:'02', label:'市场全景' },
+  { id:'consensus',   num:'03', label:'共识与分歧' },
+  { id:'deepdive',    num:'04', label:'赛道深度' },
+  { id:'risk',        num:'05', label:'风险矩阵' },
+  { id:'opportunity', num:'06', label:'机会窗口' },
+  { id:'memo',        num:'07', label:'一页纸 Memo' },
+  { id:'social',      num:'08', label:'社交卡片' },
+];
+
+function Sidebar({ active }) {
+  const scrollTo = (id) => {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  return (
+    <div style={{
+      position:'fixed', left:0, top:0, bottom:0, width:56, zIndex:100,
+      background:'rgba(10,10,12,0.95)', borderRight:'1px solid rgba(255,255,255,0.06)',
+      display:'flex', flexDirection:'column', alignItems:'center',
+      padding:'24px 0', backdropFilter:'blur(12px)',
+    }}>
+      {/* Logo mark */}
+      <div style={{ marginBottom:28, cursor:'pointer' }} onClick={() => scrollTo('cover')}>
+        <img src="gambit-icon.png" width={22} height={22}
+          style={{ filter:'brightness(0) invert(1)', opacity:0.7, display:'block' }} alt="G"/>
+      </div>
+
+      <div style={{ width:1, height:20, background:'rgba(255,255,255,0.06)', marginBottom:16 }}/>
+
+      {/* Nav items */}
+      <div style={{ display:'flex', flexDirection:'column', gap:4, flex:1 }}>
+        {NAV_ITEMS.map(item => {
+          const isActive = active === item.id;
+          return (
+            <button key={item.id} onClick={() => scrollTo(item.id)}
+              title={item.label}
+              style={{
+                width:40, height:40, border:'none', borderRadius:6,
+                background: isActive ? 'rgba(108,92,231,0.2)' : 'transparent',
+                cursor:'pointer', display:'flex', flexDirection:'column',
+                alignItems:'center', justifyContent:'center', gap:1,
+                transition:'all 0.2s',
+              }}>
+              <div style={{
+                fontFamily:'Inter,sans-serif', fontSize:7.5, fontWeight:700,
+                color: isActive ? '#9D8FF5' : 'rgba(255,255,255,0.25)',
+                letterSpacing:'0.5px', lineHeight:1,
+              }}>{item.num}</div>
+              {isActive && <div style={{ width:16, height:1.5, borderRadius:1, background:'#6C5CE7', marginTop:1 }}/>}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Bottom model dots */}
+      <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3, marginTop:16 }}>
+        {['rgba(180,200,230,0.7)','rgba(230,215,180,0.7)','rgba(180,230,195,0.7)'].map((c,i) => (
+          <div key={i} style={{ width:5, height:5, borderRadius:'50%', background:c }}/>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [active, setActive] = React.useState('cover');
+
+  React.useEffect(() => {
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) setActive(entry.target.id);
+      });
+    }, { threshold: 0.3 });
+
+    NAV_ITEMS.forEach(item => {
+      const el = document.getElementById(item.id);
+      if (el) observer.observe(el);
+    });
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div style={{ display:'flex', width:'100%' }}>
+      <Sidebar active={active}/>
+      <main style={{ marginLeft:56, flex:1, minWidth:0 }}>
+        <CoverPage/>
+        <SummaryPage/>
+        <MarketPage/>
+        <ConsensusPage/>
+        <DeepDivePage/>
+        <RiskPage/>
+        <OpportunityPage/>
+        <MemoPage/>
+        <SocialCardPage/>
+      </main>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
