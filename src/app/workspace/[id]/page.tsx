@@ -256,12 +256,42 @@ export default function WorkspacePage() {
   }, [wsId])
 
   const hasTriggeredReflectionRef = useRef(false)
+
+  const expectedRunCount = workspace?.modelRuns?.length ?? 0
+  const terminalStatuses = new Set(['done', 'completed', 'error', 'failed', 'cancelled'])
+  const activeStatuses = new Set(['idle', 'queued', 'running', 'streaming'])
+  
+  const trackedRuns = workspace?.modelRuns?.map(r => ({
+    id: r.id,
+    status: getStatus(r),
+    content: getContent(r)
+  })) ?? []
+  
+  const hasActiveRun = trackedRuns.some(run => activeStatuses.has(run.status))
+  const terminalRunCount = trackedRuns.filter(run => terminalStatuses.has(run.status)).length
+  const validAnswerCount = trackedRuns.filter(run => 
+    terminalStatuses.has(run.status) && 
+    typeof run.content === 'string' && 
+    run.content.trim().length > 0
+  ).length
+
+  const isMockReflection = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("mockReflection") === "1"
+  
+  const canTriggerReflection = 
+    !isMockReflection &&
+    allDone &&
+    expectedRunCount > 0 &&
+    trackedRuns.length >= expectedRunCount &&
+    terminalRunCount >= expectedRunCount &&
+    validAnswerCount >= 2 &&
+    !hasActiveRun
+
   useEffect(() => {
-    if (allDone && !hasTriggeredReflectionRef.current) {
+    if (canTriggerReflection && !hasTriggeredReflectionRef.current) {
       hasTriggeredReflectionRef.current = true
       triggerReflection()
     }
-  }, [allDone, triggerReflection])
+  }, [canTriggerReflection, triggerReflection])
   useEffect(() => {
     hasTriggeredReflectionRef.current = false
   }, [wsId])
