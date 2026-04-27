@@ -165,7 +165,7 @@ export default function FinalDraftPanel({
     : (isSuccess && reflection ? reflection.dimensions : null)
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 w-full overflow-hidden">
+    <div className="flex flex-col h-full bg-gray-50 w-[400px] overflow-hidden">
       {/* 区域 1：状态指示条（顶部） */}
       <div className="px-4 py-3 bg-white border-b border-gray-200 shrink-0 flex items-center justify-between">
         <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium transition-colors duration-300 ${statusBg}`}>

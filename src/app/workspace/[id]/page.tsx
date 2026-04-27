@@ -7,7 +7,8 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { 
   ArrowLeft, Eye, Copy, Send, Loader2,
-  FileText, Pin, RefreshCw, Maximize2, Minimize2
+  FileText, Pin, RefreshCw, Maximize2, Minimize2,
+  PanelLeftClose, PanelLeftOpen
 } from 'lucide-react'
 
 import ChatTurnCard from '@/components/workspace/ChatTurnCard'
@@ -181,6 +182,16 @@ export default function WorkspacePage() {
   const params = useParams<{ id: string }>()
   const router = useRouter()
   const wsId = params.id
+
+  const [isLeftCollapsed, setIsLeftCollapsed] = useState(false)
+
+  // 初始化折叠状态
+  useEffect(() => {
+    const cached = localStorage.getItem('gambit:leftSidebarCollapsed')
+    if (cached === 'true') {
+      setIsLeftCollapsed(true)
+    }
+  }, [])
 
   const [workspace, setWorkspace] = useState<WorkspaceData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -561,50 +572,76 @@ export default function WorkspacePage() {
   })
 
   // ========== JSX 部分在任务 8B 中补充 ==========
+  const toggleLeftSidebar = () => {
+    const newVal = !isLeftCollapsed
+    setIsLeftCollapsed(newVal)
+    localStorage.setItem('gambit:leftSidebarCollapsed', String(newVal))
+  }
+
   return (
     <main className="flex h-screen bg-[radial-gradient(circle,_rgba(0,0,0,0.03)_1px,_transparent_1px)] bg-[length:24px_24px] text-ink">
       {/* ===== 左栏：导航 ===== */}
-      <aside className="hidden md:flex w-56 border-r border-gray-200 bg-white/80 backdrop-blur-sm flex-col shrink-0 z-20">
+      <aside className={`hidden md:flex border-r border-gray-200 bg-white/80 backdrop-blur-sm flex-col shrink-0 z-20 transition-all duration-200 ease-in-out ${isLeftCollapsed ? 'w-[60px]' : 'w-[200px]'}`}>
         <div className="p-4 border-b border-gray-200">
-          <button onClick={() => router.push('/')}
-            className="text-xs text-inkLight hover:text-accent flex items-center gap-1 mb-3 transition">
-            <ArrowLeft className="w-3.5 h-3.5" /> 返回首页
-          </button>
-          <div className="text-sm font-semibold text-ink truncate">{workspace.title}</div>
-          <div className="text-[10px] font-mono text-black/20 mt-1 tracking-wider">GAMBIT WORKSPACE</div>
+          <div className="flex items-center justify-between mb-3">
+            <button onClick={() => router.push('/')}
+              title={isLeftCollapsed ? "返回首页" : undefined}
+              className={`text-xs text-inkLight hover:text-accent flex items-center transition ${isLeftCollapsed ? 'justify-center w-full' : 'gap-1'}`}>
+              <ArrowLeft className="w-4 h-4 shrink-0" /> {!isLeftCollapsed && <span>返回首页</span>}
+            </button>
+            <button onClick={toggleLeftSidebar}
+              className={`text-inkLight hover:text-accent transition ${isLeftCollapsed ? 'hidden' : 'block'}`}>
+              <PanelLeftClose className="w-4 h-4" />
+            </button>
+            {isLeftCollapsed && (
+              <button onClick={toggleLeftSidebar}
+                className="absolute top-12 left-0 right-0 mx-auto w-8 flex justify-center text-inkLight hover:text-accent transition">
+                <PanelLeftOpen className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+          {!isLeftCollapsed && (
+            <>
+              <div className="text-sm font-semibold text-ink truncate">{workspace.title}</div>
+              <div className="text-[10px] font-mono text-black/20 mt-1 tracking-wider">GAMBIT WORKSPACE</div>
+            </>
+          )}
         </div>
 
         <div className="p-3 border-b border-gray-100 flex-1 overflow-y-auto">
-          <div className="text-[10px] font-mono text-black/20 mb-2 tracking-wider px-2">STEPS</div>
+          {!isLeftCollapsed && <div className="text-[10px] font-mono text-black/20 mb-2 tracking-wider px-2">STEPS</div>}
           
           <div className="space-y-1">
             {/* 1. AI 回答 */}
             <div>
               <button onClick={() => { setActiveStep('models') }}
-                className={`flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg text-sm transition ${
+                title={isLeftCollapsed ? "AI 回答" : undefined}
+                className={`flex items-center w-full text-left py-2 rounded-lg text-sm transition ${
                   activeStep === 'models' ? 'bg-accent/10 text-accent font-medium' : 'text-inkLight hover:bg-gray-50'
-                }`}>
+                } ${isLeftCollapsed ? 'justify-center px-0' : 'gap-2 px-3'}`}>
                 <span className={`w-5 h-5 rounded-full text-xs flex items-center justify-center font-medium shrink-0 ${
                   activeStep === 'models' ? 'bg-accent text-white' : 'bg-gray-200 text-inkLight'
                 }`}>1</span>
-                AI 回答
+                {!isLeftCollapsed && <span>AI 回答</span>}
               </button>
               
-              <div className="ml-5 pl-4 border-l-2 border-gray-100 py-1 space-y-1">
-                {runs.map(run => {
-                  const status = getStatus(run)
-                  const isActive = activeRunId === run.id
-                  return (
-                    <button key={run.id} onClick={() => scrollToRun(run.id)}
-                      className={`flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-lg text-xs transition ${
-                        isActive ? 'text-accent bg-accent/5' : 'text-inkLight hover:text-ink hover:bg-gray-50'
-                      }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${MODEL_STATUS_COLORS[status] || 'bg-gray-300'}`} />
-                      <span className="truncate">{run.model}</span>
-                    </button>
-                  )
-                })}
-              </div>
+              {!isLeftCollapsed && (
+                <div className="ml-5 pl-4 border-l-2 border-gray-100 py-1 space-y-1">
+                  {runs.map(run => {
+                    const status = getStatus(run)
+                    const isActive = activeRunId === run.id
+                    return (
+                      <button key={run.id} onClick={() => scrollToRun(run.id)}
+                        className={`flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-lg text-xs transition ${
+                          isActive ? 'text-accent bg-accent/5' : 'text-inkLight hover:text-ink hover:bg-gray-50'
+                        }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${MODEL_STATUS_COLORS[status] || 'bg-gray-300'}`} />
+                        <span className="truncate">{run.model}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
             </div>
 
             {/* 2. 对话 */}
@@ -613,16 +650,17 @@ export default function WorkspacePage() {
                 setActiveStep('models')
                 setTimeout(() => document.getElementById('messages-end')?.scrollIntoView({ behavior: 'smooth' }), 100)
               }}
-                className={`flex items-center justify-between w-full text-left px-3 py-2 rounded-lg text-sm transition ${
+                title={isLeftCollapsed ? "对话" : undefined}
+                className={`flex items-center w-full text-left py-2 rounded-lg text-sm transition ${
                   activeStep === 'models' && chatMessages.length > 0 ? 'text-ink font-medium' : 'text-inkLight hover:bg-gray-50'
-                }`}>
-                <div className="flex items-center gap-2">
+                } ${isLeftCollapsed ? 'justify-center px-0' : 'justify-between px-3'}`}>
+                <div className={`flex items-center ${isLeftCollapsed ? 'justify-center' : 'gap-2'}`}>
                   <span className={`w-5 h-5 rounded-full text-xs flex items-center justify-center font-medium shrink-0 ${
                     activeStep === 'models' && chatMessages.length > 0 ? 'bg-gray-300 text-ink' : 'bg-gray-200 text-inkLight'
                   }`}>2</span>
-                  对话
+                  {!isLeftCollapsed && <span>对话</span>}
                 </div>
-                {chatMessages.length > 0 && (
+                {!isLeftCollapsed && chatMessages.length > 0 && (
                   <span className="text-[10px] bg-gray-100 text-inkLight px-1.5 py-0.5 rounded">
                     {Math.ceil(chatMessages.length / 2)} 轮
                   </span>
@@ -633,13 +671,14 @@ export default function WorkspacePage() {
             {/* 3. 最终稿 */}
             <div>
               <button onClick={() => { setActiveStep('output') }}
-                className={`flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg text-sm transition ${
+                title={isLeftCollapsed ? "最终稿" : undefined}
+                className={`flex items-center w-full text-left py-2 rounded-lg text-sm transition ${
                   activeStep === 'output' ? 'bg-accent/10 text-accent font-medium' : 'text-inkLight hover:bg-gray-50'
-                }`}>
+                } ${isLeftCollapsed ? 'justify-center px-0' : 'gap-2 px-3'}`}>
                 <span className={`w-5 h-5 rounded-full text-xs flex items-center justify-center font-medium shrink-0 ${
                   activeStep === 'output' ? 'bg-accent text-white' : 'bg-gray-200 text-inkLight'
                 }`}>3</span>
-                最终稿
+                {!isLeftCollapsed && <span>最终稿</span>}
               </button>
             </div>
           </div>
@@ -649,15 +688,19 @@ export default function WorkspacePage() {
           <button 
             onClick={() => handleObserver(false)} 
             disabled={completedRuns.length === 0}
-            title={completedRuns.length === 0 ? "请等待 AI 回答完成后查看" : ""}
+            title={completedRuns.length === 0 ? "请等待 AI 回答完成后查看" : (isLeftCollapsed ? "旁观者视角" : undefined)}
             className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border text-sm transition shadow-sm ${
               showDrawer === 'observer' 
                 ? 'border-accent bg-accent/5 text-accent font-medium' 
                 : 'border-gray-200 bg-white text-ink hover:border-accent hover:text-accent disabled:opacity-50 disabled:hover:border-gray-200 disabled:hover:text-ink'
             }`}>
-            <Eye className="w-4 h-4" />
-            旁观者视角
-            {showDrawer === 'observer' ? <span className="ml-1 text-[10px]">▲</span> : <span className="ml-1 text-[10px]">▼</span>}
+            <Eye className="w-4 h-4 shrink-0" />
+            {!isLeftCollapsed && (
+              <>
+                旁观者视角
+                {showDrawer === 'observer' ? <span className="ml-1 text-[10px]">▲</span> : <span className="ml-1 text-[10px]">▼</span>}
+              </>
+            )}
           </button>
           
           {/* ===== 抽屉 ===== */}
@@ -1004,7 +1047,7 @@ export default function WorkspacePage() {
       </section>
 
       {/* ===== 右栏：最终稿预览 ===== */}
-      <aside id="right-panel-container" className="hidden lg:flex w-96 border-l border-gray-200 bg-white flex flex-col relative z-10 shrink-0 shadow-[-4px_0_24px_-8px_rgba(0,0,0,0.05)]">
+      <aside id="right-panel-container" className="hidden lg:flex w-[400px] border-l border-gray-200 bg-white flex-col relative z-10 shrink-0 shadow-[-4px_0_24px_-8px_rgba(0,0,0,0.05)]">
         <FinalDraftPanel 
           workspaceId={wsId} 
           allDone={allDone} 
