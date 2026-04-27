@@ -34,27 +34,17 @@ export default function ReportPage() {
           return
         }
 
-        try {
-          const parsed = JSON.parse(ws.reflectionData)
-          const reflectionObj: Reflection = {
-            summary: parsed.summary || '',
-            dimensions: Array.isArray(parsed.dimensions) 
-              ? parsed.dimensions 
-              : Object.values(parsed.dimensions || {}).flat() as any,
-            draft: parsed.draft || ''
-          }
-          
-          if (!reflectionObj.dimensions || !Array.isArray(reflectionObj.dimensions) || reflectionObj.dimensions.length === 0) {
-            setStatus('noReflection')
-            return
-          }
-          
-          setReflection(reflectionObj)
-          setStatus('success')
-        } catch (err) {
-          console.error('[report] Failed to parse reflectionData', err)
+        const reflectionObj = typeof ws.reflectionData === 'string'
+          ? (() => { try { return JSON.parse(ws.reflectionData); } catch { return null; } })()
+          : ws.reflectionData;
+
+        if (!reflectionObj || !reflectionObj.dimensions || Object.keys(reflectionObj.dimensions).length === 0) {
           setStatus('noReflection')
+          return
         }
+
+        setReflection(reflectionObj)
+        setStatus('success')
       } catch (err) {
         console.error('[report] Load failed', err)
         setStatus('error')
