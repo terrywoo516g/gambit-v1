@@ -56,6 +56,10 @@ export function useMultiStream(
     const es = new EventSource(`/api/workspaces/${workspaceId}/stream-all`)
     sourceRef.current = es
 
+    es.onopen = () => {
+      window.dispatchEvent(new CustomEvent('credits:changed'))
+    }
+
     es.onmessage = (event) => {
       try {
         console.log('[SSE]', event.data.slice(0, 100))
@@ -104,6 +108,17 @@ export function useMultiStream(
 
     es.onerror = (err) => {
       reportError('useMultiStream', err, { workspaceId })
+      fetch(`/api/workspaces/${workspaceId}/stream-all?probe=1`)
+        .then(async (r) => {
+          if (r.status !== 402) return
+          const data = await r.json().catch(() => ({}))
+          const required = data.required ?? '?'
+          const available = data.available ?? 0
+          if (confirm(`积分不足（需要 ${required}，剩 ${available}），是否前往充值？`)) {
+            window.location.href = '/recharge'
+          }
+        })
+        .catch(() => {})
       es.close()
       sourceRef.current = null
     }

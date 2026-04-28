@@ -1,9 +1,18 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { streamChat } from '@/lib/llm-client'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth/auth'
+import { consumeCredits, InsufficientCreditsError } from '@/lib/billing/credits'
+import { PRICING } from '@/lib/billing/pricing'
+import { insufficientCreditsResponse } from '@/lib/billing/errors'
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   try {
+    const session = await getServerSession(authOptions)
+    const userId = (session?.user as any)?.id
+    if (!userId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+
     const { instruction, mode, selectedBlockIds } = await req.json()
     const workspaceId = params.id
 
@@ -28,7 +37,21 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       }
     })
 
-    if (!workspace) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    if (!workspace || workspace.userId !== userId) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+
+    try {
+      await consumeCredits(
+        userId,
+        PRICING.FINAL_DRAFT,
+        'consume_final_draft',
+        `综合文稿生成 (workspace ${workspaceId})`
+      )
+    } catch (e) {
+      if (e instanceof InsufficientCreditsError) return insufficientCreditsResponse(e)
+      throw e
+    }
 
     const chatHistory = workspace.chatMessages.reverse().map((m: any) => `${m.role === 'user' ? '用户' : 'AI'}：${m.content}`).join('\n')
     

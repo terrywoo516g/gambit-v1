@@ -1,10 +1,15 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { streamChat } from '@/lib/llm-client'
 import { getModelByName } from '@/lib/model-registry'
 import { MODEL_REGISTRY as CLIENT_REGISTRY } from '@/lib/llm-client'
 import { dbWrite } from '@/lib/db-queue'
 import { reportError } from '@/lib/track'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth/auth'
+import { consumeCredits, getBalance, InsufficientCreditsError } from '@/lib/billing/credits'
+import { calcModelCallCost } from '@/lib/billing/pricing'
+import { insufficientCreditsResponse } from '@/lib/billing/errors'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300 // 防止 Vercel 等平台过早中断
@@ -43,11 +48,51 @@ export async function GET(
 ) {
   const { id: workspaceId } = params
 
+  const session = await getServerSession(authOptions)
+  const userId = (session?.user as any)?.id
+  if (!userId) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+
   // ── 1. 并行读取 workspace 和 runs ──
   const [workspace, allRuns] = await Promise.all([
-    prisma.workspace.findUnique({ where: { id: workspaceId } }),
+    prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { id: true, userId: true, prompt: true, status: true },
+    }),
     prisma.modelRun.findMany({ where: { workspaceId } }),
   ])
+
+  if (!workspace || workspace.userId !== userId) {
+    return NextResponse.json({ error: 'not found' }, { status: 404 })
+  }
+
+  const probe = req.nextUrl.searchParams.get('probe')
+  const billableRuns = allRuns.filter(
+    (r: any) => r.status !== 'completed' && r.status !== 'failed'
+  )
+  const cost = calcModelCallCost(billableRuns.length)
+  if (probe === '1') {
+    const available = await getBalance(userId)
+    if (available < cost) {
+      return insufficientCreditsResponse(new InsufficientCreditsError(cost, available))
+    }
+    return NextResponse.json({ ok: true, required: cost, available })
+  }
+
+  if (cost > 0) {
+    try {
+      await consumeCredits(
+        userId,
+        cost,
+        'consume_model_call',
+        `多模型调用 ${billableRuns.length} 个模型 (workspace ${workspaceId})`
+      )
+    } catch (e) {
+      if (e instanceof InsufficientCreditsError) return insufficientCreditsResponse(e)
+      throw e
+    }
+  }
 
   if (!workspace || !allRuns || allRuns.length === 0) {
     return new Response(

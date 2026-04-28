@@ -245,6 +245,16 @@ export default function WorkspacePage() {
       const res = await fetch(`/api/workspaces/${wsId}/reflection`, {
         method: 'POST',
       })
+      if (res.status === 402) {
+        const data = await res.json().catch(() => ({}))
+        const required = data.required ?? '?'
+        const available = data.available ?? 0
+        if (confirm(`积分不足（需要 ${required}，剩 ${available}），是否前往充值？`)) {
+          window.location.href = '/recharge'
+        }
+        setReflectionStatus('idle')
+        return
+      }
       const data = await res.json()
       if (!res.ok) {
         const errMap: Record<string, string> = {
@@ -259,6 +269,7 @@ export default function WorkspacePage() {
       if (data.reflection) {
         setReflection(data.reflection)
         setReflectionStatus('success')
+        window.dispatchEvent(new CustomEvent('credits:changed'))
       } else {
         throw new Error('分析格式异常')
       }
