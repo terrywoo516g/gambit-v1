@@ -1,11 +1,23 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { signOut, useSession, SessionProvider } from 'next-auth/react'
 
 function UserMenuInner() {
   const { data: session } = useSession()
   const [open, setOpen] = useState(false)
+  const [credits, setCredits] = useState<number | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/credits/balance')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        if (!cancelled && d) setCredits(d.credits)
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
 
   if (!session?.user) return null
 
@@ -30,7 +42,7 @@ function UserMenuInner() {
           <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 py-1 z-50 overflow-hidden text-sm">
             <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
               <p className="text-ink font-medium truncate">{email}</p>
-              <p className="text-inkLight text-xs mt-0.5">积分: --</p>
+              <p className="text-inkLight text-xs mt-0.5">积分: {credits === null ? '--' : credits}</p>
             </div>
             <button
               onClick={() => signOut({ callbackUrl: '/login' })}

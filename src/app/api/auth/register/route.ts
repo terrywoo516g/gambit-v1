@@ -27,9 +27,20 @@ export async function POST(req: Request) {
       data: {
         email: normEmail,
         passwordHash,
-        credits: 100,
+        credits: 100,  // schema 默认值，显式写出便于阅读
       },
     })
+
+    // 写入 signup_bonus 流水（仅记账本，不重复加余额）
+    await prisma.creditTransaction.create({
+      data: {
+        userId: user.id,
+        amount: 100,
+        type: 'signup_bonus',
+        description: '新用户注册赠送',
+      },
+    })
+
     return NextResponse.json({ id: user.id }, { status: 201 })
   } catch (e: any) {
     return NextResponse.json({ error: e.message || '注册失败' }, { status: 500 })

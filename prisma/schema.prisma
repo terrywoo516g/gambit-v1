@@ -135,6 +135,7 @@ model User {
 
   workspaces    Workspace[]
   creditLogs    CreditLog[]
+  creditTransactions CreditTransaction[]
   accounts      Account[]
   sessions      Session[]
 }
@@ -195,6 +196,19 @@ model CreditLog {
   refId       String?  // 关联的 reportId / redeemCodeId
   createdAt   DateTime @default(now())
   user        User     @relation(fields: [userId], references: [id])
+}
+
+model CreditTransaction {
+  id          String   @id @default(cuid())
+  userId      String
+  amount      Int      // 正数=增加，负数=消费
+  type        String   // signup_bonus | admin_grant | consume_* | recharge ...
+  description String?
+  createdAt   DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, createdAt])
 }
 
 model Report {
