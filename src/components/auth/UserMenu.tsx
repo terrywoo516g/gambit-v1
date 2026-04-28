@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { signOut, useSession, SessionProvider } from 'next-auth/react'
+import { signOut, useSession } from 'next-auth/react'
 
 function UserMenuInner() {
   const { data: session } = useSession()
@@ -58,9 +58,5 @@ function UserMenuInner() {
 }
 
 export default function UserMenu() {
-  return (
-    <SessionProvider>
-      <UserMenuInner />
-    </SessionProvider>
-  )
+  return <UserMenuInner />
 }

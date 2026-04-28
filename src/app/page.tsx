@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { SessionProvider, useSession } from 'next-auth/react'
+import { useSession } from 'next-auth/react'
 import { AlertTriangle, Paperclip, X } from 'lucide-react'
 import UserMenu from '@/components/auth/UserMenu'
 import { toast } from '@/components/Toast'
@@ -118,9 +118,7 @@ export default function HomePage() {
           历史工作台
         </a>
         <div className="flex items-center gap-4">
-          <SessionProvider>
-            <AuthControls />
-          </SessionProvider>
+          <AuthControls />
         </div>
       </nav>
 
