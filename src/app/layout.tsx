@@ -3,6 +3,8 @@ import localFont from 'next/font/local'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth/auth'
 import './globals.css'
+import '@/styles/print.css'
+import '@/styles/report.css'
 import ToastContainer from '@/components/Toast'
 import { Providers } from './providers'
 

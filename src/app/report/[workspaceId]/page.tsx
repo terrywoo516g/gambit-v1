@@ -122,7 +122,7 @@ export default function ReportPage() {
   }
 
   return (
-    <div className="w-full">
+    <div id="report-export-root" className="w-full report-content">
       <ReportCover workspace={workspace} reportConfig={reportConfig} />
       <ReportSummary reflection={reflection!} modelLetters={workspace?.modelLetters || []} reportConfig={reportConfig} />
       <ReportConclusion workspace={workspace} reflection={reflection!} modelLetters={workspace?.modelLetters || []} reportConfig={reportConfig} />

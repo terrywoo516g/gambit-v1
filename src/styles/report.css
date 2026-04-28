@@ -1,0 +1,117 @@
+.report-content {
+  color: #1f2937;
+  font-size: 16px;
+  line-height: 1.75;
+}
+
+.report-content h1 {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.4;
+  margin: 0 0 16px;
+}
+
+.report-content h2 {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 24px 0 12px;
+}
+
+.report-content h3 {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 20px 0 8px;
+}
+
+.report-content p {
+  margin: 0 0 12px;
+}
+
+.report-content a {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.report-content a:hover {
+  text-decoration: underline;
+}
+
+.report-content ul,
+.report-content ol {
+  padding-left: 24px;
+  margin: 0 0 12px;
+}
+
+.report-content li + li {
+  margin-top: 6px;
+}
+
+.report-content pre {
+  background: #f8f9fa;
+  border-radius: 6px;
+  padding: 16px;
+  overflow: auto;
+  margin: 0 0 12px;
+  font-family: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    'Liberation Mono', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.report-content code {
+  font-family: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    'Liberation Mono', 'Courier New', monospace;
+}
+
+.report-content :not(pre) > code {
+  background: #f1f3f4;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+.report-content blockquote {
+  border-left: 4px solid #3b82f6;
+  background: #f0f7ff;
+  padding: 12px 16px;
+  margin: 0 0 12px;
+}
+
+.report-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 12px;
+  font-size: 14px;
+}
+
+.report-content th,
+.report-content td {
+  border: 1px solid #e5e7eb;
+  padding: 8px 12px;
+  vertical-align: top;
+}
+
+.report-content th {
+  background: #f9fafb;
+  font-weight: 600;
+}
+
+.report-content tr:nth-child(even) td {
+  background: #fcfcfd;
+}
+
+.report-content img {
+  max-width: 100%;
+  border-radius: 4px;
+  display: block;
+}
+
+.print-mode header,
+.print-mode nav,
+.print-mode footer,
+.print-mode button,
+.print-mode .no-print {
+  display: none !important;
+}
