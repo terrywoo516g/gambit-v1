@@ -10,29 +10,26 @@ import { toast } from '@/components/Toast'
 import { track } from '@/lib/track'
 
 const ALL_MODELS = [
-  { id: 'Qwen3.5 Flash', provider: 'Aliyun', short: 'Qwen3.5 Flash' },
-  { id: 'MiniMax M2.5', provider: 'MiniMax', short: 'MiniMax M2.5' },
   { id: 'Doubao 2.0 Mini', provider: 'ByteDance', short: 'Doubao 2.0 Mini' },
-
   { id: 'Doubao 2.0 Pro', provider: 'ByteDance', short: 'Doubao 2.0 Pro' },
+
+  { id: 'Qwen3.5 Flash', provider: 'Aliyun', short: 'Qwen3.5 Flash' },
+  { id: 'Qwen3.6 Plus', provider: 'Aliyun', short: 'Qwen3.6 Plus' },
+
+  { id: 'MiniMax M2.5', provider: 'MiniMax', short: 'MiniMax M2.5' },
+  { id: 'MiniMax M2.7', provider: 'MiniMax', short: 'MiniMax M2.7' },
 
   { id: 'DeepSeek V4 Flash', provider: 'DeepSeek', short: 'DeepSeek V4 Flash' },
   { id: 'DeepSeek V4 Pro', provider: 'DeepSeek', short: 'DeepSeek V4 Pro' },
 
-  { id: 'MiniMax M2.7', provider: 'MiniMax', short: 'MiniMax M2.7' },
-
   { id: 'GLM 5', provider: 'Zhipu', short: 'GLM 5' },
   { id: 'GLM 5.1', provider: 'Zhipu', short: 'GLM 5.1' },
 
-  { id: 'Qwen3.6 Plus', provider: 'Aliyun', short: 'Qwen3.6 Plus' },
-
   { id: 'Kimi K2.5', provider: 'Moonshot', short: 'Kimi K2.5' },
   { id: 'Kimi K2.6', provider: 'Moonshot', short: 'Kimi K2.6' },
-
-  { id: 'GPT-OSS 120B', provider: 'OpenAI', short: 'GPT-OSS 120B' },
 ]
 
-const DEFAULT_SELECTED = ['Qwen3.5 Flash', 'MiniMax M2.5', 'Doubao 2.0 Mini']
+const DEFAULT_SELECTED = ['Doubao 2.0 Mini', 'Qwen3.5 Flash', 'MiniMax M2.5']
 
 function getShortName(id: string): string {
   return ALL_MODELS.find(m => m.id === id)?.short || id.split(' ')[0]

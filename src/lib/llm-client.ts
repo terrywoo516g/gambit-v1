@@ -99,8 +99,6 @@ const MODEL_RATES: Record<string, { in: number; out: number }> = {
 
   'moonshotai/kimi-k2.5':            { in: 4,    out: 21   },
   'moonshotai/kimi-k2.6':            { in: 6.5,  out: 27   },
-
-  'gpt-oss-120b':                    { in: 1.08, out: 5.4  },
 }
 
 // ─── 模型注册表（兼容旧引用，实际路由用 model-registry.ts）────────────────
@@ -118,7 +116,6 @@ export const MODEL_REGISTRY: Record<string, { modelId: string; provider: Provide
   'Qwen3.6 Plus':      { modelId: 'qwen/qwen3.6-plus',           provider: 'qiniu' },
   'Kimi K2.5':         { modelId: 'moonshotai/kimi-k2.5',        provider: 'qiniu' },
   'Kimi K2.6':         { modelId: 'moonshotai/kimi-k2.6',        provider: 'qiniu' },
-  'GPT-OSS 120B':      { modelId: 'gpt-oss-120b',                provider: 'qiniu' },
 }
 
 export const ADVANCED_MODEL = 'deepseek/deepseek-v3.2-251201' // TODO: 接入 Opus/更高级模型

@@ -10,24 +10,6 @@ export interface ModelInfo {
 
 export const MODEL_REGISTRY: ModelInfo[] = [
   {
-    id: 'Qwen3.5 Flash',
-    apiId: 'qwen/qwen3.5-35b-a3b',
-    provider: 'Aliyun',
-    description: '新一代轻量高速模型',
-    contextLength: '262K',
-    inputPrice: '--',
-    outputPrice: '--',
-  },
-  {
-    id: 'MiniMax M2.5',
-    apiId: 'minimax/minimax-m2.5',
-    provider: 'MiniMax',
-    description: '稳定高速模型',
-    contextLength: '204.8K',
-    inputPrice: '0.0021',
-    outputPrice: '0.0084',
-  },
-  {
     id: 'Doubao 2.0 Mini',
     apiId: 'doubao-seed-2.0-mini',
     provider: 'ByteDance',
@@ -44,6 +26,42 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     contextLength: '256K',
     inputPrice: '0.0032',
     outputPrice: '0.016',
+  },
+  {
+    id: 'Qwen3.5 Flash',
+    apiId: 'qwen/qwen3.5-35b-a3b',
+    provider: 'Aliyun',
+    description: '新一代轻量高速模型',
+    contextLength: '262K',
+    inputPrice: '--',
+    outputPrice: '--',
+  },
+  {
+    id: 'Qwen3.6 Plus',
+    apiId: 'qwen/qwen3.6-plus',
+    provider: 'Aliyun',
+    description: '最新一代长上下文模型',
+    contextLength: '1000K',
+    inputPrice: '0.002',
+    outputPrice: '0.012',
+  },
+  {
+    id: 'MiniMax M2.5',
+    apiId: 'minimax/minimax-m2.5',
+    provider: 'MiniMax',
+    description: '稳定高速模型',
+    contextLength: '204.8K',
+    inputPrice: '0.0021',
+    outputPrice: '0.0084',
+  },
+  {
+    id: 'MiniMax M2.7',
+    apiId: 'minimax/minimax-m2.7',
+    provider: 'MiniMax',
+    description: '新一代性价比模型',
+    contextLength: '204.8K',
+    inputPrice: '0.0021',
+    outputPrice: '0.0084',
   },
   {
     id: 'DeepSeek V4 Flash',
@@ -64,15 +82,6 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     outputPrice: '0.024',
   },
   {
-    id: 'MiniMax M2.7',
-    apiId: 'minimax/minimax-m2.7',
-    provider: 'MiniMax',
-    description: '新一代性价比模型',
-    contextLength: '204.8K',
-    inputPrice: '0.0021',
-    outputPrice: '0.0084',
-  },
-  {
     id: 'GLM 5',
     apiId: 'z-ai/glm-5',
     provider: 'Zhipu',
@@ -89,15 +98,6 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     contextLength: '200K',
     inputPrice: '0.006',
     outputPrice: '0.024',
-  },
-  {
-    id: 'Qwen3.6 Plus',
-    apiId: 'qwen/qwen3.6-plus',
-    provider: 'Aliyun',
-    description: '最新一代长上下文模型',
-    contextLength: '1000K',
-    inputPrice: '0.002',
-    outputPrice: '0.012',
   },
   {
     id: 'Kimi K2.5',
@@ -117,18 +117,9 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     inputPrice: '0.0065',
     outputPrice: '0.027',
   },
-  {
-    id: 'GPT-OSS 120B',
-    apiId: 'gpt-oss-120b',
-    provider: 'OpenAI',
-    description: '开放权重高性价比模型',
-    contextLength: '128K',
-    inputPrice: '0.00108',
-    outputPrice: '0.0054',
-  },
 ]
 
-export const DEFAULT_MODELS = ['Qwen3.5 Flash', 'MiniMax M2.5', 'Doubao 2.0 Mini']
+export const DEFAULT_MODELS = ['Doubao 2.0 Mini', 'Qwen3.5 Flash', 'MiniMax M2.5']
 
 export function getModelByName(name: string): ModelInfo | undefined {
   return MODEL_REGISTRY.find(m => m.id === name)
