@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { signOut, useSession } from 'next-auth/react'
 
 function UserMenuInner() {
@@ -44,6 +45,12 @@ function UserMenuInner() {
               <p className="text-ink font-medium truncate">{email}</p>
               <p className="text-inkLight text-xs mt-0.5">积分: {credits === null ? '--' : credits}</p>
             </div>
+            <Link
+              href="/recharge"
+              className="block px-4 py-2 text-ink hover:bg-gray-50 transition-colors"
+            >
+              充值
+            </Link>
             <button
               onClick={() => signOut({ callbackUrl: '/login' })}
               className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 transition-colors"

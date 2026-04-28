@@ -23,6 +23,7 @@ export const config = {
     '/workspace/:path*',
     '/workspaces/:path*',
     '/report/:path*',
+    '/recharge/:path*',
     '/api/workspaces/:path*',
   ],
 }

@@ -136,6 +136,7 @@ model User {
   workspaces    Workspace[]
   creditLogs    CreditLog[]
   creditTransactions CreditTransaction[]
+  orders        Order[]
   accounts      Account[]
   sessions      Session[]
 }
@@ -209,6 +210,36 @@ model CreditTransaction {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@index([userId, createdAt])
+}
+
+model Order {
+  id              String    @id @default(cuid())
+  userId          String
+  
+  // 档位与金额（金额单位：分，避免浮点）
+  amountCents     Int
+  credits         Int
+  tier            String    // tier_19 | tier_99 | tier_299
+  
+  // 通道与状态
+  provider        String    // mock | payjs | sevenpay | xunhupay
+  providerOrderId String?
+  qrCodeUrl       String?
+  status          String    @default("pending")  // pending | paid | expired | failed
+  
+  // 时间戳
+  createdAt       DateTime  @default(now())
+  paidAt          DateTime?
+  expiresAt       DateTime
+  
+  // 元数据
+  metadata        String?   // JSON string
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, createdAt])
+  @@index([status, expiresAt])
+  @@unique([provider, providerOrderId])
 }
 
 model Report {
