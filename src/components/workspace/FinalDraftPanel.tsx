@@ -14,6 +14,7 @@ interface FinalDraftPanelProps {
   reflectionStatus?: 'idle' | 'loading' | 'success' | 'error'
   reflectionError?: string | null
   onRetryReflection?: () => void
+  headerRight?: React.ReactNode
 }
 
 const MOCK_REFLECTION = {
@@ -97,7 +98,8 @@ export default function FinalDraftPanel({
   reflection,
   reflectionStatus = 'idle',
   reflectionError,
-  onRetryReflection
+  onRetryReflection,
+  headerRight
 }: FinalDraftPanelProps) {
   const [isMockMode, setIsMockMode] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -165,17 +167,24 @@ export default function FinalDraftPanel({
     : (isSuccess && reflection ? reflection.dimensions : null)
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 w-[400px] overflow-hidden">
+    <div className="flex flex-col h-full bg-gray-50 w-[400px] overflow-visible">
       {/* 区域 1：状态指示条（顶部） */}
       <div className="px-4 py-3 bg-white border-b border-gray-200 shrink-0 flex items-center justify-between">
-        <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium transition-colors duration-300 ${statusBg}`}>
-          <div className={`w-1.5 h-1.5 rounded-full ${statusColor}`} />
-          {statusText}
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium transition-colors duration-300 ${statusBg} shrink-0`}>
+            <div className={`w-1.5 h-1.5 rounded-full ${statusColor}`} />
+            {statusText}
+          </div>
+          {isMockMode && (
+            <span className="bg-amber-100 text-amber-700 border border-amber-200 px-2 py-0.5 rounded text-[10px] font-bold tracking-wider shrink-0">
+              DEMO 数据
+            </span>
+          )}
         </div>
-        {isMockMode && (
-          <span className="bg-amber-100 text-amber-700 border border-amber-200 px-2 py-0.5 rounded text-[10px] font-bold tracking-wider">
-            DEMO 数据
-          </span>
+        {headerRight && (
+          <div className="flex items-center ml-auto pl-2 shrink-0">
+            {headerRight}
+          </div>
         )}
       </div>
 

@@ -9,6 +9,7 @@ import { ConfigPanel } from '@/components/report/customize/ConfigPanel'
 import { SaveButton } from '@/components/report/customize/SaveButton'
 import ReportPreviewSwitch from '@/components/report/ReportPreviewSwitch'
 import { Reflection } from '@/lib/reflection/types'
+import UserMenu from '@/components/auth/UserMenu'
 
 interface CustomizePageClientProps {
   workspace: any
@@ -100,6 +101,7 @@ export default function CustomizePageClient({
             isSaving={isSaving} 
             onClick={handleSave} 
           />
+          <UserMenu />
         </div>
       </header>
 

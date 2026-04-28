@@ -766,11 +766,8 @@ export default function WorkspacePage() {
         </div>
       </aside>
 
-      {/* ===== 中栏 ===== */}
+      {/* ===== 中栏：工作台核心 ===== */}
       <section className="flex min-w-0 flex-1 flex-col relative">
-        <div className="absolute top-4 right-4 z-50">
-          <UserMenu />
-        </div>
         <div className="h-11 shrink-0 border-b border-gray-200 bg-white/90 backdrop-blur-sm px-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
@@ -1052,13 +1049,14 @@ export default function WorkspacePage() {
 
       {/* ===== 右栏：最终稿预览 ===== */}
       <aside id="right-panel-container" className="hidden lg:flex w-[400px] border-l border-gray-200 bg-white flex-col relative z-10 shrink-0 shadow-[-4px_0_24px_-8px_rgba(0,0,0,0.05)]">
-        <FinalDraftPanel 
-          workspaceId={wsId} 
-          allDone={allDone} 
+        <FinalDraftPanel
+          workspaceId={wsId}
+          allDone={allDone}
           reflection={reflection}
           reflectionStatus={reflectionStatus}
           reflectionError={reflectionError}
           onRetryReflection={triggerReflection}
+          headerRight={<UserMenu />}
         />
       </aside>
 
