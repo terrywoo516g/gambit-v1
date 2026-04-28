@@ -71,6 +71,7 @@ export default function RechargeClient({
         const data = await res.json()
         if (data.status === 'paid') {
           setStatus('paid')
+          window.dispatchEvent(new CustomEvent('credits:changed'))
           clearInterval(pollRef.current!)
           pollRef.current = null
           stopTicking()
@@ -164,4 +165,3 @@ export default function RechargeClient({
     </div>
   )
 }
-

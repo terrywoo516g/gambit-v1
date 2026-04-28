@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { signOut, useSession } from 'next-auth/react'
 
@@ -9,16 +9,21 @@ function UserMenuInner() {
   const [open, setOpen] = useState(false)
   const [credits, setCredits] = useState<number | null>(null)
 
-  useEffect(() => {
-    let cancelled = false
+  const fetchBalance = useCallback(() => {
     fetch('/api/credits/balance')
       .then(r => (r.ok ? r.json() : null))
       .then(d => {
-        if (!cancelled && d) setCredits(d.credits)
+        if (d) setCredits(d.credits)
       })
       .catch(() => {})
-    return () => { cancelled = true }
   }, [])
+
+  useEffect(() => {
+    fetchBalance()
+    const handler = () => fetchBalance()
+    window.addEventListener('credits:changed', handler)
+    return () => window.removeEventListener('credits:changed', handler)
+  }, [fetchBalance])
 
   if (!session?.user) return null
 
