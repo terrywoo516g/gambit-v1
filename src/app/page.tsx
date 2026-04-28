@@ -10,21 +10,29 @@ import { toast } from '@/components/Toast'
 import { track } from '@/lib/track'
 
 const ALL_MODELS = [
-  { id: 'DeepSeek V3.2', provider: 'DeepSeek', short: 'DeepSeek V3.2' },
-  { id: 'DeepSeek R1', provider: 'DeepSeek', short: 'DeepSeek R1' },
-  { id: 'Kimi K2.6', provider: 'Moonshot', short: 'Kimi K2.6' },
-  { id: 'Kimi K2.5', provider: 'Moonshot', short: 'Kimi K2.5' },
-  { id: 'Doubao Seed 2.0 Pro', provider: 'ByteDance', short: 'Doubao Seed 2.0 Pro' },
-  { id: 'Doubao Seed 2.0 Mini', provider: 'ByteDance', short: 'Doubao Seed 2.0 Mini' },
-  { id: 'Qwen3.6 Plus', provider: 'Aliyun', short: 'Qwen3.6 Plus' },
-  { id: 'Qwen3 Max', provider: 'Aliyun', short: 'Qwen3 Max' },
-  { id: 'GLM 5.1', provider: 'Zhipu', short: 'GLM 5.1' },
-  { id: 'GLM 5', provider: 'Zhipu', short: 'GLM 5' },
+  { id: 'Qwen3.5 Flash', provider: 'Aliyun', short: 'Qwen3.5 Flash' },
+  { id: 'MiniMax M2.5', provider: 'MiniMax', short: 'MiniMax M2.5' },
+  { id: 'Doubao 2.0 Mini', provider: 'ByteDance', short: 'Doubao 2.0 Mini' },
+
+  { id: 'Doubao 2.0 Pro', provider: 'ByteDance', short: 'Doubao 2.0 Pro' },
+
+  { id: 'DeepSeek V4 Flash', provider: 'DeepSeek', short: 'DeepSeek V4 Flash' },
+  { id: 'DeepSeek V4 Pro', provider: 'DeepSeek', short: 'DeepSeek V4 Pro' },
+
   { id: 'MiniMax M2.7', provider: 'MiniMax', short: 'MiniMax M2.7' },
-  { id: 'MiniMax M1', provider: 'MiniMax', short: 'MiniMax M1' },
+
+  { id: 'GLM 5', provider: 'Zhipu', short: 'GLM 5' },
+  { id: 'GLM 5.1', provider: 'Zhipu', short: 'GLM 5.1' },
+
+  { id: 'Qwen3.6 Plus', provider: 'Aliyun', short: 'Qwen3.6 Plus' },
+
+  { id: 'Kimi K2.5', provider: 'Moonshot', short: 'Kimi K2.5' },
+  { id: 'Kimi K2.6', provider: 'Moonshot', short: 'Kimi K2.6' },
+
+  { id: 'GPT-OSS 120B', provider: 'OpenAI', short: 'GPT-OSS 120B' },
 ]
 
-const DEFAULT_SELECTED = ['DeepSeek V3.2', 'MiniMax M1', 'Qwen3 Max']
+const DEFAULT_SELECTED = ['Qwen3.5 Flash', 'MiniMax M2.5', 'Doubao 2.0 Mini']
 
 function getShortName(id: string): string {
   return ALL_MODELS.find(m => m.id === id)?.short || id.split(' ')[0]

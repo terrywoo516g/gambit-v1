@@ -78,38 +78,47 @@ function getNextQiniuKey(): string {
 // ─── 模型价格（¥/1K tokens）─────────────────────────────────────────
 
 const MODEL_RATES: Record<string, { in: number; out: number }> = {
-  'deepseek/deepseek-v3.2-251201':  { in: 2,    out: 3    },
-  'deepseek-v3-2-251201':           { in: 2,    out: 3    },
-  'deepseek-r1-0528':               { in: 4,    out: 16   },
-  'moonshotai/kimi-k2.6':           { in: 6.5,  out: 27   },
-  'moonshotai/kimi-k2.5':           { in: 4,    out: 21   },
-  'doubao-seed-2.0-pro':            { in: 3.2,  out: 16   },
-  'doubao-seed-2-0-pro-260215':     { in: 3.2,  out: 16   },
-  'doubao-seed-2.0-mini':           { in: 0.2,  out: 2    },
-  'doubao-seed-2-0-mini-260215':    { in: 0.2,  out: 2    },
-  'qwen/qwen3.6-plus':              { in: 2,    out: 12   },
-  'qwen3-max':                      { in: 6,    out: 24   },
-  'z-ai/glm-5.1':                   { in: 6,    out: 24   },
-  'z-ai/glm-5':                     { in: 4,    out: 18   },
-  'minimax/minimax-m2.7':           { in: 2.1,  out: 8.4  },
-  'MiniMax-M1':                     { in: 4,    out: 16   },
+  // qwen/qwen3.5-35b-a3b 当前七牛价格表为 --，暂不写入价格表，避免误标价格
+
+  'minimax/minimax-m2.5':            { in: 2.1,  out: 8.4  },
+  'doubao-seed-2.0-mini':            { in: 0.2,  out: 2    },
+  'doubao-seed-2-0-mini-260215':     { in: 0.2,  out: 2    },
+
+  'doubao-seed-2.0-pro':             { in: 3.2,  out: 16   },
+  'doubao-seed-2-0-pro-260215':      { in: 3.2,  out: 16   },
+
+  'deepseek/deepseek-v4-flash':      { in: 1,    out: 2    },
+  'deepseek/deepseek-v4-pro':        { in: 12,   out: 24   },
+
+  'minimax/minimax-m2.7':            { in: 2.1,  out: 8.4  },
+
+  'z-ai/glm-5':                      { in: 4,    out: 18   },
+  'z-ai/glm-5.1':                    { in: 6,    out: 24   },
+
+  'qwen/qwen3.6-plus':               { in: 2,    out: 12   },
+
+  'moonshotai/kimi-k2.5':            { in: 4,    out: 21   },
+  'moonshotai/kimi-k2.6':            { in: 6.5,  out: 27   },
+
+  'gpt-oss-120b':                    { in: 1.08, out: 5.4  },
 }
 
 // ─── 模型注册表（兼容旧引用，实际路由用 model-registry.ts）────────────────
 
 export const MODEL_REGISTRY: Record<string, { modelId: string; provider: Provider }> = {
-  'DeepSeek V3.2':        { modelId: 'deepseek/deepseek-v3.2-251201',  provider: 'qiniu' },
-  'DeepSeek R1':          { modelId: 'deepseek-r1-0528',               provider: 'qiniu' },
-  'Kimi K2.6':            { modelId: 'moonshotai/kimi-k2.6',           provider: 'qiniu' },
-  'Kimi K2.5':            { modelId: 'moonshotai/kimi-k2.5',           provider: 'qiniu' },
-  'Doubao Seed 2.0 Pro':  { modelId: 'doubao-seed-2.0-pro',            provider: 'qiniu' },
-  'Doubao Seed 2.0 Mini': { modelId: 'doubao-seed-2.0-mini',           provider: 'qiniu' },
-  'Qwen3.6 Plus':         { modelId: 'qwen/qwen3.6-plus',             provider: 'qiniu' },
-  'Qwen3 Max':            { modelId: 'qwen3-max',                      provider: 'qiniu' },
-  'GLM 5.1':              { modelId: 'z-ai/glm-5.1',                   provider: 'qiniu' },
-  'GLM 5':                { modelId: 'z-ai/glm-5',                     provider: 'qiniu' },
-  'MiniMax M2.7':         { modelId: 'minimax/minimax-m2.7',           provider: 'qiniu' },
-  'MiniMax M1':           { modelId: 'MiniMax-M1',                     provider: 'qiniu' },
+  'Qwen3.5 Flash':     { modelId: 'qwen/qwen3.5-35b-a3b',       provider: 'qiniu' },
+  'MiniMax M2.5':      { modelId: 'minimax/minimax-m2.5',        provider: 'qiniu' },
+  'Doubao 2.0 Mini':   { modelId: 'doubao-seed-2.0-mini',        provider: 'qiniu' },
+  'Doubao 2.0 Pro':    { modelId: 'doubao-seed-2.0-pro',         provider: 'qiniu' },
+  'DeepSeek V4 Flash': { modelId: 'deepseek/deepseek-v4-flash',  provider: 'qiniu' },
+  'DeepSeek V4 Pro':   { modelId: 'deepseek/deepseek-v4-pro',    provider: 'qiniu' },
+  'MiniMax M2.7':      { modelId: 'minimax/minimax-m2.7',        provider: 'qiniu' },
+  'GLM 5':             { modelId: 'z-ai/glm-5',                  provider: 'qiniu' },
+  'GLM 5.1':           { modelId: 'z-ai/glm-5.1',                provider: 'qiniu' },
+  'Qwen3.6 Plus':      { modelId: 'qwen/qwen3.6-plus',           provider: 'qiniu' },
+  'Kimi K2.5':         { modelId: 'moonshotai/kimi-k2.5',        provider: 'qiniu' },
+  'Kimi K2.6':         { modelId: 'moonshotai/kimi-k2.6',        provider: 'qiniu' },
+  'GPT-OSS 120B':      { modelId: 'gpt-oss-120b',                provider: 'qiniu' },
 }
 
 export const ADVANCED_MODEL = 'deepseek/deepseek-v3.2-251201' // TODO: 接入 Opus/更高级模型
