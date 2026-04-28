@@ -1,8 +1,11 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { SessionProvider, useSession } from 'next-auth/react'
 import { AlertTriangle, Paperclip, X } from 'lucide-react'
+import UserMenu from '@/components/auth/UserMenu'
 import { toast } from '@/components/Toast'
 import { track } from '@/lib/track'
 
@@ -25,6 +28,17 @@ const DEFAULT_SELECTED = ['DeepSeek V3.2', 'MiniMax M1', 'Qwen3 Max']
 
 function getShortName(id: string): string {
   return ALL_MODELS.find(m => m.id === id)?.short || id.split(' ')[0]
+}
+
+function AuthControls() {
+  const { data: session } = useSession()
+  if (session?.user) return <UserMenu />
+  return (
+    <>
+      <Link href="/login" className="text-sm font-medium text-inkLight hover:text-ink transition">登录</Link>
+      <Link href="/register" className="text-sm font-medium bg-ink text-white px-4 py-1.5 rounded-full hover:bg-ink/80 transition">注册</Link>
+    </>
+  )
 }
 
 export default function HomePage() {
@@ -99,8 +113,9 @@ export default function HomePage() {
           历史工作台
         </a>
         <div className="flex items-center gap-4">
-          <button className="text-sm font-medium text-inkLight hover:text-ink transition" onClick={() => alert('登录功能即将支持')}>登录</button>
-          <button className="text-sm font-medium bg-ink text-white px-4 py-1.5 rounded-full hover:bg-ink/80 transition" onClick={() => alert('注册功能即将支持')}>注册</button>
+          <SessionProvider>
+            <AuthControls />
+          </SessionProvider>
         </div>
       </nav>
 
