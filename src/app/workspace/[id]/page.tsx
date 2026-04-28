@@ -14,6 +14,7 @@ import {
 import ChatTurnCard from '@/components/workspace/ChatTurnCard'
 import FinalDraftPanel from '@/components/workspace/FinalDraftPanel'
 import { Reflection } from '@/lib/reflection/types'
+import UserMenu from '@/components/auth/UserMenu'
 
 type ChatMessage = {
   id: string
@@ -767,6 +768,9 @@ export default function WorkspacePage() {
 
       {/* ===== 中栏 ===== */}
       <section className="flex min-w-0 flex-1 flex-col relative">
+        <div className="absolute top-4 right-4 z-50">
+          <UserMenu />
+        </div>
         <div className="h-11 shrink-0 border-b border-gray-200 bg-white/90 backdrop-blur-sm px-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">

@@ -1,16 +1,17 @@
-import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, ArrowRight } from 'lucide-react'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth/auth'
 
 export default async function WorkspacesPage() {
-  const cookieStore = cookies()
-  const session = cookieStore.get('gambit_invite')
-  if (!session?.value) redirect('/login')
+  const session = await getServerSession(authOptions)
+  if (!session?.user) redirect('/login')
+  const userId = (session.user as any).id
 
   const workspaces = await prisma.workspace.findMany({
-    where: { userId: session.value },
+    where: { userId },
     orderBy: { updatedAt: 'desc' },
     take: 30,
   })

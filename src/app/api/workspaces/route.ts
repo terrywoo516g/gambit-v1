@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getModelByName } from '@/lib/model-registry'
-import { cookies } from 'next/headers'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth/auth'
 
 // 创建工作空间
 export async function POST(req: NextRequest) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+    const userId = (session.user as any).id
+
     const body = await req.json()
     const { prompt, selectedModels } = body as {
       prompt: string
@@ -20,25 +27,6 @@ export async function POST(req: NextRequest) {
     }
 
     const title = prompt.slice(0, 30) + (prompt.length > 30 ? '...' : '')
-
-    const cookieStore = cookies()
-    const sessionId = cookieStore.get('gambit_invite')?.value || null
-
-    // ✨ Day 1：兜底 upsert User —— 老 cookie 没有对应 User 行时也不会 FK 违约
-    let userId: string | null = null
-    if (sessionId) {
-      try {
-        await prisma.user.upsert({
-          where: { id: sessionId },
-          update: {},
-          create: { id: sessionId, credits: 100 },
-        })
-        userId = sessionId
-      } catch (err) {
-        console.error('[POST /api/workspaces] user upsert failed', err)
-        userId = null
-      }
-    }
 
     // 用事务一次性创建 workspace + 所有 modelRuns，减少 DB 往返
     const workspace = await prisma.workspace.create({
@@ -79,8 +67,8 @@ export async function POST(req: NextRequest) {
 // 获取工作空间列表
 export async function GET() {
   try {
-    const cookieStore = cookies()
-    const userId = cookieStore.get('gambit_invite')?.value
+    const session = await getServerSession(authOptions)
+    const userId = session?.user ? (session.user as any).id : null
 
     if (!userId) {
       return NextResponse.json({ workspaces: [] }, { status: 200 })

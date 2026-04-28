@@ -1,17 +1,25 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { DEFAULT_REPORT_CONFIG, parseReportConfig } from '@/lib/report/types'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth/auth'
 
 export async function GET(
   req: Request,
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+    const userId = (session.user as any).id
+
     const workspace = await prisma.workspace.findUnique({
       where: { id: params.id },
-      select: { id: true, reportConfig: true, reportConfigAt: true, prompt: true },
+      select: { id: true, reportConfig: true, reportConfigAt: true, prompt: true, userId: true },
     })
-    if (!workspace) {
+    if (!workspace || workspace.userId !== userId) {
       return NextResponse.json({ error: 'workspace not found' }, { status: 404 })
     }
     const config = parseReportConfig(workspace.reportConfig)
@@ -30,6 +38,20 @@ export async function PUT(
   req: Request,
   { params }: { params: { id: string } }
 ) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+  const userId = (session.user as any).id
+
+  const workspace = await prisma.workspace.findUnique({
+    where: { id: params.id },
+    select: { id: true, userId: true },
+  })
+  if (!workspace || workspace.userId !== userId) {
+    return NextResponse.json({ error: 'workspace not found' }, { status: 404 })
+  }
+
   let body: unknown
   try {
     body = await req.json()

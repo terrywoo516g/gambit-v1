@@ -1,16 +1,28 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { getToken } from 'next-auth/jwt'
 
-export function middleware(request: NextRequest) {
-  const session = request.cookies.get('gambit_invite')
-  if (!session?.value) {
-    return NextResponse.redirect(new URL('/login', request.url))
+export async function middleware(request: NextRequest) {
+  const token = await getToken({
+    req: request,
+    secret: process.env.NEXTAUTH_SECRET,
+  })
+  
+  if (!token) {
+    const loginUrl = new URL('/login', request.url)
+    const fullPath = request.nextUrl.pathname + request.nextUrl.search
+    loginUrl.searchParams.set('next', fullPath)
+    return NextResponse.redirect(loginUrl)
   }
+  
   return NextResponse.next()
 }
 
 export const config = {
   matcher: [
-    '/((?!login|api/auth/verify|_next/static|_next/image|favicon.ico).*)',
+    '/workspace/:path*',
+    '/workspaces/:path*',
+    '/report/:path*',
+    '/api/workspaces/:path*',
   ],
 }
