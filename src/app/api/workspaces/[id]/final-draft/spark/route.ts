@@ -4,9 +4,9 @@ import { prisma } from '@/lib/db'
 import { v4 as uuidv4 } from 'uuid'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth/auth'
-import { consumeCredits, InsufficientCreditsError } from '@/lib/billing/credits'
 import { PRICING } from '@/lib/billing/pricing'
-import { insufficientCreditsResponse } from '@/lib/billing/errors'
+import { chargeCredits } from '@/lib/billing/withCreditsCharge'
+import { assertWorkspaceOwnership, OwnershipError } from '@/lib/auth/ownership'
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -16,15 +16,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     const workspaceId = params.id
 
-    const workspace = await prisma.workspace.findUnique({
-      where: { id: workspaceId },
-      include: {
-        modelRuns: true
-      }
-    })
-
-    if (!workspace || workspace.userId !== userId) {
-      return NextResponse.json({ error: 'Workspace not found' }, { status: 404 })
+    let workspace
+    try {
+      workspace = await assertWorkspaceOwnership(workspaceId, userId)
+    } catch (e) {
+      if (e instanceof OwnershipError) return NextResponse.json({ error: 'Workspace not found' }, { status: 404 })
+      throw e
     }
 
     let bodyData: any = null
@@ -32,21 +29,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       bodyData = await req.json()
     } catch {}
 
-    try {
-      await consumeCredits(
-        userId,
-        PRICING.FINAL_DRAFT_SPARK,
-        'consume_final_draft_spark',
-        `final-draft 灵感激发 (workspace ${workspaceId})`
-      )
-    } catch (e) {
-      if (e instanceof InsufficientCreditsError) return insufficientCreditsResponse(e)
-      throw e
-    }
+    const chargeRes = await chargeCredits(
+      userId,
+      PRICING.FINAL_DRAFT_SPARK,
+      'consume_final_draft_spark',
+      `final-draft ???? (workspace ${workspaceId})`
+    )
+    if (chargeRes) return chargeRes
 
     const context = bodyData?.context || ''
+    const modelRuns = await prisma.modelRun.findMany({ where: { workspaceId } })
 
-    const modelsSummary = workspace.modelRuns.map((run: any) => {
+    const modelsSummary = modelRuns.map((run: any) => {
       const content = run.content.length > 400 ? run.content.substring(0, 400) + '...' : run.content
       return `【${run.model}】：\n${content}`
     }).join('\n\n')
