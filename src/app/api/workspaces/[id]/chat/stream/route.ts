@@ -1,134 +1,84 @@
 import { NextRequest } from 'next/server'
-import { prisma } from '@/lib/db'
 import { streamChat } from '@/lib/llm-client'
-import { v4 as uuidv4 } from 'uuid'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth/auth'
+import { prisma } from '@/lib/db'
+import { consumeCredits, InsufficientCreditsError } from '@/lib/billing/credits'
+import { PRICING } from '@/lib/billing/pricing'
+import { insufficientCreditsResponse } from '@/lib/billing/errors'
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { message, referencedRunIds = [] } = await req.json()
-    if (!message) {
-      return new Response(JSON.stringify({ error: 'Message is required' }), { status: 400 })
+    const session = await getServerSession(authOptions)
+    const userId = (session?.user as any)?.id
+    if (!userId) return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 })
+
+    const workspaceId = params.id
+    const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId } })
+    if (!workspace || workspace.userId !== userId) {
+      return new Response(JSON.stringify({ error: 'not found' }), { status: 404 })
     }
+
+    let body
+    try { body = await req.json() } catch { return new Response(JSON.stringify({ error: 'invalid json' }), { status: 400 }) }
+
+    const { message, referencedRunIds = [] } = body || {}
+    if (typeof message !== 'string' || message.trim().length === 0) {
+      return new Response(JSON.stringify({ error: 'message required' }), { status: 400 })
+    }
+
+    try {
+      await consumeCredits(userId, PRICING.CHAT_STREAM, 'consume_chat_stream', 'chat stream')
+    } catch (e) {
+      if (e instanceof InsufficientCreditsError) return insufficientCreditsResponse(e)
+      throw e
+    }
+
+    const chatMessages = referencedRunIds.length > 0
+      ? await prisma.chatMessage.findMany({
+          where: { workspaceId },
+          orderBy: { createdAt: 'asc' },
+        })
+      : []
+
+    const filteredMessages = referencedRunIds.length > 0
+      ? chatMessages.filter(m => {
+          try {
+            const refs = JSON.parse(m.referencedRunIds || '[]')
+            return referencedRunIds.some((rid: string) => refs.includes(rid))
+          } catch { return false }
+        })
+      : []
 
     const encoder = new TextEncoder()
     const stream = new ReadableStream({
       async start(controller) {
         const sendEvent = (type: string, data: any) => {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type, ...data })}\n\n`))
+          controller.enqueue(encoder.encode('data: ' + JSON.stringify({ type, ...data }) + '\n\n'))
         }
-
-        const workspace = await prisma.workspace.findUnique({
-          where: { id: params.id },
-          include: {
-            modelRuns: { where: { status: 'completed' } },
-            chatMessages: { orderBy: { createdAt: 'desc' } },
-          },
-        })
-
-        if (!workspace) {
-          sendEvent('error', { message: 'Workspace not found' })
-          controller.close()
-          return
-        }
-
-        const userMessageCount = workspace.chatMessages.filter((m: any) => m.role === 'user').length
-
-        if (userMessageCount >= 4) {
-          sendEvent('limit', { message: '已达 4 轮对话上限，建议开新窗口' })
-          controller.close()
-          return
-        }
-
-        // 1. Save user message
-        await prisma.chatMessage.create({
-          data: {
-            id: uuidv4(),
-            workspaceId: workspace.id,
-            role: 'user',
-            content: message,
-            referencedRunIds: JSON.stringify(referencedRunIds),
-          },
-        })
-
-        // 2. Build prompt
-        const filteredRuns = referencedRunIds.length > 0
-          ? workspace.modelRuns.filter((r: { id: string }) => referencedRunIds.includes(r.id))
-          : workspace.modelRuns
-
-        const filteredChatRefs = referencedRunIds.length > 0
-          ? workspace.chatMessages.filter((m: { id: string, role: string }) => m.role === 'assistant' && referencedRunIds.includes(m.id))
-          : []
-
-        const runsContext = filteredRuns.map((r: { model: string; content: string }) => `【${r.model}】：\n${r.content}`).join('\n\n')
-        const chatRefsContext = filteredChatRefs.map((m: { content: string }, idx: number) => `【历史对话回答 ${idx + 1}】：\n${m.content}`).join('\n\n')
-        
-        const systemPrompt = `你是 Gambit 的对话助手。用户在多模型工作台中提问，下面是各 AI 卡片的回答和历史对话，基于这些内容回答用户的新问题。`
-        
-        let userContext = `【初始问题】：${workspace.prompt}\n\n`
-        if (runsContext || chatRefsContext) {
-          userContext += `【被引用的上下文回答】：\n${runsContext}\n${chatRefsContext}\n\n`
-        }
-
-        // Re-order messages to ascending
-        const history = workspace.chatMessages.reverse().map((m: any) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n\n')
-        if (history) {
-          userContext += `【历史对话】：\n${history}\n\n`
-        }
-
-        userContext += `【用户的新问题】：${message}`
-
-        // 3. Call LLM
-        // 这里根据需求写死使用 DeepSeek 进行独立对话
-        const targetProvider: 'qiniu' | 'volcano' | 'dmxapi' = 'qiniu'
-        const targetModelId = 'deepseek/deepseek-v3.2-251201'
-
-        let fullResponse = ''
-        const chatStream = streamChat({
-          provider: targetProvider,
-          model: targetModelId,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userContext }
-          ]
-        })
-
-        for await (const chunk of chatStream) {
-          if (chunk.type === 'token') {
-            fullResponse += chunk.data
-            sendEvent('delta', { text: chunk.data })
-          } else if (chunk.type === 'error') {
-            sendEvent('error', { message: chunk.data })
+        try {
+          const chatStream = streamChat({
+            provider: 'qiniu',
+            model: 'deepseek/deepseek-v3.2-251201',
+            messages: [
+              ...filteredMessages.map((m: any) => ({ role: m.role, content: m.content })),
+              { role: 'user', content: message }
+            ]
+          })
+          for await (const chunk of chatStream) {
+            if (chunk.type === 'token') sendEvent('delta', { text: chunk.data })
+            else if (chunk.type === 'error') sendEvent('error', { message: chunk.data })
           }
+        } catch {
+          sendEvent('error', { message: 'Stream error' })
         }
-
-        // 4. Save assistant message
-        const assistantMsgId = uuidv4()
-        await prisma.chatMessage.create({
-          data: {
-            id: assistantMsgId,
-            workspaceId: workspace.id,
-            role: 'assistant',
-            content: fullResponse,
-            // 我们可以在这里利用一个隐藏字段或拼接到content前面记录来源，
-            // 更好的方式是改变 schema 增加 sourceModel 字段。
-            // 但为了兼容，我们将模型名称作为发送方存储到某种标记里或暂时不用。
-          },
-        })
-
-        sendEvent('done', { messageId: assistantMsgId })
+        sendEvent('done', {})
         controller.close()
       }
     })
-
-    return new Response(stream, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-      },
-    })
-  } catch (err) {
-    console.error('[chat/stream]', err)
-    return new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500 })
+    return new Response(stream, { headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' } })
+  } catch (error) {
+    console.error('Stream API Error:', error)
+    return new Response('Internal error', { status: 500 })
   }
 }
