@@ -3,9 +3,9 @@ import { streamChat } from '@/lib/llm-client'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth/auth'
 import { prisma } from '@/lib/db'
-import { consumeCredits, InsufficientCreditsError } from '@/lib/billing/credits'
 import { PRICING } from '@/lib/billing/pricing'
-import { insufficientCreditsResponse } from '@/lib/billing/errors'
+import { chargeCredits } from '@/lib/billing/withCreditsCharge'
+import { assertWorkspaceOwnership, OwnershipError } from '@/lib/auth/ownership'
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -14,9 +14,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (!userId) return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 })
 
     const workspaceId = params.id
-    const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId } })
-    if (!workspace || workspace.userId !== userId) {
-      return new Response(JSON.stringify({ error: 'not found' }), { status: 404 })
+    try {
+      await assertWorkspaceOwnership(workspaceId, userId)
+    } catch (e) {
+      if (e instanceof OwnershipError) return new Response(JSON.stringify({ error: 'not found' }), { status: 404 })
+      throw e
     }
 
     let body
@@ -27,12 +29,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return new Response(JSON.stringify({ error: 'message required' }), { status: 400 })
     }
 
-    try {
-      await consumeCredits(userId, PRICING.CHAT_STREAM, 'consume_chat_stream', 'chat stream')
-    } catch (e) {
-      if (e instanceof InsufficientCreditsError) return insufficientCreditsResponse(e)
-      throw e
-    }
+    const chargeRes = await chargeCredits(userId, PRICING.CHAT_STREAM, 'consume_chat_stream', 'chat stream')
+    if (chargeRes) return chargeRes
 
     const chatMessages = referencedRunIds.length > 0
       ? await prisma.chatMessage.findMany({

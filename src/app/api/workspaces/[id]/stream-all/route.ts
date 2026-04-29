@@ -7,9 +7,11 @@ import { dbWrite } from '@/lib/db-queue'
 import { reportError } from '@/lib/track'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth/auth'
-import { consumeCredits, getBalance, InsufficientCreditsError } from '@/lib/billing/credits'
+import { getBalance, InsufficientCreditsError } from '@/lib/billing/credits'
 import { calcModelCallCost } from '@/lib/billing/pricing'
 import { insufficientCreditsResponse } from '@/lib/billing/errors'
+import { chargeCredits } from '@/lib/billing/withCreditsCharge'
+import { assertWorkspaceOwnership, OwnershipError } from '@/lib/auth/ownership'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300 // 防止 Vercel 等平台过早中断
@@ -54,18 +56,15 @@ export async function GET(
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
-  // ── 1. 并行读取 workspace 和 runs ──
-  const [workspace, allRuns] = await Promise.all([
-    prisma.workspace.findUnique({
-      where: { id: workspaceId },
-      select: { id: true, userId: true, prompt: true, status: true },
-    }),
-    prisma.modelRun.findMany({ where: { workspaceId } }),
-  ])
-
-  if (!workspace || workspace.userId !== userId) {
-    return NextResponse.json({ error: 'not found' }, { status: 404 })
+  // ── 1. 校验 workspace ownership，再读取 runs ──
+  let workspace
+  try {
+    workspace = await assertWorkspaceOwnership(workspaceId, userId)
+  } catch (e) {
+    if (e instanceof OwnershipError) return NextResponse.json({ error: 'not found' }, { status: 404 })
+    throw e
   }
+  const allRuns = await prisma.modelRun.findMany({ where: { workspaceId } })
 
   const probe = req.nextUrl.searchParams.get('probe')
   const billableRuns = allRuns.filter(
@@ -81,17 +80,13 @@ export async function GET(
   }
 
   if (cost > 0) {
-    try {
-      await consumeCredits(
-        userId,
-        cost,
-        'consume_model_call',
-        `多模型调用 ${billableRuns.length} 个模型 (workspace ${workspaceId})`
-      )
-    } catch (e) {
-      if (e instanceof InsufficientCreditsError) return insufficientCreditsResponse(e)
-      throw e
-    }
+    const chargeRes = await chargeCredits(
+      userId,
+      cost,
+      'consume_model_call',
+      `多模型调用 ${billableRuns.length} 个模型 (workspace ${workspaceId})`
+    )
+    if (chargeRes) return chargeRes
   }
 
   if (!workspace || !allRuns || allRuns.length === 0) {

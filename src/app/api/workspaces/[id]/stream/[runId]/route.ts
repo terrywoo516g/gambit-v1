@@ -2,10 +2,9 @@ import { NextRequest } from 'next/server'
 import { streamChat } from '@/lib/llm-client'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth/auth'
-import { prisma } from '@/lib/db'
-import { consumeCredits, InsufficientCreditsError } from '@/lib/billing/credits'
 import { PRICING } from '@/lib/billing/pricing'
-import { insufficientCreditsResponse } from '@/lib/billing/errors'
+import { chargeCredits } from '@/lib/billing/withCreditsCharge'
+import { assertModelRunOwnership, OwnershipError } from '@/lib/auth/ownership'
 
 export async function POST(req: NextRequest, { params }: { params: { id: string; runId: string } }) {
   try {
@@ -16,23 +15,24 @@ export async function POST(req: NextRequest, { params }: { params: { id: string;
     const workspaceId = params.id
     const runId = params.runId
 
-    const modelRun = await prisma.modelRun.findUnique({
-      where: { id: runId },
-      include: { workspace: true },
-    })
-
-    if (!modelRun || modelRun.workspace.userId !== userId || modelRun.workspaceId !== workspaceId) {
-      return new Response(JSON.stringify({ error: 'not found' }), { status: 404 })
-    }
-
+    let modelRun
+    let workspace
     try {
-      await consumeCredits(userId, PRICING.STREAM_SINGLE, 'consume_stream_single', 'stream single')
+      const ownership = await assertModelRunOwnership(runId, userId)
+      modelRun = ownership.modelRun
+      workspace = ownership.workspace
+      if (modelRun.workspaceId !== workspaceId) {
+        return new Response(JSON.stringify({ error: 'not found' }), { status: 404 })
+      }
     } catch (e) {
-      if (e instanceof InsufficientCreditsError) return insufficientCreditsResponse(e)
+      if (e instanceof OwnershipError) return new Response(JSON.stringify({ error: 'not found' }), { status: 404 })
       throw e
     }
 
-    const promptContent = modelRun.workspace.prompt || modelRun.content || ''
+    const chargeRes = await chargeCredits(userId, PRICING.STREAM_SINGLE, 'consume_stream_single', 'stream single')
+    if (chargeRes) return chargeRes
+
+    const promptContent = workspace.prompt || modelRun.content || ''
 
     const encoder = new TextEncoder()
     const stream = new ReadableStream({
