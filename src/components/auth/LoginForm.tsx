@@ -13,6 +13,7 @@ export default function LoginForm() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const nextUrl = safeNext(searchParams.get('next'))
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -29,10 +30,14 @@ export default function LoginForm() {
       setError('邮箱或密码错误')
       setLoading(false)
     } else {
-      const nextUrl = safeNext(searchParams.get('next'))
       router.push(nextUrl)
       router.refresh()
     }
+  }
+
+  const handleOAuthSignIn = (provider: 'google' | 'github') => {
+    setError('')
+    void signIn(provider, { callbackUrl: nextUrl })
   }
 
   return (
@@ -43,6 +48,27 @@ export default function LoginForm() {
           {error}
         </div>
       )}
+      <div className="space-y-3 mb-6">
+        <button
+          type="button"
+          onClick={() => handleOAuthSignIn('google')}
+          className="w-full py-2.5 px-4 border border-gray-200 text-ink font-medium rounded-lg hover:bg-gray-50 transition-colors"
+        >
+          使用 Google 登录
+        </button>
+        <button
+          type="button"
+          onClick={() => handleOAuthSignIn('github')}
+          className="w-full py-2.5 px-4 border border-gray-200 text-ink font-medium rounded-lg hover:bg-gray-50 transition-colors"
+        >
+          使用 GitHub 登录
+        </button>
+      </div>
+      <div className="mb-6 flex items-center gap-3 text-xs text-gray-400">
+        <div className="h-px flex-1 bg-gray-200" />
+        <span>或使用邮箱登录</span>
+        <div className="h-px flex-1 bg-gray-200" />
+      </div>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-ink mb-1.5">邮箱</label>
