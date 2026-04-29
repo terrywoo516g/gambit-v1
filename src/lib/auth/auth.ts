@@ -104,6 +104,12 @@ export const authOptions: NextAuthOptions = {
   },
   events: {
     async createUser({ user }) {
+      // 幂等：防止同邮箱绑定第二个 provider 时重复写 signup_bonus 流水。
+      const existing = await prisma.creditTransaction.findFirst({
+        where: { userId: user.id, type: 'signup_bonus' },
+      })
+      if (existing) return
+
       await prisma.creditTransaction.create({
         data: {
           userId: user.id,
