@@ -4,9 +4,9 @@ import { chatOnce } from '@/lib/llm-client'
 import { v4 as uuidv4 } from 'uuid'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth/auth'
-import { consumeCredits, InsufficientCreditsError } from '@/lib/billing/credits'
 import { PRICING } from '@/lib/billing/pricing'
-import { insufficientCreditsResponse } from '@/lib/billing/errors'
+import { chargeCredits } from '@/lib/billing/withCreditsCharge'
+import { assertSceneSessionOwnership, OwnershipError } from '@/lib/auth/ownership'
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,23 +22,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'sceneId required' }, { status: 400 })
     }
 
-    const scene = await prisma.sceneSession.findUnique({
-      where: { id: sceneId },
-      include: { workspace: true },
-    })
-
-    if (!scene || scene.workspace.userId !== userId) {
-      return NextResponse.json({ error: 'not found' }, { status: 404 })
-    }
-
+    let scene
+    let workspace
     try {
-      await consumeCredits(userId, PRICING.SCENE_GENERATE, 'consume_scene_generate', 'scene generate')
+      const ownership = await assertSceneSessionOwnership(sceneId, userId)
+      scene = ownership.session
+      workspace = ownership.workspace
     } catch (e) {
-      if (e instanceof InsufficientCreditsError) return insufficientCreditsResponse(e)
+      if (e instanceof OwnershipError) return NextResponse.json({ error: 'not found' }, { status: 404 })
       throw e
     }
 
-    const workspace = scene.workspace
+    const chargeRes = await chargeCredits(userId, PRICING.SCENE_GENERATE, 'consume_scene_generate', 'scene generate')
+    if (chargeRes) return chargeRes
+
     const selections = JSON.parse(scene.userSelections)
 
     if (scene.sceneType === 'brainstorm') {

@@ -4,9 +4,9 @@ import { prisma } from '@/lib/db'
 import { buildReflectionPrompt } from '@/lib/reflection/prompt'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth/auth'
-import { consumeCredits, InsufficientCreditsError } from '@/lib/billing/credits'
 import { PRICING } from '@/lib/billing/pricing'
-import { insufficientCreditsResponse } from '@/lib/billing/errors'
+import { chargeCredits } from '@/lib/billing/withCreditsCharge'
+import { assertWorkspaceOwnershipWithInclude, OwnershipError } from '@/lib/auth/ownership'
 
 export async function POST(
   req: NextRequest,
@@ -24,26 +24,21 @@ export async function POST(
       return NextResponse.json({ error: 'INVALID_WORKSPACE_ID' }, { status: 400 })
     }
 
-    const workspace = await prisma.workspace.findUnique({
-      where: { id: wsId },
-      include: { modelRuns: true }
-    })
-
-    if (!workspace || workspace.userId !== userId) {
-      return NextResponse.json({ error: 'WORKSPACE_NOT_FOUND' }, { status: 404 })
-    }
-
+    let workspace
     try {
-      await consumeCredits(
-        userId,
-        PRICING.REFLECTION,
-        'consume_reflection',
-        `reflection 四维分析 (workspace ${wsId})`
-      )
+      workspace = await assertWorkspaceOwnershipWithInclude(wsId, userId, { modelRuns: true })
     } catch (e) {
-      if (e instanceof InsufficientCreditsError) return insufficientCreditsResponse(e)
+      if (e instanceof OwnershipError) return NextResponse.json({ error: 'WORKSPACE_NOT_FOUND' }, { status: 404 })
       throw e
     }
+
+    const chargeRes = await chargeCredits(
+      userId,
+      PRICING.REFLECTION,
+      'consume_reflection',
+      `reflection 四维分析 (workspace ${wsId})`
+    )
+    if (chargeRes) return chargeRes
 
     const validAnswers = workspace.modelRuns
       .filter((r: any) => r.content && r.content.trim().length > 0)

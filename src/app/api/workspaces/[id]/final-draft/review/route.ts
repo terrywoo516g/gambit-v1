@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { chatOnce } from '@/lib/llm-client'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth/auth'
-import { prisma } from '@/lib/db'
-import { consumeCredits, InsufficientCreditsError } from '@/lib/billing/credits'
 import { PRICING } from '@/lib/billing/pricing'
-import { insufficientCreditsResponse } from '@/lib/billing/errors'
+import { chargeCredits } from '@/lib/billing/withCreditsCharge'
+import { assertWorkspaceOwnership, OwnershipError } from '@/lib/auth/ownership'
 
 export async function POST(req: NextRequest) {
   try {
@@ -28,27 +27,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'workspaceId required' }, { status: 400 })
     }
 
-    const workspace = await prisma.workspace.findUnique({
-      where: { id: workspaceId }
-    })
-    if (!workspace || workspace.userId !== userId) {
-      return NextResponse.json({ error: 'not found' }, { status: 404 })
-    }
-
     try {
-      await consumeCredits(
-        userId,
-        PRICING.FINAL_DRAFT_REVIEW,
-        'consume_final_draft_review',
-        `final-draft review (workspace ${workspaceId})`
-      )
+      await assertWorkspaceOwnership(workspaceId, userId)
     } catch (e) {
-      if (e instanceof InsufficientCreditsError) return insufficientCreditsResponse(e)
+      if (e instanceof OwnershipError) return NextResponse.json({ error: 'not found' }, { status: 404 })
       throw e
     }
 
+    const chargeRes = await chargeCredits(
+      userId,
+      PRICING.FINAL_DRAFT_REVIEW,
+      'consume_final_draft_review',
+      `final-draft review (workspace ${workspaceId})`
+    )
+    if (chargeRes) return chargeRes
+
     const models = [
-      { id: 'deepseek/deepseek-v3.2-25120', name: 'DeepSeek V3.2' },     
+      { id: 'deepseek/deepseek-v3.2-251201', name: 'DeepSeek V3.2' },     
       { id: 'MiniMax-M1', name: 'MiniMax M1' },
       { id: 'qwen3-max', name: 'Qwen3 Max' }
     ]

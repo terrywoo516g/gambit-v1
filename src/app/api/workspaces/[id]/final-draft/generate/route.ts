@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
 import { streamChat } from '@/lib/llm-client'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth/auth'
-import { consumeCredits, InsufficientCreditsError } from '@/lib/billing/credits'
 import { PRICING } from '@/lib/billing/pricing'
-import { insufficientCreditsResponse } from '@/lib/billing/errors'
+import { chargeCredits } from '@/lib/billing/withCreditsCharge'
+import { assertWorkspaceOwnershipWithInclude, OwnershipError } from '@/lib/auth/ownership'
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   try {
@@ -16,42 +15,37 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     const { instruction, mode, selectedBlockIds } = await req.json()
     const workspaceId = params.id
 
-    const workspace = await prisma.workspace.findUnique({
-      where: { id: workspaceId },
-      include: {
+    let workspace
+    try {
+      workspace = await assertWorkspaceOwnershipWithInclude(workspaceId, userId, {
         chatMessages: {
           orderBy: { createdAt: 'desc' },
-          take: 10
+          take: 10,
         },
         finalDraftBlocks: {
-          orderBy: { order: 'asc' }
+          orderBy: { order: 'asc' },
         },
         sceneSessions: {
           include: {
             finalDrafts: {
               orderBy: { createdAt: 'desc' },
-              take: 1
-            }
-          }
-        }
-      }
-    })
-
-    if (!workspace || workspace.userId !== userId) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 })
-    }
-
-    try {
-      await consumeCredits(
-        userId,
-        PRICING.FINAL_DRAFT,
-        'consume_final_draft',
-        `综合文稿生成 (workspace ${workspaceId})`
-      )
+              take: 1,
+            },
+          },
+        },
+      })
     } catch (e) {
-      if (e instanceof InsufficientCreditsError) return insufficientCreditsResponse(e)
+      if (e instanceof OwnershipError) return NextResponse.json({ error: 'Not found' }, { status: 404 })
       throw e
     }
+
+    const chargeRes = await chargeCredits(
+      userId,
+      PRICING.FINAL_DRAFT,
+      'consume_final_draft',
+      `综合文稿生成 (workspace ${workspaceId})`
+    )
+    if (chargeRes) return chargeRes
 
     const chatHistory = workspace.chatMessages.reverse().map((m: any) => `${m.role === 'user' ? '用户' : 'AI'}：${m.content}`).join('\n')
     

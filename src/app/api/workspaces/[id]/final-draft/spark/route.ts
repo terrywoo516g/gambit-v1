@@ -78,7 +78,7 @@ ${context || '（无）'}
 
     const res = await chatOnce({
       provider: 'qiniu',
-      model: 'deepseek/deepseek-v3.2-25120',
+      model: 'deepseek/deepseek-v3.2-251201',
       messages: [
         { role: 'user', content: prompt }
       ]

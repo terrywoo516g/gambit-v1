@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
 
         const chatStream = streamChat({
           provider: 'qiniu',
-          model: 'deepseek/deepseek-v3.2-25120',
+          model: 'deepseek/deepseek-v3.2-251201',
           messages: [
             { role: 'system', content: '你是专业的文本润色助手。只输出润色后的内容，不包含多余废话。' },
             { role: 'user', content: prompt }

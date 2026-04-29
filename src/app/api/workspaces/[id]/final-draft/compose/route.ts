@@ -3,9 +3,9 @@ import { prisma } from '@/lib/db'
 import { streamChat } from '@/lib/llm-client'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth/auth'
-import { consumeCredits, InsufficientCreditsError } from '@/lib/billing/credits'
 import { PRICING } from '@/lib/billing/pricing'
-import { insufficientCreditsResponse } from '@/lib/billing/errors'
+import { chargeCredits } from '@/lib/billing/withCreditsCharge'
+import { assertWorkspaceOwnership, OwnershipError } from '@/lib/auth/ownership'
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -15,11 +15,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     const workspaceId = params.id
 
-    const workspace = await prisma.workspace.findUnique({
-      where: { id: workspaceId }
-    })
-    if (!workspace || workspace.userId !== userId) {
-      return new Response(JSON.stringify({ error: 'not found' }), { status: 404 })
+    try {
+      await assertWorkspaceOwnership(workspaceId, userId)
+    } catch (e) {
+      if (e instanceof OwnershipError) return new Response(JSON.stringify({ error: 'not found' }), { status: 404 })
+      throw e
     }
 
     let body
@@ -35,17 +35,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return new Response(JSON.stringify({ error: 'No blocks selected' }), { status: 400 })
     }
 
-    try {
-      await consumeCredits(
-        userId,
-        PRICING.FINAL_DRAFT_COMPOSE,
-        'consume_final_draft_compose',
-        `final-draft 综合拼装 (workspace ${workspaceId})`
-      )
-    } catch (e) {
-      if (e instanceof InsufficientCreditsError) return insufficientCreditsResponse(e)
-      throw e
-    }
+    const chargeRes = await chargeCredits(
+      userId,
+      PRICING.FINAL_DRAFT_COMPOSE,
+      'consume_final_draft_compose',
+      `final-draft 综合拼装 (workspace ${workspaceId})`
+    )
+    if (chargeRes) return chargeRes
 
     const blocks = await prisma.finalDraftBlock.findMany({
       where: { workspaceId: params.id, id: { in: blockIds } },
