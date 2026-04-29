@@ -7,14 +7,20 @@ export async function middleware(request: NextRequest) {
     req: request,
     secret: process.env.NEXTAUTH_SECRET,
   })
-  
+
   if (!token) {
+    const pathname = request.nextUrl.pathname
+
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+
     const loginUrl = new URL('/login', request.url)
-    const fullPath = request.nextUrl.pathname + request.nextUrl.search
+    const fullPath = pathname + request.nextUrl.search
     loginUrl.searchParams.set('next', fullPath)
     return NextResponse.redirect(loginUrl)
   }
-  
+
   return NextResponse.next()
 }
 
