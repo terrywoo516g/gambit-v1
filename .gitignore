@@ -53,3 +53,15 @@ github_key.pub
 .env.bak
 .env.local.backup
 .env.*.backup
+
+# ??????????????
+/verify_*.sh
+/fix_*.sh
+/audit_*.sh
+/audit-*.sh
+/commit_*.sh
+/test_*.sh
+/quick_test.sh
+/final_test.sh
+/diagnose_*.sh
+/delete_regress.sh
