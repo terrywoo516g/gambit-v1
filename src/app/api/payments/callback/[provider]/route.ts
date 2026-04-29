@@ -1,42 +1,62 @@
 import { prisma } from '@/lib/db'
-import { getProvider } from '@/lib/payment/registry'
+import { getPaymentProvider } from '@/lib/payments'
+
+function textResponse(body: string, status = 200) {
+  return new Response(body, {
+    status,
+    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+  })
+}
+
+async function parseCallbackBody(req: Request, providerName: string): Promise<Record<string, string>> {
+  if (providerName === 'huipijiao') {
+    const form = await req.formData()
+    const body: Record<string, string> = {}
+    form.forEach((value, key) => {
+      body[key] = String(value)
+    })
+    return body
+  }
+
+  const json = await req.json()
+  const body: Record<string, string> = {}
+  for (const [key, value] of Object.entries(json || {})) {
+    body[key] = String(value)
+  }
+  return body
+}
 
 export async function POST(
   req: Request,
   { params }: { params: { provider: string } }
 ) {
-  if (params.provider === 'mock' && process.env.PAYMENT_PROVIDER !== 'mock') {
-    return new Response('not found', { status: 404 })
-  }
-
-  let providerInstance
+  const providerName = params.provider
+  let provider
   try {
-    providerInstance = getProvider(params.provider)
+    provider = getPaymentProvider(providerName)
   } catch {
-    return new Response('unknown provider', { status: 404 })
+    return textResponse('fail', providerName === 'huipijiao' ? 503 : 404)
   }
 
-  const body = await req.text()
-
-  let verified
+  let body: Record<string, string>
   try {
-    verified = await providerInstance.verifyCallback(req.headers, body)
+    body = await parseCallbackBody(req, provider.name)
   } catch {
-    return new Response('verify failed', { status: 400 })
-  }
-  if (!verified.valid) return new Response('invalid signature', { status: 400 })
-
-  const order = await prisma.order.findUnique({
-    where: { id: verified.orderId },
-  })
-  if (!order) return new Response('order not found', { status: 404 })
-
-  if (order.amountCents !== verified.amountCents) {
-    return new Response('amount mismatch', { status: 400 })
+    return textResponse('fail', 400)
   }
 
-  if (order.status === 'paid') {
-    return new Response(providerInstance.ackResponse(), { status: 200 })
+  const verified = await provider.verifyCallback({ body })
+  if (!verified.ok || !verified.orderId || !verified.amountCents) {
+    return textResponse('fail', 400)
+  }
+
+  const order = await prisma.order.findUnique({ where: { id: verified.orderId } })
+  if (!order) return textResponse('fail', 400)
+  if (order.provider !== provider.name) return textResponse('fail', 400)
+  if (order.amountCents !== verified.amountCents) return textResponse('fail', 400)
+
+  if (order.status !== 'pending') {
+    return textResponse(provider.successResponseText())
   }
 
   await prisma.$transaction(async (tx) => {
@@ -44,7 +64,7 @@ export async function POST(
       where: { id: order.id, status: 'pending' },
       data: {
         status: 'paid',
-        paidAt: verified.paidAt,
+        paidAt: new Date(),
         providerOrderId: verified.providerOrderId,
       },
     })
@@ -64,6 +84,5 @@ export async function POST(
     })
   })
 
-  return new Response(providerInstance.ackResponse(), { status: 200 })
+  return textResponse(provider.successResponseText())
 }
-

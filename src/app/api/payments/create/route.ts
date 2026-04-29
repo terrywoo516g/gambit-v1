@@ -3,9 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth/auth'
 import { prisma } from '@/lib/db'
 import { getTier } from '@/lib/payment/tiers'
-import { getProvider } from '@/lib/payment/registry'
-
-const DEFAULT_PROVIDER = process.env.PAYMENT_PROVIDER || 'mock'
+import { getPaymentProvider } from '@/lib/payments'
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
@@ -19,17 +17,26 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'invalid body' }, { status: 400 })
   }
 
-  const tier = getTier(body.tierId)
-  if (!tier) return NextResponse.json({ error: 'invalid tier' }, { status: 400 })
+  const tier = body.tierId ? getTier(body.tierId) : undefined
+  const amountCents = tier?.amountCents ?? Number(body.amountCents)
+  const credits = tier?.credits ?? Number(body.credits)
+  const tierId = tier?.id ?? 'custom'
+  const description = String(body.description || (tier ? `Gambit 积分充值 ${tier.label}` : 'Gambit 积分充值'))
 
+  if (!Number.isInteger(amountCents) || amountCents <= 0 || !Number.isInteger(credits) || credits <= 0) {
+    return NextResponse.json({ error: 'invalid payment params' }, { status: 400 })
+  }
+
+  const providerName = process.env.PAYMENT_PROVIDER || 'mock'
+  const provider = getPaymentProvider(providerName)
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000)
   const order = await prisma.order.create({
     data: {
       userId,
-      amountCents: tier.amountCents,
-      credits: tier.credits,
-      tier: tier.id,
-      provider: DEFAULT_PROVIDER,
+      amountCents,
+      credits,
+      tier: tierId,
+      provider: provider.name,
       status: 'pending',
       expiresAt,
     },
@@ -38,32 +45,34 @@ export async function POST(req: Request) {
   const baseUrl = process.env.NEXTAUTH_URL || 'https://gambits.top'
 
   try {
-    const provider = getProvider(DEFAULT_PROVIDER)
-    const result = await provider.createOrder({
+    const result = await provider.createPayment({
       orderId: order.id,
-      amountCents: tier.amountCents,
-      description: `Gambit 积分充值 ${tier.label}`,
-      notifyUrl: `${baseUrl}/api/payments/callback/${DEFAULT_PROVIDER}`,
+      amountCents,
+      description,
+      userId,
+      notifyUrl: `${baseUrl}/api/payments/callback/${provider.name}`,
+      returnUrl: `${baseUrl}/recharge?paid=1`,
     })
 
     const updated = await prisma.order.update({
       where: { id: order.id },
       data: {
         providerOrderId: result.providerOrderId,
-        qrCodeUrl: result.qrCodeUrl,
-        expiresAt: result.expiresAt,
-        metadata: result.metadata ? JSON.stringify(result.metadata) : null,
+        qrCodeUrl: result.payUrl,
+        metadata: result.raw ? JSON.stringify(result.raw) : null,
       },
     })
 
     return NextResponse.json({
       orderId: updated.id,
+      payUrl: result.payUrl,
       qrCodeUrl: updated.qrCodeUrl,
       amountCents: updated.amountCents,
       credits: updated.credits,
       expiresAt: updated.expiresAt,
     })
-  } catch {
+  } catch (error) {
+    console.error('create payment failed', error)
     await prisma.order.update({
       where: { id: order.id },
       data: { status: 'failed' },
@@ -71,4 +80,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'create order failed' }, { status: 500 })
   }
 }
-
