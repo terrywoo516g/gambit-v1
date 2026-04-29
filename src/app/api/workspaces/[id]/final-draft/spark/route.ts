@@ -2,16 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { chatOnce } from '@/lib/llm-client'
 import { prisma } from '@/lib/db'
 import { v4 as uuidv4 } from 'uuid'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth/auth'
+import { consumeCredits, InsufficientCreditsError } from '@/lib/billing/credits'
+import { PRICING } from '@/lib/billing/pricing'
+import { insufficientCreditsResponse } from '@/lib/billing/errors'
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const workspaceId = params.id
-    let bodyData: any = null
-    try {
-      bodyData = await req.json()
-    } catch {}
+    const session = await getServerSession(authOptions)
+    const userId = (session?.user as any)?.id
+    if (!userId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
-    const context = bodyData?.context || ''
+    const workspaceId = params.id
 
     const workspace = await prisma.workspace.findUnique({
       where: { id: workspaceId },
@@ -20,9 +23,28 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       }
     })
 
-    if (!workspace) {
+    if (!workspace || workspace.userId !== userId) {
       return NextResponse.json({ error: 'Workspace not found' }, { status: 404 })
     }
+
+    let bodyData: any = null
+    try {
+      bodyData = await req.json()
+    } catch {}
+
+    try {
+      await consumeCredits(
+        userId,
+        PRICING.FINAL_DRAFT_SPARK,
+        'consume_final_draft_spark',
+        `final-draft 灵感激发 (workspace ${workspaceId})`
+      )
+    } catch (e) {
+      if (e instanceof InsufficientCreditsError) return insufficientCreditsResponse(e)
+      throw e
+    }
+
+    const context = bodyData?.context || ''
 
     const modelsSummary = workspace.modelRuns.map((run: any) => {
       const content = run.content.length > 400 ? run.content.substring(0, 400) + '...' : run.content
@@ -62,7 +84,7 @@ ${context || '（无）'}
 
     const res = await chatOnce({
       provider: 'qiniu',
-      model: 'deepseek/deepseek-v3.2-251201',
+      model: 'deepseek/deepseek-v3.2-25120',
       messages: [
         { role: 'user', content: prompt }
       ]

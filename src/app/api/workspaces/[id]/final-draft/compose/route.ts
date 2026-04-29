@@ -1,13 +1,50 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { streamChat } from '@/lib/llm-client'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth/auth'
+import { consumeCredits, InsufficientCreditsError } from '@/lib/billing/credits'
+import { PRICING } from '@/lib/billing/pricing'
+import { insufficientCreditsResponse } from '@/lib/billing/errors'
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { blockIds, instruction = '' } = await req.json()
-    
-    if (!blockIds || blockIds.length === 0) {
+    const session = await getServerSession(authOptions)
+    const userId = (session?.user as any)?.id
+    if (!userId) return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 })
+
+    const workspaceId = params.id
+
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId }
+    })
+    if (!workspace || workspace.userId !== userId) {
+      return new Response(JSON.stringify({ error: 'not found' }), { status: 404 })
+    }
+
+    let body
+    try {
+      body = await req.json()
+    } catch {
+      return new Response(JSON.stringify({ error: 'invalid json' }), { status: 400 })
+    }
+
+    const { blockIds, instruction = '' } = body || {}
+
+    if (!blockIds || !Array.isArray(blockIds) || blockIds.length === 0) {
       return new Response(JSON.stringify({ error: 'No blocks selected' }), { status: 400 })
+    }
+
+    try {
+      await consumeCredits(
+        userId,
+        PRICING.FINAL_DRAFT_COMPOSE,
+        'consume_final_draft_compose',
+        `final-draft 综合拼装 (workspace ${workspaceId})`
+      )
+    } catch (e) {
+      if (e instanceof InsufficientCreditsError) return insufficientCreditsResponse(e)
+      throw e
     }
 
     const blocks = await prisma.finalDraftBlock.findMany({
