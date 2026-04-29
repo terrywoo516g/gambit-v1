@@ -1,0 +1,84 @@
+{
+  "reportId": "04bda8fe-faaa-4294-a6c1-52187f0bdc4d",
+  "reportUrl": "https://gambits.top/report/04bda8fe-faaa-4294-a6c1-52187f0bdc4d",
+  "customizeUrl": "https://gambits.top/report/04bda8fe-faaa-4294-a6c1-52187f0bdc4d/customize",
+  "picked": {
+    "id": "04bda8fe-faaa-4294-a6c1-52187f0bdc4d",
+    "textLen": 1306,
+    "hasCode": false,
+    "hasTable": false,
+    "estimatedPages": 4
+  },
+  "pdfAPath": "/workspace/regress-f/artifacts/pdf_a.pdf",
+  "pdfBPath": "/workspace/regress-f/artifacts/pdf_b.pdf",
+  "pdfBCustomizePath": "/workspace/regress-f/artifacts/pdf_b_customize.pdf",
+  "pages": {
+    "a": 4,
+    "b": 4
+  },
+  "bTimesMs": [
+    2941,
+    2259,
+    2213
+  ],
+  "bAvgMs": 2471,
+  "consoleErrors": [],
+  "networkFailures": [
+    {
+      "url": "https://gambits.top/register?_rsc=1obve",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://gambits.top/?_rsc=urzlp",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://gambits.top/?_rsc=1p60s",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://gambits.top/mascot.png",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://gambits.top/workspace/1c4d03f6-a092-4db1-b543-e4102e5fb2f1?_rsc=5xood",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://gambits.top/workspace/a8d644fa-ab43-42fe-831c-92a8fc3a8b46?_rsc=5xood",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://gambits.top/workspace/334c7e8b-5886-4b38-b184-fbd939c43a02?_rsc=5xood",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://gambits.top/workspace/04bda8fe-faaa-4294-a6c1-52187f0bdc4d?_rsc=5xood",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://gambits.top/?_rsc=5xood",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://gambits.top/workspace/334c7e8b-5886-4b38-b184-fbd939c43a02?_rsc=p1dzb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://gambits.top/workspace/a8d644fa-ab43-42fe-831c-92a8fc3a8b46?_rsc=1f4yc",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://gambits.top/report/04bda8fe-faaa-4294-a6c1-52187f0bdc4d?_rsc=j5km0",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://gambits.top/workspace/04bda8fe-faaa-4294-a6c1-52187f0bdc4d?_rsc=kmsug",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://gambits.top/report/04bda8fe-faaa-4294-a6c1-52187f0bdc4d?_rsc=j5km0",
+      "failure": "net::ERR_ABORTED"
+    }
+  ]
+}
