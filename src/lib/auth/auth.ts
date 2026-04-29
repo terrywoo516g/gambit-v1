@@ -119,5 +119,17 @@ export const authOptions: NextAuthOptions = {
         },
       })
     },
+    async linkAccount({ user, account }) {
+      // OAuth provider 已校验 email，回填避免邮箱验证功能上线后误锁。
+      if (account.provider === 'google' || account.provider === 'github') {
+        const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
+        if (dbUser && !dbUser.emailVerified) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { emailVerified: new Date() },
+          })
+        }
+      }
+    },
   },
 }
